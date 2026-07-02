@@ -23,7 +23,7 @@ This script:
 - Builds frontend with `/cvbuilder/` base path
 - Starts `cvbuilder-backend` on port **8001**
 - Updates nginx so JAMS stays at `/` and CV Builder at `/cvbuilder/`
-- Reuses existing **Ollama** (same `qwen2.5:1.5b`)
+- Reuses existing **Ollama** (same `qwen2.5:7b`)
 
 ### After code update
 
@@ -89,7 +89,7 @@ sudo nano /opt/cvbuilder/.env
 
 ```env
 CVBUILDER_CORS_ORIGINS=http://203.0.113.10
-OLLAMA_MODEL=qwen2.5:1.5b
+OLLAMA_MODEL=qwen2.5:7b
 ```
 
 ```bash
@@ -152,7 +152,7 @@ sudo systemctl restart cvbuilder-backend
 | Problem | Fix |
 |--------|-----|
 | 502 Bad Gateway | `sudo journalctl -u cvbuilder-backend -f` |
-| AI slow / fails | `ollama list` — `qwen2.5:1.5b` pulled hona chahiye |
+| AI slow / fails | `ollama list` — `qwen2.5:7b` pulled hona chahiye |
 | CORS error | `.env` mein `CVBUILDER_CORS_ORIGINS` sahi domain/IP |
 | Frontend blank | `ls /opt/cvbuilder/frontend/dist` — rebuild karein |
 

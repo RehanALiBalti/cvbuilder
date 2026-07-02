@@ -81,7 +81,7 @@ systemctl reload nginx
 
 # Ollama model (shared with JAMS)
 if command -v ollama &>/dev/null; then
-  ollama pull qwen2.5:1.5b 2>/dev/null || true
+  ollama pull qwen2.5:7b 2>/dev/null || true
 fi
 
 echo ""

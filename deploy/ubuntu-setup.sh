@@ -74,7 +74,7 @@ nginx -t
 echo "==> Pull Ollama model (may take a few minutes)"
 systemctl enable ollama 2>/dev/null || true
 systemctl start ollama 2>/dev/null || true
-ollama pull qwen2.5:1.5b || true
+ollama pull qwen2.5:7b || true
 
 echo ""
 echo "Done. Next steps:"

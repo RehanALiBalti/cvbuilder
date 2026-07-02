@@ -246,7 +246,7 @@ export default function App() {
           <div>
             <h1>AI CV Builder</h1>
             <p className="muted">
-              Powered by Ollama {health?.ollama_model || "qwen2.5:1.5b"}
+              Powered by Ollama {health?.ollama_model || "qwen2.5:7b"}
               {health?.ollama?.model_available === false && " (model not pulled)"}
             </p>
           </div>

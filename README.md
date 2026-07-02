@@ -1,6 +1,6 @@
 # AI CV Builder
 
-Standalone AI-powered professional CV builder using **Ollama Qwen** (`qwen2.5:1.5b`).
+Standalone AI-powered professional CV builder using **Ollama Qwen** (`qwen2.5:7b`).
 
 ## Project Structure
 
@@ -23,7 +23,7 @@ cvbuilder/
 ### 1. Ollama
 
 ```powershell
-ollama pull qwen2.5:1.5b
+ollama pull qwen2.5:7b
 ollama serve
 ```
 
@@ -53,7 +53,7 @@ UI: **http://localhost:5174**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OLLAMA_MODEL` | `qwen2.5:1.5b` | Ollama model name |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model name |
 | `OLLAMA_URL` | `http://localhost:11434/api/generate` | Ollama API |
 | `CVBUILDER_PORT` | `8001` | API port |
 | `CVBUILDER_DATA_DIR` | `data` | CV storage directory |
