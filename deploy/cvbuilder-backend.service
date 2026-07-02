@@ -1,0 +1,19 @@
+[Unit]
+Description=AI CV Builder Backend (FastAPI)
+After=network-online.target ollama.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/cvbuilder
+EnvironmentFile=-/opt/cvbuilder/.env
+Environment=HOME=/opt/cvbuilder/.home
+ExecStart=/opt/cvbuilder/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

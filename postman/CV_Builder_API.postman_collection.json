@@ -1,0 +1,490 @@
+{
+  "info": {
+    "_postman_id": "cvbuilder-api-collection",
+    "name": "AI CV Builder API",
+    "description": "Postman collection for AI CV Builder (Ollama Qwen).\n\nBase URL default: http://127.0.0.1:8001\n\nWorkflow:\n1. Health Check\n2. Create CV → cv_id auto-saved\n3. Use AI endpoints or update CV\n4. Export PDF/DOCX",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8001",
+      "type": "string"
+    },
+    {
+      "key": "cv_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "version_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Templates",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Check API status and Ollama Qwen model availability."
+          },
+          "response": []
+        },
+        {
+          "name": "List Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/templates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "templates"]
+            },
+            "description": "Get all CV templates (professional, modern, executive, minimal, fresh_graduate)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "CV Management",
+      "item": [
+        {
+          "name": "List CVs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs"]
+            },
+            "description": "List all saved CVs."
+          },
+          "response": []
+        },
+        {
+          "name": "Create CV",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.cv && json.cv.id) {",
+                  "        pm.collectionVariables.set('cv_id', json.cv.id);",
+                  "        console.log('cv_id saved:', json.cv.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Professional CV\",\n  \"template_id\": \"professional\",\n  \"tone\": \"professional\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"+92 300 1234567\",\n      \"location\": \"Lahore, Pakistan\",\n      \"linkedin\": \"linkedin.com/in/alikhan\",\n      \"website\": \"\",\n      \"github\": \"github.com/alikhan\"\n    },\n    \"summary\": \"Software engineer with 5+ years experience in Python and React.\",\n    \"experience\": [\n      {\n        \"company\": \"Tech Corp\",\n        \"role\": \"Senior Developer\",\n        \"location\": \"Lahore\",\n        \"start_date\": \"2021-01\",\n        \"end_date\": \"\",\n        \"current\": true,\n        \"bullets\": [\n          \"Built REST APIs with FastAPI serving 10k+ daily users\",\n          \"Led migration to microservices architecture\"\n        ]\n      }\n    ],\n    \"education\": [\n      {\n        \"institution\": \"University of Punjab\",\n        \"degree\": \"BS\",\n        \"field\": \"Computer Science\",\n        \"start_date\": \"2015\",\n        \"end_date\": \"2019\",\n        \"gpa\": \"3.6\",\n        \"highlights\": []\n      }\n    ],\n    \"projects\": [],\n    \"skills\": [\"Python\", \"FastAPI\", \"React\", \"PostgreSQL\", \"Docker\"],\n    \"certifications\": [],\n    \"languages\": [\"English\", \"Urdu\"],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cvs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs"]
+            },
+            "description": "Create a new CV. Response cv.id is auto-saved to {{cv_id}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Get CV by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}"]
+            },
+            "description": "Get full CV document by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update CV",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Updated CV\",\n  \"template_id\": \"modern\",\n  \"tone\": \"modern\",\n  \"save_version\": true,\n  \"version_label\": \"Before template change\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Senior Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"+92 300 1234567\",\n      \"location\": \"Lahore, Pakistan\",\n      \"linkedin\": \"linkedin.com/in/alikhan\",\n      \"website\": \"\",\n      \"github\": \"github.com/alikhan\"\n    },\n    \"summary\": \"Senior software engineer specializing in backend systems and AI integrations.\",\n    \"experience\": [\n      {\n        \"company\": \"Tech Corp\",\n        \"role\": \"Senior Developer\",\n        \"location\": \"Lahore\",\n        \"start_date\": \"2021-01\",\n        \"end_date\": \"\",\n        \"current\": true,\n        \"bullets\": [\n          \"Built REST APIs with FastAPI serving 10k+ daily users\",\n          \"Integrated Ollama LLM for document intelligence features\"\n        ]\n      }\n    ],\n    \"education\": [\n      {\n        \"institution\": \"University of Punjab\",\n        \"degree\": \"BS\",\n        \"field\": \"Computer Science\",\n        \"start_date\": \"2015\",\n        \"end_date\": \"2019\",\n        \"gpa\": \"3.6\",\n        \"highlights\": []\n      }\n    ],\n    \"projects\": [],\n    \"skills\": [\"Python\", \"FastAPI\", \"React\", \"LangChain\", \"Docker\"],\n    \"certifications\": [\"AWS Cloud Practitioner\"],\n    \"languages\": [\"English\", \"Urdu\"],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}"]
+            },
+            "description": "Update CV. Set save_version=true to create a version snapshot."
+          },
+          "response": []
+        },
+        {
+          "name": "Rename CV",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ali Khan - Software Engineer CV\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}/rename",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}", "rename"]
+            },
+            "description": "Rename an existing CV."
+          },
+          "response": []
+        },
+        {
+          "name": "Duplicate CV",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.cv && json.cv.id) {",
+                  "        pm.collectionVariables.set('cv_id', json.cv.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}/duplicate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}", "duplicate"]
+            },
+            "description": "Duplicate CV. New cv_id is auto-saved."
+          },
+          "response": []
+        },
+        {
+          "name": "List Versions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.versions && json.versions.length > 0) {",
+                  "        pm.collectionVariables.set('version_id', json.versions[0].id);",
+                  "        console.log('version_id saved:', json.versions[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}/versions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}", "versions"]
+            },
+            "description": "List version history. Latest version_id auto-saved."
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Version",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}/versions/{{version_id}}/restore",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}", "versions", "{{version_id}}", "restore"]
+            },
+            "description": "Restore CV to a previous version."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete CV",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}"]
+            },
+            "description": "Permanently delete a CV."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Export",
+      "item": [
+        {
+          "name": "Export PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}/export/pdf",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}", "export", "pdf"]
+            },
+            "description": "Download CV as PDF. Requires: pip install reportlab"
+          },
+          "response": []
+        },
+        {
+          "name": "Export DOCX",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cvs/{{cv_id}}/export/docx",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cvs", "{{cv_id}}", "export", "docx"]
+            },
+            "description": "Download CV as DOCX. Requires: pip install python-docx"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI Assistant",
+      "item": [
+        {
+          "name": "AI Generate Full CV",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"raw_input\": \"Ali Khan, software engineer from Lahore. 5 years Python, FastAPI, React experience. Worked at Tech Corp as senior developer. BS Computer Science from University of Punjab 2019. Skills: Python, Docker, PostgreSQL, LangChain, REST APIs.\",\n  \"tone\": \"professional\",\n  \"target_role\": \"Senior Software Engineer\",\n  \"industry\": \"Technology\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/generate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "generate"]
+            },
+            "description": "Generate complete CV JSON from raw background text using Qwen."
+          },
+          "response": []
+        },
+        {
+          "name": "AI Regenerate Section",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"section\": \"summary\",\n  \"tone\": \"professional\",\n  \"instructions\": \"Make it more achievement-focused with metrics\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"+92 300 1234567\",\n      \"location\": \"Lahore, Pakistan\",\n      \"linkedin\": \"\",\n      \"website\": \"\",\n      \"github\": \"\"\n    },\n    \"summary\": \"Software engineer with Python experience.\",\n    \"experience\": [],\n    \"education\": [],\n    \"projects\": [],\n    \"skills\": [\"Python\", \"FastAPI\"],\n    \"certifications\": [],\n    \"languages\": [],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/regenerate-section",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "regenerate-section"]
+            },
+            "description": "Regenerate one section. Valid sections: summary, experience, education, projects, skills, certifications, languages, awards."
+          },
+          "response": []
+        },
+        {
+          "name": "AI Enhance Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"I worked on many projects and did good work with the team.\",\n  \"context\": \"Experience bullet point for software engineer role\",\n  \"tone\": \"professional\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/enhance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "enhance"]
+            },
+            "description": "Improve weak wording with action verbs and professional language."
+          },
+          "response": []
+        },
+        {
+          "name": "AI Analyze Resume",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_role\": \"Senior Software Engineer\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"\",\n      \"location\": \"Lahore\",\n      \"linkedin\": \"\",\n      \"website\": \"\",\n      \"github\": \"\"\n    },\n    \"summary\": \"Software engineer with Python experience.\",\n    \"experience\": [\n      {\n        \"company\": \"Tech Corp\",\n        \"role\": \"Developer\",\n        \"location\": \"Lahore\",\n        \"start_date\": \"2021\",\n        \"end_date\": \"\",\n        \"current\": true,\n        \"bullets\": [\"Built APIs\"]\n      }\n    ],\n    \"education\": [],\n    \"projects\": [],\n    \"skills\": [\"Python\"],\n    \"certifications\": [],\n    \"languages\": [],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "analyze"]
+            },
+            "description": "Resume quality analysis, ATS score, missing fields, keyword recommendations."
+          },
+          "response": []
+        },
+        {
+          "name": "AI Optimize for Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tone\": \"professional\",\n  \"job_description\": \"We are hiring a Senior Software Engineer with 5+ years experience in Python, FastAPI, React, Docker, and cloud deployment. Must have experience with REST APIs, PostgreSQL, and CI/CD pipelines.\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"\",\n      \"location\": \"Lahore\",\n      \"linkedin\": \"\",\n      \"website\": \"\",\n      \"github\": \"\"\n    },\n    \"summary\": \"Software engineer with Python experience.\",\n    \"experience\": [\n      {\n        \"company\": \"Tech Corp\",\n        \"role\": \"Developer\",\n        \"location\": \"Lahore\",\n        \"start_date\": \"2021\",\n        \"end_date\": \"\",\n        \"current\": true,\n        \"bullets\": [\"Built REST APIs with FastAPI\"]\n      }\n    ],\n    \"education\": [],\n    \"projects\": [],\n    \"skills\": [\"Python\", \"FastAPI\", \"React\"],\n    \"certifications\": [],\n    \"languages\": [],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/optimize-job",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "optimize-job"]
+            },
+            "description": "Match CV against job description. Returns missing skills, keyword gaps, optimized summary."
+          },
+          "response": []
+        },
+        {
+          "name": "AI Cover Letter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_title\": \"Senior Software Engineer\",\n  \"company\": \"Tech Solutions Ltd\",\n  \"job_description\": \"Looking for a Python developer with FastAPI and cloud experience to build scalable backend services.\",\n  \"tone\": \"professional\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"+92 300 1234567\",\n      \"location\": \"Lahore\",\n      \"linkedin\": \"\",\n      \"website\": \"\",\n      \"github\": \"\"\n    },\n    \"summary\": \"Software engineer with 5 years Python and FastAPI experience.\",\n    \"experience\": [],\n    \"education\": [],\n    \"projects\": [],\n    \"skills\": [\"Python\", \"FastAPI\", \"Docker\"],\n    \"certifications\": [],\n    \"languages\": [],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/cover-letter",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "cover-letter"]
+            },
+            "description": "Generate tailored cover letter for a specific job and company."
+          },
+          "response": []
+        },
+        {
+          "name": "AI Career Guidance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_role\": \"Engineering Manager\",\n  \"years_experience\": \"5\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"\",\n      \"location\": \"Lahore\",\n      \"linkedin\": \"\",\n      \"website\": \"\",\n      \"github\": \"\"\n    },\n    \"summary\": \"Software engineer with backend and team lead experience.\",\n    \"experience\": [],\n    \"education\": [],\n    \"projects\": [],\n    \"skills\": [\"Python\", \"FastAPI\", \"Leadership\"],\n    \"certifications\": [],\n    \"languages\": [],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/career-guidance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "career-guidance"]
+            },
+            "description": "Career objectives, progression paths, skill development, certifications."
+          },
+          "response": []
+        },
+        {
+          "name": "AI LinkedIn Bio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tone\": \"professional\",\n  \"content\": {\n    \"full_name\": \"Ali Khan\",\n    \"job_title\": \"Software Engineer\",\n    \"contact\": {\n      \"email\": \"ali@example.com\",\n      \"phone\": \"\",\n      \"location\": \"Lahore, Pakistan\",\n      \"linkedin\": \"\",\n      \"website\": \"\",\n      \"github\": \"github.com/alikhan\"\n    },\n    \"summary\": \"Software engineer specializing in Python backends and AI integrations.\",\n    \"experience\": [],\n    \"education\": [],\n    \"projects\": [],\n    \"skills\": [\"Python\", \"FastAPI\", \"LangChain\"],\n    \"certifications\": [],\n    \"languages\": [],\n    \"awards\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/linkedin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "linkedin"]
+            },
+            "description": "Generate LinkedIn headline, about section, portfolio summary, and bio."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

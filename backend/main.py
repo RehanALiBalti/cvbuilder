@@ -1,0 +1,279 @@
+"""CV Builder FastAPI application."""
+
+from __future__ import annotations
+
+import os
+import traceback
+from typing import Any, Dict
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+
+from backend import ai_service, export, storage, templates
+from backend.models import (
+    AICareerGuidanceRequest,
+    AIAnalyzeRequest,
+    AICoverLetterRequest,
+    AIEnhanceRequest,
+    AIGenerateRequest,
+    AILinkedInRequest,
+    AIOptimizeJobRequest,
+    AIRegenerateSectionRequest,
+    AIResponse,
+    CreateCVRequest,
+    CVDocument,
+    RenameCVRequest,
+    UpdateCVRequest,
+)
+
+CORS_ORIGINS = os.getenv(
+    "CVBUILDER_CORS_ORIGINS",
+    os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5174,http://127.0.0.1:5174,http://localhost:3001",
+    ),
+).split(",")
+
+app = FastAPI(
+    title="AI CV Builder API",
+    description="AI-powered professional CV builder using Ollama Qwen",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in CORS_ORIGINS if o.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/api/health")
+def health() -> Dict[str, Any]:
+    ollama = ai_service.check_ollama()
+    return {
+        "status": "ok",
+        "service": "cvbuilder-api",
+        "llm": "ollama",
+        "ollama_model": ai_service.get_model_name(),
+        "ollama": ollama,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Templates
+# ---------------------------------------------------------------------------
+
+@app.get("/api/templates")
+def get_templates() -> Dict[str, Any]:
+    return {"templates": templates.list_templates()}
+
+
+# ---------------------------------------------------------------------------
+# CV CRUD
+# ---------------------------------------------------------------------------
+
+@app.get("/api/cvs")
+def list_cvs() -> Dict[str, Any]:
+    return {"cvs": [c.model_dump() for c in storage.list_cvs()]}
+
+
+@app.post("/api/cvs")
+def create_cv(req: CreateCVRequest) -> Dict[str, Any]:
+    doc = CVDocument(
+        name=req.name,
+        template_id=req.template_id,
+        tone=req.tone,
+        content=req.content or CVDocument().content,
+    )
+    saved = storage.create_cv(doc)
+    return {"success": True, "cv": saved.model_dump()}
+
+
+@app.get("/api/cvs/{cv_id}")
+def get_cv(cv_id: str) -> Dict[str, Any]:
+    doc = storage.get_cv(cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    return {"cv": doc.model_dump()}
+
+
+@app.put("/api/cvs/{cv_id}")
+def update_cv(cv_id: str, req: UpdateCVRequest) -> Dict[str, Any]:
+    existing = storage.get_cv(cv_id)
+    if not existing:
+        raise HTTPException(404, "CV not found")
+
+    updated = existing.model_copy(deep=True)
+    if req.name is not None:
+        updated.name = req.name
+    if req.template_id is not None:
+        updated.template_id = req.template_id
+    if req.tone is not None:
+        updated.tone = req.tone
+    if req.content is not None:
+        updated.content = req.content
+
+    saved = storage.update_cv(
+        cv_id, updated,
+        save_version=req.save_version,
+        version_label=req.version_label,
+    )
+    return {"success": True, "cv": saved.model_dump()}
+
+
+@app.delete("/api/cvs/{cv_id}")
+def delete_cv(cv_id: str) -> Dict[str, Any]:
+    if not storage.delete_cv(cv_id):
+        raise HTTPException(404, "CV not found")
+    return {"success": True}
+
+
+@app.post("/api/cvs/{cv_id}/duplicate")
+def duplicate_cv(cv_id: str) -> Dict[str, Any]:
+    copy = storage.duplicate_cv(cv_id)
+    if not copy:
+        raise HTTPException(404, "CV not found")
+    return {"success": True, "cv": copy.model_dump()}
+
+
+@app.patch("/api/cvs/{cv_id}/rename")
+def rename_cv(cv_id: str, req: RenameCVRequest) -> Dict[str, Any]:
+    doc = storage.rename_cv(cv_id, req.name)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    return {"success": True, "cv": doc.model_dump()}
+
+
+@app.get("/api/cvs/{cv_id}/versions")
+def list_versions(cv_id: str) -> Dict[str, Any]:
+    if not storage.get_cv(cv_id):
+        raise HTTPException(404, "CV not found")
+    versions = storage.list_versions(cv_id)
+    return {
+        "versions": [
+            {"id": v.id, "label": v.label, "created_at": v.created_at}
+            for v in versions
+        ]
+    }
+
+
+@app.post("/api/cvs/{cv_id}/versions/{version_id}/restore")
+def restore_version(cv_id: str, version_id: str) -> Dict[str, Any]:
+    doc = storage.restore_version(cv_id, version_id)
+    if not doc:
+        raise HTTPException(404, "CV or version not found")
+    return {"success": True, "cv": doc.model_dump()}
+
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+
+@app.get("/api/cvs/{cv_id}/export/pdf")
+def export_pdf(cv_id: str) -> Response:
+    doc = storage.get_cv(cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    try:
+        data, filename = export.export_pdf(doc)
+    except RuntimeError as exc:
+        raise HTTPException(501, str(exc)) from exc
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/cvs/{cv_id}/export/docx")
+def export_docx(cv_id: str) -> Response:
+    doc = storage.get_cv(cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    try:
+        data, filename = export.export_docx(doc)
+    except RuntimeError as exc:
+        raise HTTPException(501, str(exc)) from exc
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# AI endpoints
+# ---------------------------------------------------------------------------
+
+def _ai_handler(fn, *args, **kwargs) -> AIResponse:
+    try:
+        return fn(*args, **kwargs)
+    except Exception as exc:
+        traceback.print_exc()
+        return AIResponse(success=False, message=str(exc))
+
+
+@app.post("/api/ai/generate")
+def ai_generate(req: AIGenerateRequest) -> Dict[str, Any]:
+    result = _ai_handler(
+        ai_service.generate_cv,
+        req.raw_input, req.tone, req.target_role, req.industry,
+    )
+    return result.model_dump()
+
+
+@app.post("/api/ai/regenerate-section")
+def ai_regenerate_section(req: AIRegenerateSectionRequest) -> Dict[str, Any]:
+    result = _ai_handler(
+        ai_service.regenerate_section,
+        req.section.value, req.content, req.tone, req.instructions,
+    )
+    return result.model_dump()
+
+
+@app.post("/api/ai/enhance")
+def ai_enhance(req: AIEnhanceRequest) -> Dict[str, Any]:
+    result = _ai_handler(ai_service.enhance_text, req.text, req.context, req.tone)
+    return result.model_dump()
+
+
+@app.post("/api/ai/analyze")
+def ai_analyze(req: AIAnalyzeRequest) -> Dict[str, Any]:
+    result = _ai_handler(ai_service.analyze_cv, req.content, req.target_role)
+    return result.model_dump()
+
+
+@app.post("/api/ai/optimize-job")
+def ai_optimize_job(req: AIOptimizeJobRequest) -> Dict[str, Any]:
+    result = _ai_handler(
+        ai_service.optimize_for_job,
+        req.content, req.job_description, req.tone,
+    )
+    return result.model_dump()
+
+
+@app.post("/api/ai/cover-letter")
+def ai_cover_letter(req: AICoverLetterRequest) -> Dict[str, Any]:
+    result = _ai_handler(
+        ai_service.generate_cover_letter,
+        req.content, req.job_title, req.company, req.job_description, req.tone,
+    )
+    return result.model_dump()
+
+
+@app.post("/api/ai/career-guidance")
+def ai_career_guidance(req: AICareerGuidanceRequest) -> Dict[str, Any]:
+    result = _ai_handler(
+        ai_service.career_guidance,
+        req.content, req.target_role, req.years_experience,
+    )
+    return result.model_dump()
+
+
+@app.post("/api/ai/linkedin")
+def ai_linkedin(req: AILinkedInRequest) -> Dict[str, Any]:
+    result = _ai_handler(ai_service.linkedin_content, req.content, req.tone)
+    return result.model_dump()
