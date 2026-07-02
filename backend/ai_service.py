@@ -107,9 +107,32 @@ def _merge_content(base: CVContent, patch: Dict[str, Any]) -> CVContent:
     data = base.model_dump()
     patch = _coerce_cv_fields(patch)
     for key, value in patch.items():
-        if value is not None and key in data:
-            data[key] = value
+        if value is None or key not in data:
+            continue
+        if key == "contact" and isinstance(value, dict):
+            contact = dict(data.get("contact") or {})
+            for k, v in value.items():
+                if v:
+                    contact[k] = v
+            data["contact"] = contact
+            continue
+        if isinstance(value, list) and len(value) == 0:
+            continue
+        if isinstance(value, str) and not value.strip() and data.get(key):
+            continue
+        data[key] = value
     return CVContent(**data)
+
+
+
+def _build_chat_context(history: List[Dict[str, str]], content: CVContent) -> str:
+    lines: List[str] = []
+    for item in history:
+        if item.get("role") == "user":
+            lines.append(item.get("content", ""))
+    lines.append("\n--- Data already collected in CV ---")
+    lines.append(json.dumps(content.model_dump(), indent=2, ensure_ascii=False))
+    return "\n".join(p for p in lines if p.strip())
 
 
 def generate_cv(
@@ -119,7 +142,7 @@ def generate_cv(
     industry: str = "",
 ) -> AIResponse:
     prompt = prompts.generate_cv_prompt(raw_input, tone, target_role, industry)
-    raw = _call_llm(prompt, max_tokens=1500)
+    raw = _call_llm(prompt, max_tokens=2500)
     parsed = _extract_json(raw)
 
     if "raw_text" in parsed and len(parsed) == 1:
@@ -225,49 +248,103 @@ def linkedin_content(content: CVContent, tone: WritingTone = WritingTone.PROFESS
     return AIResponse(success=True, data=parsed)
 
 
+def _apply_generated_cv(base: CVContent, generated: Dict[str, Any]) -> CVContent:
+    """Apply full CV generation output, preserving contact fields not re-mentioned."""
+    new = _coerce_cv_fields(generated)
+    data = base.model_dump()
+    for key, value in new.items():
+        if value is None:
+            continue
+        if key == "contact" and isinstance(value, dict):
+            contact = dict(data.get("contact") or {})
+            for k, v in value.items():
+                if v:
+                    contact[k] = v
+            data["contact"] = contact
+        elif isinstance(value, list) and len(value) == 0:
+            continue
+        elif isinstance(value, str) and not value.strip() and data.get(key):
+            continue
+        else:
+            data[key] = value
+    return CVContent(**data)
+
+
+def _make_chat_reply(before: CVContent, after: CVContent) -> str:
+    parts: List[str] = []
+    if after.full_name and after.full_name != before.full_name:
+        parts.append("added your name and header")
+    if after.summary and not before.summary.strip():
+        parts.append("written a professional summary")
+    elif after.summary and after.summary != before.summary:
+        parts.append("refined your summary")
+    if after.experience and not before.experience:
+        parts.append("built your work experience with achievement bullets")
+    elif len(after.experience) > len(before.experience):
+        parts.append("updated your experience")
+    if after.education and not before.education:
+        parts.append("added education")
+    if after.skills and len(after.skills) > len(before.skills or []):
+        parts.append("expanded your skills")
+    if parts:
+        return f"I've {', '.join(parts)}. Your CV preview on the right is updated — keep chatting to refine it."
+    return "Your CV is updated with everything you've shared so far. Keep adding details or say 'download PDF' when ready."
+
+
+def _is_export_only(message: str) -> bool:
+    t = (message or "").strip().lower()
+    if len(t) > 60:
+        return False
+    return bool(re.search(r"\b(download|export|save|get)\b.*\b(pdf|docx|word)\b", t)) or t in {"pdf", "docx"}
+
+
 def chat_cv(
     message: str,
     history: List[Dict[str, str]],
     content: CVContent,
     tone: WritingTone = WritingTone.PROFESSIONAL,
 ) -> AIResponse:
-    prompt = prompts.chat_cv_prompt(message, history, content, tone)
-    raw = _call_llm(prompt, max_tokens=2000)
-    parsed = _extract_json(raw)
+    action = None
+    if re.search(r"export_pdf|download.*pdf|\bpdf\b", message or "", re.I):
+        action = "export_pdf"
+    elif re.search(r"export_docx|download.*(docx|word)", message or "", re.I):
+        action = "export_docx"
 
-    if "raw_text" in parsed and len(parsed) == 1:
-        return AIResponse(success=False, message="AI did not return valid JSON", data={"raw": raw})
-
-    reply = parsed.get("reply") or parsed.get("message") or "CV updated."
-    cv_data = parsed.get("content") or parsed
-    action = parsed.get("action")
-
-    if isinstance(cv_data, dict) and "reply" in cv_data and "content" in cv_data:
-        reply = cv_data.get("reply", reply)
-        cv_data = cv_data.get("content", content.model_dump())
-    elif isinstance(cv_data, dict) and "full_name" not in cv_data and "content" in parsed:
-        cv_data = parsed["content"]
-
-    try:
-        if isinstance(cv_data, dict) and cv_data:
-            updated = _merge_content(content, cv_data)
-        else:
-            updated = content
-    except Exception as exc:
+    if action and _is_export_only(message):
+        reply = "Your download is starting now."
         return AIResponse(
-            success=False,
-            message=str(exc),
-            data={"raw": raw, "parsed": parsed, "reply": reply},
+            success=True,
+            message=reply,
+            data={"reply": reply, "content": content.model_dump(), "action": action},
+        )
+
+    # Every message: rebuild full CV from entire conversation (from first message onward)
+    context = _build_chat_context(history, content)
+    context += (
+        f"\n\nLatest user message: {message}\n\n"
+        "Build the most complete professional CV possible from ALL messages above. "
+        "Fill summary, experience bullets, skills, and education immediately — do not wait for more info."
+    )
+    gen = generate_cv(context, tone, content.job_title or "", "")
+
+    if gen.success and gen.data.get("content"):
+        updated = _apply_generated_cv(content, gen.data["content"])
+        reply = _make_chat_reply(content, updated)
+        return AIResponse(
+            success=True,
+            message=reply,
+            data={
+                "reply": reply,
+                "content": updated.model_dump(),
+                "action": action or gen.data.get("action"),
+            },
+            suggestions=gen.suggestions,
         )
 
     return AIResponse(
-        success=True,
-        message=reply,
-        data={
-            "reply": reply,
-            "content": updated.model_dump(),
-            "action": action,
-        },
+        success=False,
+        message=gen.message or "Could not update CV. Please try again.",
+        data=gen.data,
     )
 
 

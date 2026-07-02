@@ -49,10 +49,13 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
 }}
 
 Rules:
-- Use strong action verbs and quantified achievements where possible
+- From the FIRST piece of info, build the most complete CV possible — never wait for more messages
+- ALWAYS include: professional summary (3-4 lines), experience with 3-5 bullets per role, skills list (8+ items when possible), education
+- Use strong action verbs and quantified achievements (estimate reasonably if not given)
 - ATS-friendly keywords
-- Fix grammar and improve weak wording
-- Detect and fill missing fields from context
+- Infer dates, locations, and bullet points from context when user gives company/role/years
+- Never leave summary, experience, or skills empty if user gave name, job, company, or education
+- summary must be a plain string, not a nested object
 - Keep bullets concise (1-2 lines each)
 """
 
@@ -229,6 +232,14 @@ User message:
 
 Update the CV based on the user message. Merge new info into existing CV — do not remove data unless asked.
 
+IMPORTANT — when user mentions job, company, years, role, or education:
+- ADD a full experience entry with company, role, dates (estimate if needed), and 3-4 achievement bullets
+- ADD education entries with degree and institution
+- ADD skills as a proper list (not just one skill)
+- WRITE a professional summary (3-4 sentences) once you have name + role + experience
+
+If user says "complete CV", "make professional CV", or "finish resume" — fill ALL sections completely.
+
 Return ONLY valid JSON (no markdown):
 {{
   "reply": "Short friendly reply explaining what you changed (2-4 sentences)",
@@ -256,6 +267,8 @@ For action use only when user explicitly asks to download/export:
 Rules:
 - summary must be a plain string, never nested object
 - Keep all existing CV data and add/update from user message
-- Use strong action verbs and ATS-friendly wording
-- If user shares background for first time, build a complete CV
+- Use strong action verbs and quantified achievements where possible
+- experience bullets must be specific, not generic placeholders
+- Never return empty experience/skills/summary if user already provided job, company, or education info
+- If user shares background for first time, build as much of the CV as possible in one response
 """

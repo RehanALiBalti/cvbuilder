@@ -28,7 +28,7 @@ const SECTIONS = [
 const WELCOME = {
   role: "assistant",
   content:
-    "Hi! Tell me about yourself — name, job title, experience, education, skills — and I'll build your CV as we chat. You can also say things like \"improve my summary\", \"add Python to skills\", \"use executive template\", or \"download PDF\".",
+    "Hi! Start typing — your name, role, company, experience, education, skills. From your very first message I'll build your CV on the right with summary, experience bullets, and skills. Keep chatting to add more, or say \"download PDF\" when ready.",
 };
 
 function CVPreview({ cv, template }) {
