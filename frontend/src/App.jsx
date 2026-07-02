@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import AILoadingBubble from "./components/AILoadingBubble";
 import CVPreviewSkeleton from "./components/CVPreviewSkeleton";
+import TemplatePicker from "./components/TemplatePicker";
+import TemplateRenderer from "./components/templates/CVTemplates";
 import {
   aiChat,
   createCV,
@@ -22,115 +24,23 @@ const TONES = [
   { id: "fresh_graduate", label: "Fresh Graduate" },
 ];
 
-const SECTIONS = [
-  "summary", "experience", "education", "projects",
-  "skills", "certifications", "languages", "awards",
-];
-
 const WELCOME = {
   role: "assistant",
   content:
-    "Hi! Start typing — your name, role, company, experience, education, skills. From your very first message I'll build your CV on the right with summary, experience bullets, and skills. Keep chatting to add more, or say \"download PDF\" when ready.",
+    "Hi! Start typing — your name, role, company, experience, education, skills. From your very first message I'll build your CV on the right. Pick a **template** (8 designs) from the header, or say \"use modern template\". Say \"download PDF\" when ready.",
 };
 
-function CVPreview({ cv, template }) {
-  if (!cv) return null;
-  const c = cv.content;
-  const accent = template?.preview_color || "#1d4ed8";
-
-  const renderSection = (section) => {
-    if (c.section_visibility?.[section] === false) return null;
-
-    if (section === "summary" && c.summary) {
-      return (
-        <div key={section} className="cv-section">
-          <h3 style={{ color: accent }}>Summary</h3>
-          <p>{c.summary}</p>
-        </div>
-      );
-    }
-    if (section === "experience" && c.experience?.length) {
-      return (
-        <div key={section} className="cv-section">
-          <h3 style={{ color: accent }}>Experience</h3>
-          {c.experience.map((exp, i) => (
-            <div key={exp.id || i} className="cv-item">
-              <strong>{exp.role}</strong> — {exp.company}
-              <div className="cv-meta">{exp.start_date} – {exp.end_date || "Present"}</div>
-              <ul>{exp.bullets?.map((b, j) => <li key={j}>{b}</li>)}</ul>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    if (section === "education" && c.education?.length) {
-      return (
-        <div key={section} className="cv-section">
-          <h3 style={{ color: accent }}>Education</h3>
-          {c.education.map((edu, i) => (
-            <div key={edu.id || i} className="cv-item">
-              <strong>{edu.degree}</strong> in {edu.field} — {edu.institution}
-            </div>
-          ))}
-        </div>
-      );
-    }
-    if (section === "projects" && c.projects?.length) {
-      return (
-        <div key={section} className="cv-section">
-          <h3 style={{ color: accent }}>Projects</h3>
-          {c.projects.map((p, i) => (
-            <div key={p.id || i} className="cv-item">
-              <strong>{p.name}</strong>
-              <p>{p.description}</p>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    if (section === "skills" && c.skills?.length) {
-      return (
-        <div key={section} className="cv-section">
-          <h3 style={{ color: accent }}>Skills</h3>
-          <p>{c.skills.join(" • ")}</p>
-        </div>
-      );
-    }
-    if (section === "certifications" && c.certifications?.length) {
-      return (
-        <div key={section} className="cv-section">
-          <h3 style={{ color: accent }}>Certifications</h3>
-          <p>{c.certifications.join(" • ")}</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const hasContent = c.full_name || c.summary || c.experience?.length || c.skills?.length;
-
-  return (
-    <div className="cv-preview-paper" style={{ fontFamily: template?.font }}>
-      {!hasContent ? (
-        <div className="cv-empty-preview">
-          <p>Your CV will appear here as you chat with AI.</p>
-        </div>
-      ) : (
-        <>
-          <div className="cv-header">
-            <h1 style={{ color: accent }}>{c.full_name || "Your Name"}</h1>
-            <p className="cv-title">{c.job_title}</p>
-            <p className="cv-contact">
-              {[c.contact?.email, c.contact?.phone, c.contact?.location, c.contact?.linkedin]
-                .filter(Boolean)
-                .join(" | ")}
-            </p>
-          </div>
-          {(c.section_order || SECTIONS).map(renderSection)}
-        </>
-      )}
-    </div>
-  );
+function detectTemplateSwitch(text) {
+  const m = (text || "").toLowerCase();
+  if (/modern|sidebar/.test(m) && /template|use|switch/.test(m)) return "modern";
+  if (/executive/.test(m) && /template|use|switch/.test(m)) return "executive";
+  if (/minimal/.test(m) && /template|use|switch/.test(m)) return "minimal";
+  if (/fresh|graduate/.test(m) && /template|use|switch/.test(m)) return "fresh_graduate";
+  if (/creative/.test(m) && /template|use|switch/.test(m)) return "creative";
+  if (/tech|developer/.test(m) && /template|use|switch/.test(m)) return "tech";
+  if (/elegant/.test(m) && /template|use|switch/.test(m)) return "elegant";
+  if (/professional/.test(m) && /template|use|switch/.test(m)) return "professional";
+  return null;
 }
 
 function detectExportIntent(text) {
@@ -150,6 +60,7 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
   const chatEndRef = useRef(null);
 
   const activeTemplate = templates.find((t) => t.id === activeCv?.template_id) || templates[0];
@@ -239,36 +150,48 @@ export default function App() {
     setLoading(true);
 
     const localExport = detectExportIntent(text);
+    const templateSwitch = detectTemplateSwitch(text);
 
     try {
+      let cvForChat = activeCv;
+      if (templateSwitch) {
+        cvForChat = { ...activeCv, template_id: templateSwitch };
+        setActiveCv(cvForChat);
+        await saveCv(cvForChat);
+      }
+
       const result = await aiChat({
         message: text,
         history: messages.filter((m) => m.role === "user" || m.role === "assistant"),
-        content: activeCv.content,
-        tone: activeCv.tone,
-        template_id: activeCv.template_id,
+        content: cvForChat.content,
+        tone: cvForChat.tone,
+        template_id: cvForChat.template_id,
       });
 
-      const reply = result.data?.reply || result.message || "Done.";
       const action = result.data?.action || localExport;
 
       if (result.data?.content) {
         const updated = {
-          ...activeCv,
+          ...cvForChat,
           content: result.data.content,
           name: result.data.content.full_name
             ? `${result.data.content.full_name} CV`
-            : activeCv.name,
+            : cvForChat.name,
         };
         setActiveCv(updated);
         await saveCv(updated);
         await loadCVs();
       }
 
+      let reply = result.data?.reply || result.message || "Done.";
+      if (templateSwitch) {
+        const tname = templates.find((t) => t.id === templateSwitch)?.name || templateSwitch;
+        reply = `Switched to ${tname} template. ${reply}`;
+      }
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
 
       if (action === "export_pdf" || action === "export_docx") {
-        triggerDownload(action, activeCv.id);
+        triggerDownload(action, cvForChat.id);
       }
     } catch (e) {
       setMessages((prev) => [
@@ -287,6 +210,14 @@ export default function App() {
     }
   }
 
+  function selectTemplate(templateId) {
+    if (!activeCv) return;
+    const next = { ...activeCv, template_id: templateId };
+    setActiveCv(next);
+    saveCv(next);
+    setToast(`Template: ${templates.find((t) => t.id === templateId)?.name || templateId}`);
+  }
+
   return (
     <div className="cv-app">
       <header className="cv-header-bar">
@@ -302,19 +233,9 @@ export default function App() {
         <div className="header-actions">
           {view === "chat" && activeCv && (
             <>
-              <select
-                className="header-select"
-                value={activeCv.template_id}
-                onChange={(e) => {
-                  const next = { ...activeCv, template_id: e.target.value };
-                  setActiveCv(next);
-                  saveCv(next);
-                }}
-              >
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+              <button type="button" className="btn btn-sm" onClick={() => setShowTemplates(true)}>
+                Templates
+              </button>
               <select
                 className="header-select"
                 value={activeCv.tone}
@@ -454,10 +375,19 @@ export default function App() {
             {loading ? (
               <CVPreviewSkeleton />
             ) : (
-              <CVPreview cv={activeCv} template={activeTemplate} />
+              <TemplateRenderer cv={activeCv} template={activeTemplate} />
             )}
           </aside>
         </div>
+      )}
+
+      {showTemplates && activeCv && (
+        <TemplatePicker
+          templates={templates}
+          activeId={activeCv?.template_id}
+          onSelect={selectTemplate}
+          onClose={() => setShowTemplates(false)}
+        />
       )}
     </div>
   );
