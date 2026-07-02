@@ -50,8 +50,62 @@ def _extract_json(text: str) -> Dict[str, Any]:
     return {"raw_text": text}
 
 
+def _unwrap_section_value(section: str, value: Any) -> Any:
+    """Fix nested LLM JSON (e.g. summary wrapped in an extra dict)."""
+    if value is None:
+        return value
+
+    if isinstance(value, dict):
+        if section in value and len(value) == 1:
+            return _unwrap_section_value(section, value[section])
+        for key in (section, "text", "content", "enhanced", "value"):
+            if key in value:
+                candidate = value[key]
+                if section == "summary" and isinstance(candidate, str):
+                    return candidate
+                if section != "summary" and candidate is not None:
+                    return _unwrap_section_value(section, candidate)
+
+    return value
+
+
+def _normalize_section_patch(section: str, parsed: Dict[str, Any]) -> Dict[str, Any]:
+    """Turn section regeneration JSON into a flat CVContent field update."""
+    if not parsed or ("raw_text" in parsed and len(parsed) == 1):
+        return {}
+
+    if section in parsed:
+        value = _unwrap_section_value(section, parsed[section])
+    elif len(parsed) == 1:
+        value = _unwrap_section_value(section, next(iter(parsed.values())))
+    else:
+        value = _unwrap_section_value(section, parsed.get(section))
+
+    if value is None and section in parsed:
+        value = parsed[section]
+
+    if section == "summary" and not isinstance(value, str):
+        if isinstance(value, dict):
+            value = str(value.get("summary") or value.get("text") or "")
+        else:
+            value = str(value or "")
+
+    return {section: value}
+
+
+def _coerce_cv_fields(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize full CV JSON before Pydantic validation."""
+    out = {k: v for k, v in data.items() if k in CVContent.model_fields}
+    if isinstance(out.get("summary"), dict):
+        out["summary"] = _unwrap_section_value("summary", out["summary"])
+        if not isinstance(out["summary"], str):
+            out["summary"] = str(out.get("summary") or "")
+    return out
+
+
 def _merge_content(base: CVContent, patch: Dict[str, Any]) -> CVContent:
     data = base.model_dump()
+    patch = _coerce_cv_fields(patch)
     for key, value in patch.items():
         if value is not None and key in data:
             data[key] = value
@@ -72,7 +126,7 @@ def generate_cv(
         return AIResponse(success=False, message="AI did not return valid JSON", data={"raw": raw})
 
     try:
-        content = CVContent(**{k: v for k, v in parsed.items() if k in CVContent.model_fields})
+        content = CVContent(**_coerce_cv_fields(parsed))
     except Exception as exc:
         return AIResponse(success=False, message=str(exc), data={"raw": raw, "parsed": parsed})
 
@@ -93,7 +147,19 @@ def regenerate_section(
     if "raw_text" in parsed and len(parsed) == 1:
         return AIResponse(success=False, message="AI did not return valid JSON", data={"raw": raw})
 
-    updated = _merge_content(content, parsed)
+    patch = _normalize_section_patch(section, parsed)
+    if section not in patch:
+        return AIResponse(
+            success=False,
+            message=f"AI response missing '{section}' field",
+            data={"raw": raw, "parsed": parsed},
+        )
+
+    try:
+        updated = _merge_content(content, patch)
+    except Exception as exc:
+        return AIResponse(success=False, message=str(exc), data={"raw": raw, "parsed": parsed})
+
     return AIResponse(success=True, data={"content": updated.model_dump(), "section": section})
 
 
