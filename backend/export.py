@@ -218,3 +218,27 @@ def export_pdf(doc: CVDocument) -> Tuple[bytes, str]:
     pdf.build(story)
     filename = f"{(c.full_name or doc.name).replace(' ', '_')}.pdf"
     return buf.getvalue(), filename
+
+
+def export_styled_docx(html: str, doc: CVDocument) -> Tuple[bytes, str]:
+    """Convert rendered CV HTML (from live preview) to Word with template styling."""
+    try:
+        from docx import Document
+        from html4docx import HtmlToDocx
+    except ImportError as exc:
+        raise RuntimeError(
+            "html-for-docx is required for styled DOCX export. pip install html-for-docx"
+        ) from exc
+
+    if not (html or "").strip():
+        raise ValueError("HTML content is required for styled export")
+
+    document = Document()
+    parser = HtmlToDocx()
+    parser.add_html_to_document(html, document)
+
+    buf = io.BytesIO()
+    document.save(buf)
+    c = doc.content
+    filename = f"{(c.full_name or doc.name).replace(' ', '_')}.docx"
+    return buf.getvalue(), filename

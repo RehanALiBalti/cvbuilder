@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import {
   getContactLine,
   getSkillGroups,
@@ -384,12 +385,12 @@ const MAP = {
   international: InternationalTemplate,
 };
 
-export default function TemplateRenderer({ cv, template }) {
+export default forwardRef(function TemplateRenderer({ cv, template }, ref) {
   const id = template?.id || cv?.template_id || "professional";
   const Component = MAP[id] || ProfessionalTemplate;
   return (
-    <div className="cv-preview-paper">
+    <div className="cv-preview-paper" ref={ref}>
       <Component cv={cv} template={template} />
     </div>
   );
-}
+});

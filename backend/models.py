@@ -248,6 +248,10 @@ class AIChatRequest(BaseModel):
     template_id: str = "professional"
 
 
+class StyledExportRequest(BaseModel):
+    html: str
+
+
 class AIResponse(BaseModel):
     success: bool = True
     data: Dict[str, Any] = Field(default_factory=dict)

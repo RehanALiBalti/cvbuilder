@@ -26,6 +26,7 @@ from backend.models import (
     CreateCVRequest,
     CVDocument,
     RenameCVRequest,
+    StyledExportRequest,
     UpdateCVRequest,
 )
 
@@ -215,6 +216,23 @@ def export_docx(cv_id: str) -> Response:
     try:
         data, filename = export.export_docx(doc)
     except RuntimeError as exc:
+        raise HTTPException(501, str(exc)) from exc
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/api/cvs/{cv_id}/export/styled-docx")
+def export_styled_docx(cv_id: str, body: StyledExportRequest) -> Response:
+    """Export CV as Word using the same HTML/CSS as the live template preview."""
+    doc = storage.get_cv(cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    try:
+        data, filename = export.export_styled_docx(body.html, doc)
+    except (RuntimeError, ValueError) as exc:
         raise HTTPException(501, str(exc)) from exc
     return Response(
         content=data,

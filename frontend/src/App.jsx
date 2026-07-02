@@ -3,13 +3,12 @@ import AILoadingBubble from "./components/AILoadingBubble";
 import CVPreviewSkeleton from "./components/CVPreviewSkeleton";
 import TemplatePicker from "./components/TemplatePicker";
 import TemplateRenderer from "./components/templates/CVTemplates";
+import { exportCvPreview } from "./utils/exportCv";
 import {
   aiChat,
   createCV,
   deleteCV,
   duplicateCV,
-  exportDocxUrl,
-  exportPdfUrl,
   fetchCVs,
   fetchHealth,
   fetchTemplates,
@@ -67,7 +66,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const chatEndRef = useRef(null);
+  const previewRef = useRef(null);
 
   const activeTemplate = templates.find((t) => t.id === activeCv?.template_id) || templates[0];
 
@@ -104,10 +105,28 @@ export default function App() {
     }
   }
 
-  function triggerDownload(type, cvId) {
-    const url = type === "export_pdf" ? exportPdfUrl(cvId) : exportDocxUrl(cvId);
-    window.open(url, "_blank");
-    setToast(type === "export_pdf" ? "PDF download started" : "DOCX download started");
+  async function triggerDownload(type, cv) {
+    if (!cv) return;
+    if (loading) {
+      setToast("Please wait — CV preview is still updating.");
+      return;
+    }
+    const el = previewRef.current;
+    if (!el) {
+      setToast("CV preview is not ready yet.");
+      return;
+    }
+    const name = cv.content?.full_name || cv.name || "CV";
+    setExporting(true);
+    setToast(type === "export_pdf" ? "Generating styled PDF…" : "Generating styled Word file…");
+    try {
+      await exportCvPreview(el, type, name, cv.id);
+      setToast(type === "export_pdf" ? "PDF downloaded (with your template)" : "Word file downloaded (with your template)");
+    } catch (e) {
+      setToast(`Export failed: ${e.message}`);
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function openCV(id) {
@@ -157,6 +176,8 @@ export default function App() {
 
     const localExport = detectExportIntent(text);
     const templateSwitch = detectTemplateSwitch(text);
+    let cvForExport = null;
+    let exportAction = null;
 
     try {
       let cvForChat = activeCv;
@@ -185,8 +206,11 @@ export default function App() {
             : cvForChat.name,
         };
         setActiveCv(updated);
+        cvForExport = updated;
         await saveCv(updated);
         await loadCVs();
+      } else {
+        cvForExport = cvForChat;
       }
 
       let reply = result.data?.reply || result.message || "Done.";
@@ -201,7 +225,8 @@ export default function App() {
       ]);
 
       if (action === "export_pdf" || action === "export_docx") {
-        triggerDownload(action, cvForChat.id);
+        exportAction = action;
+        if (!cvForExport) cvForExport = cvForChat;
       }
     } catch (e) {
       setMessages((prev) => [
@@ -210,6 +235,10 @@ export default function App() {
       ]);
     } finally {
       setLoading(false);
+    }
+
+    if (exportAction && cvForExport) {
+      setTimeout(() => triggerDownload(exportAction, cvForExport), 350);
     }
   }
 
@@ -259,10 +288,20 @@ export default function App() {
                   <option key={t.id} value={t.id}>{t.label}</option>
                 ))}
               </select>
-              <button type="button" className="btn btn-sm" onClick={() => triggerDownload("export_pdf", activeCv.id)}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={loading || exporting}
+                onClick={() => triggerDownload("export_pdf", activeCv)}
+              >
                 PDF
               </button>
-              <button type="button" className="btn btn-sm" onClick={() => triggerDownload("export_docx", activeCv.id)}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={loading || exporting}
+                onClick={() => triggerDownload("export_docx", activeCv)}
+              >
                 DOCX
               </button>
             </>
@@ -393,7 +432,7 @@ export default function App() {
             {loading ? (
               <CVPreviewSkeleton />
             ) : (
-              <TemplateRenderer cv={activeCv} template={activeTemplate} />
+              <TemplateRenderer ref={previewRef} cv={activeCv} template={activeTemplate} />
             )}
           </aside>
         </div>

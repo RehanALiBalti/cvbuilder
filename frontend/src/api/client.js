@@ -87,6 +87,19 @@ export function exportDocxUrl(id) {
   return `${API_BASE}/api/cvs/${id}/export/docx`;
 }
 
+export async function exportStyledDocx(cvId, html) {
+  const res = await fetch(`${API_BASE}/api/cvs/${cvId}/export/styled-docx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ html }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || data.message || `Export failed (${res.status})`);
+  }
+  return res.blob();
+}
+
 export async function aiChat(payload) {
   const res = await fetch(`${API_BASE}/api/ai/chat`, {
     method: "POST",
