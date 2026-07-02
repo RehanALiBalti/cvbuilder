@@ -62,7 +62,11 @@ else
 fi
 
 mkdir -p "$APP_DIR/data/cvs" "$APP_DIR/data/versions" "$APP_DIR/.home"
+if [[ ! -f "$APP_DIR/data/index.json" ]]; then
+  echo '{"cvs":[]}' > "$APP_DIR/data/index.json"
+fi
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+chmod -R u+rwX "$APP_DIR/data"
 
 # systemd
 echo "==> systemd cvbuilder-backend"

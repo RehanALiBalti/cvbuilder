@@ -6,11 +6,12 @@ import os
 import traceback
 from typing import Any, Dict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from backend import ai_service, export, storage, templates
+from backend.storage import StorageError
 from backend.models import (
     AICareerGuidanceRequest,
     AIAnalyzeRequest,
@@ -50,15 +51,32 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(StorageError)
+async def storage_error_handler(_request: Request, exc: StorageError) -> JSONResponse:
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=503,
+        content={"detail": str(exc)},
+    )
+
+
+@app.on_event("startup")
+def startup_check() -> None:
+    storage.check_storage()
+
+
 @app.get("/api/health")
 def health() -> Dict[str, Any]:
     ollama = ai_service.check_ollama()
+    disk = storage.check_storage()
+    status = "ok" if disk.get("ok") else "degraded"
     return {
-        "status": "ok",
+        "status": status,
         "service": "cvbuilder-api",
         "llm": "ollama",
         "ollama_model": ai_service.get_model_name(),
         "ollama": ollama,
+        "storage": disk,
     }
 
 

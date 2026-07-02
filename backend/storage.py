@@ -17,23 +17,70 @@ VERSIONS_DIR = os.path.join(DATA_DIR, "versions")
 INDEX_FILE = os.path.join(DATA_DIR, "index.json")
 
 
+class StorageError(RuntimeError):
+    """Raised when CV storage cannot be read or written."""
+
+
+def _writable_dir(path: str) -> bool:
+    return os.path.isdir(path) and os.access(path, os.W_OK | os.X_OK)
+
+
 def _ensure_dirs() -> None:
-    for path in (DATA_DIR, CVS_DIR, VERSIONS_DIR):
-        os.makedirs(path, exist_ok=True)
+    try:
+        for path in (DATA_DIR, CVS_DIR, VERSIONS_DIR):
+            os.makedirs(path, exist_ok=True)
+    except OSError as exc:
+        raise StorageError(
+            f"Cannot create data directories under {DATA_DIR}: {exc}"
+        ) from exc
+
+    if not _writable_dir(DATA_DIR):
+        raise StorageError(
+            f"Data directory is not writable: {DATA_DIR}. "
+            "Run: sudo chown -R www-data:www-data /opt/cvbuilder/data"
+        )
+
     if not os.path.isfile(INDEX_FILE):
         _save_index({"cvs": []})
 
 
 def _load_index() -> Dict[str, Any]:
     _ensure_dirs()
-    with open(INDEX_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(INDEX_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        backup = f"{INDEX_FILE}.corrupt-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        shutil.move(INDEX_FILE, backup)
+        data = {"cvs": []}
+        _save_index(data)
+    except OSError as exc:
+        raise StorageError(f"Cannot read index file {INDEX_FILE}: {exc}") from exc
+
+    if not isinstance(data, dict):
+        data = {"cvs": []}
+        _save_index(data)
+    data.setdefault("cvs", [])
+    if not isinstance(data["cvs"], list):
+        data["cvs"] = []
+        _save_index(data)
+    return data
 
 
 def _save_index(data: Dict[str, Any]) -> None:
     _ensure_dirs()
-    with open(INDEX_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    tmp_path = f"{INDEX_FILE}.tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, INDEX_FILE)
+    except OSError as exc:
+        if os.path.isfile(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+        raise StorageError(f"Cannot write index file {INDEX_FILE}: {exc}") from exc
 
 
 def _cv_path(cv_id: str) -> str:
@@ -48,24 +95,53 @@ def list_cvs() -> List[CVListItem]:
     index = _load_index()
     items: List[CVListItem] = []
     for entry in index.get("cvs", []):
-        items.append(CVListItem(**entry))
+        if not isinstance(entry, dict):
+            continue
+        try:
+            items.append(CVListItem(**entry))
+        except Exception:
+            continue
     items.sort(key=lambda x: x.updated_at, reverse=True)
     return items
+
+
+def check_storage() -> Dict[str, Any]:
+    """Verify storage paths exist and are writable (for health checks)."""
+    try:
+        _ensure_dirs()
+        return {
+            "ok": True,
+            "data_dir": DATA_DIR,
+            "writable": True,
+        }
+    except StorageError as exc:
+        return {
+            "ok": False,
+            "data_dir": DATA_DIR,
+            "writable": False,
+            "error": str(exc),
+        }
 
 
 def get_cv(cv_id: str) -> Optional[CVDocument]:
     path = _cv_path(cv_id)
     if not os.path.isfile(path):
         return None
-    with open(path, "r", encoding="utf-8") as f:
-        return CVDocument(**json.load(f))
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return CVDocument(**json.load(f))
+    except OSError as exc:
+        raise StorageError(f"Cannot read CV file {path}: {exc}") from exc
 
 
 def create_cv(doc: CVDocument) -> CVDocument:
     _ensure_dirs()
     path = _cv_path(doc.id)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(doc.model_dump(), f, indent=2, ensure_ascii=False)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(doc.model_dump(), f, indent=2, ensure_ascii=False)
+    except OSError as exc:
+        raise StorageError(f"Cannot write CV file {path}: {exc}") from exc
 
     index = _load_index()
     index["cvs"] = [e for e in index.get("cvs", []) if e.get("id") != doc.id]
