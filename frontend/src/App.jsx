@@ -129,6 +129,7 @@ export default function App() {
   const [coverJob, setCoverJob] = useState("");
   const [coverCompany, setCoverCompany] = useState("");
   const [coverJd, setCoverJd] = useState("");
+  const [message, setMessage] = useState("");
 
   const activeTemplate = templates.find((t) => t.id === activeCv?.template_id) || templates[0];
 
