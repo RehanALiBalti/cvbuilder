@@ -102,6 +102,19 @@ Import into Postman:
 
 Full guide: [deploy/DEPLOY.md](deploy/DEPLOY.md)
 
+### Same server as JAMS (subpath `/cvbuilder`)
+
+| App | URL |
+|-----|-----|
+| JAMS | http://65.108.236.135/ |
+| CV Builder | http://65.108.236.135/cvbuilder/ |
+
+Server par:
+```bash
+sudo git clone https://github.com/YOUR_USERNAME/cvbuilder.git /opt/cvbuilder
+sudo DOMAIN=65.108.236.135 bash /opt/cvbuilder/deploy/install-alongside-jams.sh
+```
+
 **Push to GitHub:**
 
 ```powershell

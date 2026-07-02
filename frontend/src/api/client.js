@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || "";
+// Production: /cvbuilder/api via nginx. Dev: Vite proxy. Override with VITE_API_URL if needed.
+const API_BASE = import.meta.env.VITE_API_URL
+  || import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function handleResponse(res) {
   const data = await res.json().catch(() => ({}));

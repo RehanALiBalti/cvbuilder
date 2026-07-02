@@ -2,6 +2,50 @@
 
 Deploy **backend** (FastAPI :8001) + **frontend** (React/Vite static) on Ubuntu with **nginx**, **systemd**, and **Ollama**.
 
+---
+
+## Same server as JAMS (`/cvbuilder` subpath) — recommended for you
+
+JAMS already on **http://65.108.236.135/** → CV Builder will be **http://65.108.236.135/cvbuilder/**
+
+### On Ubuntu server (SSH)
+
+```bash
+# 1. Clone CV Builder (first time)
+sudo git clone https://github.com/YOUR_USERNAME/cvbuilder.git /opt/cvbuilder
+sudo chown -R www-data:www-data /opt/cvbuilder
+
+# 2. Install + nginx + systemd (one command)
+sudo DOMAIN=65.108.236.135 bash /opt/cvbuilder/deploy/install-alongside-jams.sh
+```
+
+This script:
+- Builds frontend with `/cvbuilder/` base path
+- Starts `cvbuilder-backend` on port **8001**
+- Updates nginx so JAMS stays at `/` and CV Builder at `/cvbuilder/`
+- Reuses existing **Ollama** (same `qwen2.5:1.5b`)
+
+### After code update
+
+```bash
+cd /opt/cvbuilder
+sudo -u www-data git pull
+sudo DOMAIN=65.108.236.135 bash /opt/cvbuilder/deploy/install-alongside-jams.sh
+```
+
+### Verify
+
+```bash
+curl http://127.0.0.1:8001/api/health
+curl http://127.0.0.1/cvbuilder/api/health
+```
+
+Browser: **http://65.108.236.135/cvbuilder/**
+
+---
+
+## Standalone deploy (separate domain/IP)
+
 Recommended: Ubuntu 22.04/24.04, 4+ GB RAM (8 GB better for Ollama).
 
 ---
