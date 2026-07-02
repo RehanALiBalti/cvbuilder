@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List
 
+from backend.cv_schema import CV_JSON_SCHEMA, CV_WRITING_RULES
 from backend.models import CVContent, WritingTone
 
 TONE_GUIDE = {
@@ -24,39 +25,21 @@ def _content_json(content: CVContent) -> str:
 
 
 def generate_cv_prompt(raw_input: str, tone: WritingTone, target_role: str, industry: str) -> str:
-    return f"""You are an expert CV/resume writer. Create a complete professional CV from the user input.
+    return f"""You are an expert CV/resume writer. Create a complete, modern, clean professional CV.
 
 Writing tone: {_tone(tone)}
 Target role: {target_role or "general"}
 Industry: {industry or "general"}
 
-User input:
+User input / conversation:
 {raw_input}
 
-Return ONLY valid JSON with this exact structure (no markdown, no explanation):
-{{
-  "full_name": "",
-  "job_title": "",
-  "contact": {{"email":"","phone":"","location":"","linkedin":"","website":"","github":""}},
-  "summary": "",
-  "experience": [{{"company":"","role":"","location":"","start_date":"","end_date":"","current":false,"bullets":["",""]}}],
-  "education": [{{"institution":"","degree":"","field":"","start_date":"","end_date":"","gpa":"","highlights":[""]}}],
-  "projects": [{{"name":"","url":"","technologies":[],"description":"","bullets":[""]}}],
-  "skills": ["skill1","skill2"],
-  "certifications": [],
-  "languages": [],
-  "awards": []
-}}
+Return ONLY valid JSON (no markdown):
+{CV_JSON_SCHEMA}
 
-Rules:
-- From the FIRST piece of info, build the most complete CV possible — never wait for more messages
-- ALWAYS include: professional summary (3-4 lines), experience with 3-5 bullets per role, skills list (8+ items when possible), education
-- Use strong action verbs and quantified achievements (estimate reasonably if not given)
-- ATS-friendly keywords
-- Infer dates, locations, and bullet points from context when user gives company/role/years
-- Never leave summary, experience, or skills empty if user gave name, job, company, or education
-- summary must be a plain string, not a nested object
-- Keep bullets concise (1-2 lines each)
+{CV_WRITING_RULES}
+
+Build the most complete CV possible from available information — from the first message onward.
 """
 
 
@@ -79,12 +62,13 @@ Return ONLY valid JSON for the section:
 - experience: {{"experience": [{{"company":"","role":"","location":"","start_date":"","end_date":"","current":false,"bullets":[]}}]}}
 - education: {{"education": [...]}}
 - projects: {{"projects": [...]}}
-- skills: {{"skills": ["..."]}}
-- certifications: {{"certifications": ["..."]}}
-- languages: {{"languages": ["..."]}}
-- awards: {{"awards": ["..."]}}
+- skills: {{"skills": ["..."], "skill_groups": [{{"category":"Technical","items":["..."]}}]}}
+- certifications: {{"certifications": [{{"name":"","issuer":"","date":""}}]}}
+- languages: {{"languages": [{{"name":"","proficiency":"Fluent"}}]}}
 
-Improve content with action verbs, metrics, and ATS keywords. No markdown."""
+{CV_WRITING_RULES}
+
+Improve content with action verbs, metrics, and ATS keywords. Never invent fake data. No markdown."""
 
 
 def enhance_text_prompt(text: str, context: str, tone: WritingTone) -> str:

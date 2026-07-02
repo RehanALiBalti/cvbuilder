@@ -4,12 +4,15 @@ export const SECTIONS = [
 ];
 
 export function getContactLine(contact) {
-  return [contact?.email, contact?.phone, contact?.location, contact?.linkedin, contact?.website]
+  return [contact?.email, contact?.phone, contact?.location, contact?.linkedin, contact?.website, contact?.github]
     .filter(Boolean);
 }
 
 export function hasCvContent(c) {
-  return !!(c?.full_name || c?.summary || c?.experience?.length || c?.skills?.length || c?.education?.length);
+  return !!(
+    c?.full_name || c?.summary || c?.experience?.length ||
+    c?.skills?.length || c?.skill_groups?.length || c?.education?.length
+  );
 }
 
 export function visibleSections(c) {
@@ -18,11 +21,33 @@ export function visibleSections(c) {
   return order.filter((s) => vis[s] !== false);
 }
 
+export function getSkillGroups(c) {
+  if (c?.skill_groups?.length) return c.skill_groups;
+  if (c?.skills?.length) return [{ category: "Core Skills", items: c.skills }];
+  return [];
+}
+
+export function formatCertification(cert) {
+  if (typeof cert === "string") return cert;
+  const parts = [cert?.name].filter(Boolean);
+  if (cert?.issuer) parts.push(cert.issuer);
+  if (cert?.date) parts.push(cert.date);
+  return parts.join(" — ");
+}
+
+export function formatLanguage(lang) {
+  if (typeof lang === "string") return lang;
+  if (!lang?.name) return "";
+  return lang.proficiency ? `${lang.name} — ${lang.proficiency}` : lang.name;
+}
+
 export function sectionBlocks(c, sections) {
   const blocks = [];
+  const skillGroups = getSkillGroups(c);
+
   for (const section of sections) {
     if (section === "summary" && c.summary) {
-      blocks.push({ type: "summary", title: "Summary", text: c.summary });
+      blocks.push({ type: "summary", title: "Professional Summary", text: c.summary });
     }
     if (section === "experience" && c.experience?.length) {
       blocks.push({ type: "experience", title: "Experience", items: c.experience });
@@ -33,14 +58,29 @@ export function sectionBlocks(c, sections) {
     if (section === "projects" && c.projects?.length) {
       blocks.push({ type: "projects", title: "Projects", items: c.projects });
     }
-    if (section === "skills" && c.skills?.length) {
-      blocks.push({ type: "skills", title: "Skills", items: c.skills });
+    if (section === "skills" && (skillGroups.length || c.skills?.length)) {
+      blocks.push({
+        type: skillGroups.length > 1 || (skillGroups[0]?.category && skillGroups[0].category !== "Core Skills")
+          ? "skill_groups"
+          : "skills",
+        title: "Skills",
+        items: c.skills || [],
+        groups: skillGroups,
+      });
     }
     if (section === "certifications" && c.certifications?.length) {
-      blocks.push({ type: "list", title: "Certifications", items: c.certifications });
+      blocks.push({
+        type: "certifications",
+        title: "Certifications",
+        items: c.certifications.map(formatCertification),
+      });
     }
     if (section === "languages" && c.languages?.length) {
-      blocks.push({ type: "chips", title: "Languages", items: c.languages });
+      blocks.push({
+        type: "languages",
+        title: "Languages",
+        items: c.languages.map(formatLanguage).filter(Boolean),
+      });
     }
     if (section === "awards" && c.awards?.length) {
       blocks.push({ type: "list", title: "Awards", items: c.awards });

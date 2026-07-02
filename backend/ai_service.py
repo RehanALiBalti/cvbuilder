@@ -100,6 +100,35 @@ def _coerce_cv_fields(data: Dict[str, Any]) -> Dict[str, Any]:
         out["summary"] = _unwrap_section_value("summary", out["summary"])
         if not isinstance(out["summary"], str):
             out["summary"] = str(out.get("summary") or "")
+
+    certs = out.get("certifications") or []
+    if certs and isinstance(certs[0], str):
+        out["certifications"] = [{"name": c, "issuer": "", "date": ""} for c in certs]
+
+    langs = out.get("languages") or []
+    if langs and isinstance(langs[0], str):
+        coerced = []
+        for lang in langs:
+            if isinstance(lang, str):
+                if "—" in lang or " - " in lang:
+                    parts = re.split(r"\s*[—\-]\s*", lang, maxsplit=1)
+                    coerced.append({"name": parts[0].strip(), "proficiency": parts[1].strip() if len(parts) > 1 else ""})
+                else:
+                    coerced.append({"name": lang, "proficiency": ""})
+            else:
+                coerced.append(lang)
+        out["languages"] = coerced
+
+    groups = out.get("skill_groups") or []
+    if groups and not out.get("skills"):
+        flat: List[str] = []
+        for g in groups:
+            if isinstance(g, dict):
+                flat.extend(g.get("items") or [])
+        out["skills"] = flat
+    elif out.get("skills") and not groups:
+        out["skill_groups"] = [{"category": "Core Skills", "items": out["skills"]}]
+
     return out
 
 
@@ -270,25 +299,34 @@ def _apply_generated_cv(base: CVContent, generated: Dict[str, Any]) -> CVContent
     return CVContent(**data)
 
 
-def _make_chat_reply(before: CVContent, after: CVContent) -> str:
+def _make_chat_reply(before: CVContent, after: CVContent, _suggestions: List[str] | None = None) -> str:
     parts: List[str] = []
     if after.full_name and after.full_name != before.full_name:
-        parts.append("added your name and header")
+        parts.append("updated your header")
     if after.summary and not before.summary.strip():
         parts.append("written a professional summary")
     elif after.summary and after.summary != before.summary:
-        parts.append("refined your summary")
+        parts.append("improved your summary")
     if after.experience and not before.experience:
-        parts.append("built your work experience with achievement bullets")
-    elif len(after.experience) > len(before.experience):
-        parts.append("updated your experience")
+        parts.append("built achievement-oriented experience bullets")
+    elif after.experience and after.experience != before.experience:
+        parts.append("enhanced your experience section")
+    if after.projects and not before.projects:
+        parts.append("added project descriptions with impact")
+    if after.skill_groups and not before.skill_groups:
+        parts.append("organized skills by category")
+    elif after.skills and len(after.skills or []) > len(before.skills or []):
+        parts.append("expanded your skills")
     if after.education and not before.education:
         parts.append("added education")
-    if after.skills and len(after.skills) > len(before.skills or []):
-        parts.append("expanded your skills")
+    if after.certifications and not before.certifications:
+        parts.append("formatted certifications")
+    if after.languages and not before.languages:
+        parts.append("added languages with proficiency levels")
+
     if parts:
-        return f"I've {', '.join(parts)}. Your CV preview on the right is updated — keep chatting to refine it."
-    return "Your CV is updated with everything you've shared so far. Keep adding details or say 'download PDF' when ready."
+        return f"I've {', '.join(parts)}. Check the live preview on the right."
+    return "Your CV is updated. Keep sharing details or say 'download PDF' when ready."
 
 
 def _is_export_only(message: str) -> bool:
@@ -322,14 +360,17 @@ def chat_cv(
     context = _build_chat_context(history, content)
     context += (
         f"\n\nLatest user message: {message}\n\n"
-        "Build the most complete professional CV possible from ALL messages above. "
-        "Fill summary, experience bullets, skills, and education immediately — do not wait for more info."
+        "Build the most complete modern professional CV from ALL messages above. "
+        "Improve summary, achievement-oriented experience bullets, categorized skills, "
+        "project impact, formatted certifications and languages. "
+        "Never fabricate employers, degrees, or credentials not mentioned by the user."
     )
     gen = generate_cv(context, tone, content.job_title or "", "")
 
     if gen.success and gen.data.get("content"):
         updated = _apply_generated_cv(content, gen.data["content"])
-        reply = _make_chat_reply(content, updated)
+        suggestions = _suggest_missing_sections(updated)
+        reply = _make_chat_reply(content, updated, suggestions)
         return AIResponse(
             success=True,
             message=reply,
@@ -337,8 +378,9 @@ def chat_cv(
                 "reply": reply,
                 "content": updated.model_dump(),
                 "action": action or gen.data.get("action"),
+                "missing_sections": suggestions,
             },
-            suggestions=gen.suggestions,
+            suggestions=suggestions,
         )
 
     return AIResponse(
@@ -348,18 +390,39 @@ def chat_cv(
     )
 
 
-def _detect_missing_fields(content: CVContent) -> List[str]:
-    missing: List[str] = []
+def _suggest_missing_sections(content: CVContent) -> List[str]:
+    """Suggest missing sections — never fabricate data, only guide the user."""
+    suggestions: List[str] = []
     if not content.full_name.strip():
-        missing.append("Full name is missing")
+        suggestions.append("Add your full name.")
     if not content.contact.email.strip():
-        missing.append("Email is missing")
+        suggestions.append("Add your email address for recruiters to contact you.")
+    if not content.contact.phone.strip():
+        suggestions.append("Add a phone number (optional but recommended).")
     if not content.summary.strip():
-        missing.append("Professional summary is missing")
+        suggestions.append("Add a Professional Summary — share your role, years of experience, and top strengths.")
     if not content.experience:
-        missing.append("Work experience section is empty")
-    if not content.skills:
-        missing.append("Skills section is empty")
+        suggestions.append("Add Work Experience — company name, job title, dates, and key responsibilities.")
+    else:
+        for exp in content.experience:
+            if not exp.bullets or all(len(b.strip()) < 20 for b in exp.bullets):
+                suggestions.append(f"Add achievement bullets for {exp.role or 'your role'} at {exp.company or 'your company'}.")
     if not content.education:
-        missing.append("Education section is empty")
-    return missing
+        suggestions.append("Add Education — degree, institution, and graduation year.")
+    if not content.skills and not content.skill_groups:
+        suggestions.append("Add Skills — technical and soft skills relevant to your target role.")
+    if not content.projects:
+        role = (content.job_title or "").lower()
+        if any(k in role for k in ("developer", "engineer", "software", "data", "devops")):
+            suggestions.append("Consider adding Projects — share 1-2 projects with tech stack and impact.")
+    if not content.certifications:
+        suggestions.append("Add Certifications if you have any (e.g. AWS, PMP) — only real ones.")
+    if not content.languages:
+        suggestions.append("Add Languages with proficiency (e.g. English — Fluent, Urdu — Native).")
+    if not content.contact.linkedin.strip() and not content.contact.github.strip():
+        suggestions.append("Add LinkedIn or GitHub profile URL for a stronger professional presence.")
+    return suggestions
+
+
+def _detect_missing_fields(content: CVContent) -> List[str]:
+    return _suggest_missing_sections(content)

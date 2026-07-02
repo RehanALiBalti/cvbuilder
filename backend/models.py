@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+import re
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class WritingTone(str, Enum):
@@ -68,6 +69,22 @@ class ProjectItem(BaseModel):
     bullets: List[str] = Field(default_factory=list)
 
 
+class SkillGroup(BaseModel):
+    category: str = ""
+    items: List[str] = Field(default_factory=list)
+
+
+class LanguageItem(BaseModel):
+    name: str = ""
+    proficiency: str = ""  # Native, Fluent, Professional, Intermediate, Basic
+
+
+class CertificationItem(BaseModel):
+    name: str = ""
+    issuer: str = ""
+    date: str = ""
+
+
 class SectionVisibility(BaseModel):
     summary: bool = True
     experience: bool = True
@@ -88,8 +105,9 @@ class CVContent(BaseModel):
     education: List[EducationItem] = Field(default_factory=list)
     projects: List[ProjectItem] = Field(default_factory=list)
     skills: List[str] = Field(default_factory=list)
-    certifications: List[str] = Field(default_factory=list)
-    languages: List[str] = Field(default_factory=list)
+    skill_groups: List[SkillGroup] = Field(default_factory=list)
+    certifications: List[CertificationItem] = Field(default_factory=list)
+    languages: List[LanguageItem] = Field(default_factory=list)
     awards: List[str] = Field(default_factory=list)
     section_order: List[str] = Field(
         default_factory=lambda: [
@@ -98,6 +116,26 @@ class CVContent(BaseModel):
         ]
     )
     section_visibility: SectionVisibility = Field(default_factory=SectionVisibility)
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_legacy_lists(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        certs = data.get("certifications") or []
+        if certs and isinstance(certs[0], str):
+            data["certifications"] = [{"name": c, "issuer": "", "date": ""} for c in certs]
+        langs = data.get("languages") or []
+        if langs and isinstance(langs[0], str):
+            parsed = []
+            for lang in langs:
+                if "—" in lang or " - " in lang:
+                    parts = re.split(r"\s*[—\-]\s*", lang, maxsplit=1)
+                    parsed.append({"name": parts[0].strip(), "proficiency": parts[1].strip() if len(parts) > 1 else ""})
+                else:
+                    parsed.append({"name": lang, "proficiency": ""})
+            data["languages"] = parsed
+        return data
 
 
 class CVDocument(BaseModel):

@@ -1,5 +1,6 @@
 import {
   getContactLine,
+  getSkillGroups,
   hasCvContent,
   sectionBlocks,
   visibleSections,
@@ -39,27 +40,57 @@ function ProjList({ items }) {
   ));
 }
 
+function SkillsGrouped({ groups }) {
+  return (
+    <div className="tpl-skill-groups">
+      {groups.map((g, i) => (
+        <div key={i} className="tpl-skill-group">
+          {g.category && <h4 className="tpl-skill-cat">{g.category}</h4>}
+          <div className="tpl-skill-row">
+            {(g.items || []).map((s, j) => <span key={j} className="tpl-skill-tag">{s}</span>)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BlockContent({ block }) {
+  if (block.type === "summary") return <p>{block.text}</p>;
+  if (block.type === "experience") return <ExpList items={block.items} />;
+  if (block.type === "education") return <EduList items={block.items} />;
+  if (block.type === "projects") return <ProjList items={block.items} />;
+  if (block.type === "skill_groups") return <SkillsGrouped groups={block.groups} />;
+  if (block.type === "skills") {
+    return (
+      <div className="tpl-skill-row">
+        {block.items.map((s, j) => <span key={j} className="tpl-skill-tag">{s}</span>)}
+      </div>
+    );
+  }
+  if (block.type === "certifications" || block.type === "languages") {
+    return <ul className="tpl-formatted-list">{block.items.map((x, j) => <li key={j}>{x}</li>)}</ul>;
+  }
+  if (block.type === "list") {
+    return <ul className="tpl-simple-list">{block.items.map((x, j) => <li key={j}>{x}</li>)}</ul>;
+  }
+  if (block.type === "chips") {
+    return (
+      <div className="tpl-skill-row">
+        {block.items.map((s, j) => <span key={j} className="tpl-chip">{s}</span>)}
+      </div>
+    );
+  }
+  return null;
+}
+
 function MainSections({ c, classPrefix = "" }) {
   const sections = visibleSections(c);
   const blocks = sectionBlocks(c, sections);
   return blocks.map((block, i) => (
     <section key={i} className={`${classPrefix} tpl-section`}>
       <h3 className="tpl-section-title">{block.title}</h3>
-      {block.type === "summary" && <p>{block.text}</p>}
-      {block.type === "experience" && <ExpList items={block.items} />}
-      {block.type === "education" && <EduList items={block.items} />}
-      {block.type === "projects" && <ProjList items={block.items} />}
-      {block.type === "skills" && (
-        <div className="tpl-skill-row">
-          {block.items.map((s, j) => <span key={j} className="tpl-skill-tag">{s}</span>)}
-        </div>
-      )}
-      {block.type === "chips" && (
-        <div className="tpl-skill-row">
-          {block.items.map((s, j) => <span key={j} className="tpl-chip">{s}</span>)}
-        </div>
-      )}
-      {block.type === "list" && <ul className="tpl-simple-list">{block.items.map((x, j) => <li key={j}>{x}</li>)}</ul>}
+      <BlockContent block={block} />
     </section>
   ));
 }
@@ -90,8 +121,7 @@ export function ModernTemplate({ cv }) {
   const c = cv.content;
   if (!hasCvContent(c)) return <EmptyPreview />;
   const contact = getContactLine(c.contact);
-  const sidebarSkills = c.skills || [];
-  const sidebarEdu = c.education || [];
+  const skillGroups = getSkillGroups(c);
   const mainSections = visibleSections(c).filter((s) => !["skills", "education", "languages"].includes(s));
   const sideBlocks = sectionBlocks(c, visibleSections(c).filter((s) => ["education", "languages", "certifications"].includes(s)));
 
@@ -104,19 +134,19 @@ export function ModernTemplate({ cv }) {
           <h4>Contact</h4>
           {contact.map((line, i) => <p key={i}>{line}</p>)}
         </div>
-        {sidebarSkills.length > 0 && (
+        {skillGroups.length > 0 && (
           <div className="tpl-side-block">
             <h4>Skills</h4>
-            <div className="tpl-skill-col">
-              {sidebarSkills.map((s, i) => <span key={i}>{s}</span>)}
-            </div>
+            <SkillsGrouped groups={skillGroups} />
           </div>
         )}
         {sideBlocks.map((b, i) => (
           <div key={i} className="tpl-side-block">
             <h4>{b.title}</h4>
             {b.type === "education" && <EduList items={b.items} />}
-            {b.type === "chips" && b.items.map((x, j) => <p key={j}>{x}</p>)}
+            {(b.type === "languages" || b.type === "certifications") && (
+              <ul className="tpl-side-list">{b.items.map((x, j) => <li key={j}>{x}</li>)}</ul>
+            )}
             {b.type === "list" && <ul className="tpl-simple-list">{b.items.map((x, j) => <li key={j}>{x}</li>)}</ul>}
           </div>
         ))}
@@ -201,15 +231,7 @@ export function CreativeTemplate({ cv }) {
         {blocks.map((block, i) => (
           <div key={i} className="tpl-creative-card">
             <h3>{block.title}</h3>
-            {block.type === "summary" && <p>{block.text}</p>}
-            {block.type === "experience" && <ExpList items={block.items} />}
-            {block.type === "education" && <EduList items={block.items} />}
-            {block.type === "projects" && <ProjList items={block.items} />}
-            {block.type === "skills" && (
-              <div className="tpl-skill-row">{block.items.map((s, j) => <span key={j} className="tpl-skill-tag">{s}</span>)}</div>
-            )}
-            {block.type === "list" && <ul>{block.items.map((x, j) => <li key={j}>{x}</li>)}</ul>}
-            {block.type === "chips" && <p>{block.items.join(" · ")}</p>}
+            <BlockContent block={block} />
           </div>
         ))}
       </div>
@@ -233,9 +255,9 @@ export function TechTemplate({ cv }) {
           {contact.map((line, i) => <span key={i}>{line}</span>)}
         </div>
       </header>
-      {c.skills?.length > 0 && (
+      {getSkillGroups(c).length > 0 && (
         <div className="tpl-tech-skills">
-          {c.skills.map((s, i) => <code key={i}>{s}</code>)}
+          {getSkillGroups(c).flatMap((g) => g.items || []).map((s, i) => <code key={i}>{s}</code>)}
         </div>
       )}
       <MainSections c={{ ...c, skills: [] }} />
@@ -261,6 +283,92 @@ export function ElegantTemplate({ cv }) {
   );
 }
 
+/* 9 — Corporate: two column */
+export function CorporateTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview />;
+  const contact = getContactLine(c.contact);
+  const leftSections = ["summary", "experience", "projects"].filter((s) => visibleSections(c).includes(s));
+  const rightSections = ["education", "skills", "certifications", "languages", "awards"].filter((s) => visibleSections(c).includes(s));
+  return (
+    <div className="tpl tpl-corporate">
+      <header className="tpl-corporate-header">
+        <h1>{c.full_name || "Your Name"}</h1>
+        <p className="tpl-job">{c.job_title}</p>
+        <p className="tpl-contact">{contact.join(" · ")}</p>
+      </header>
+      <div className="tpl-corporate-grid">
+        <div><MainSections c={{ ...c, section_order: leftSections }} /></div>
+        <div><MainSections c={{ ...c, section_order: rightSections }} classPrefix="tpl-corporate-side-" /></div>
+      </div>
+    </div>
+  );
+}
+
+/* 10 — Startup: bold header */
+export function StartupTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-startup">
+      <header className="tpl-startup-hero">
+        <h1>{c.full_name || "Your Name"}</h1>
+        <p className="tpl-job">{c.job_title}</p>
+        <p className="tpl-contact">{contact.join("  ·  ")}</p>
+      </header>
+      <MainSections c={c} classPrefix="tpl-startup-" />
+    </div>
+  );
+}
+
+/* 11 — Academic */
+export function AcademicTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview />;
+  const contact = getContactLine(c.contact);
+  const order = ["education", "summary", "experience", "projects", "skills", "certifications", "languages", "awards"]
+    .filter((s) => visibleSections(c).includes(s));
+  return (
+    <div className="tpl tpl-academic">
+      <header>
+        <p className="tpl-academic-label">Curriculum Vitae</p>
+        <h1>{c.full_name || "Your Name"}</h1>
+        <p className="tpl-job">{c.job_title}</p>
+        <p className="tpl-contact">{contact.join(" | ")}</p>
+      </header>
+      <MainSections c={{ ...c, section_order: order }} />
+    </div>
+  );
+}
+
+/* 12 — International */
+export function InternationalTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview />;
+  const contact = getContactLine(c.contact);
+  const blocks = sectionBlocks(c, visibleSections(c));
+  return (
+    <div className="tpl tpl-international">
+      <header className="tpl-intl-header">
+        <div>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+        </div>
+        <div className="tpl-intl-contact">
+          {contact.map((line, i) => <span key={i}>{line}</span>)}
+        </div>
+      </header>
+      {blocks.map((block, i) => (
+        <div key={i} className="tpl-intl-block">
+          <h3>{block.title}</h3>
+          <BlockContent block={block} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const MAP = {
   professional: ProfessionalTemplate,
   modern: ModernTemplate,
@@ -270,6 +378,10 @@ const MAP = {
   creative: CreativeTemplate,
   tech: TechTemplate,
   elegant: ElegantTemplate,
+  corporate: CorporateTemplate,
+  startup: StartupTemplate,
+  academic: AcademicTemplate,
+  international: InternationalTemplate,
 };
 
 export default function TemplateRenderer({ cv, template }) {

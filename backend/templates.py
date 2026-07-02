@@ -77,6 +77,42 @@ TEMPLATES: List[Dict[str, Any]] = [
         "preview_color": "#c9a227",
         "font": "Georgia, serif",
     },
+    {
+        "id": "corporate",
+        "name": "Corporate",
+        "category": "corporate",
+        "layout": "two_column",
+        "description": "Structured two-column layout — finance, consulting, corporate",
+        "preview_color": "#1e3a5f",
+        "font": "Calibri, Arial, sans-serif",
+    },
+    {
+        "id": "startup",
+        "name": "Startup",
+        "category": "startup",
+        "layout": "bold_header",
+        "description": "Bold accent header with clean sections — product & growth roles",
+        "preview_color": "#6366f1",
+        "font": "Inter, system-ui, sans-serif",
+    },
+    {
+        "id": "academic",
+        "name": "Academic",
+        "category": "academic",
+        "layout": "academic",
+        "description": "Research-focused layout — publications, education emphasis",
+        "preview_color": "#7f1d1d",
+        "font": "Times New Roman, serif",
+    },
+    {
+        "id": "international",
+        "name": "International",
+        "category": "international",
+        "layout": "intl",
+        "description": "Global CV style with clear section blocks and neutral palette",
+        "preview_color": "#0369a1",
+        "font": "Helvetica Neue, Arial, sans-serif",
+    },
 ]
 
 

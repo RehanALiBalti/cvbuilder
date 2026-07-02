@@ -54,12 +54,30 @@ def _build_plain_text(doc: CVDocument) -> str:
                 for b in p.bullets:
                     lines.append(f"  • {b}")
             lines.append("")
-        elif section == "skills" and c.skills:
-            lines += [_section_title(section), ", ".join(c.skills), ""]
+        elif section == "skills" and (c.skills or c.skill_groups):
+            if c.skill_groups:
+                lines.append(_section_title(section))
+                for g in c.skill_groups:
+                    lines.append(f"{g.category}: {', '.join(g.items)}")
+                lines.append("")
+            elif c.skills:
+                lines += [_section_title(section), ", ".join(c.skills), ""]
         elif section == "certifications" and c.certifications:
-            lines += [_section_title(section), "\n".join(f"• {x}" for x in c.certifications), ""]
+            lines.append(_section_title(section))
+            for cert in c.certifications:
+                parts = [cert.name]
+                if cert.issuer:
+                    parts.append(cert.issuer)
+                if cert.date:
+                    parts.append(cert.date)
+                lines.append(f"• {' — '.join(parts)}")
+            lines.append("")
         elif section == "languages" and c.languages:
-            lines += [_section_title(section), ", ".join(c.languages), ""]
+            lang_str = ", ".join(
+                f"{lang.name} ({lang.proficiency})" if lang.proficiency else lang.name
+                for lang in c.languages
+            )
+            lines += [_section_title(section), lang_str, ""]
         elif section == "awards" and c.awards:
             lines += [_section_title(section), "\n".join(f"• {x}" for x in c.awards), ""]
 
@@ -112,9 +130,27 @@ def export_docx(doc: CVDocument) -> Tuple[bytes, str]:
                 document.add_paragraph(proj.name).runs[0].bold = True
                 if proj.description:
                     document.add_paragraph(proj.description)
-        elif section == "skills" and c.skills:
+        elif section == "skills" and (c.skills or c.skill_groups):
             document.add_heading("Skills", level=1)
-            document.add_paragraph(", ".join(c.skills))
+            if c.skill_groups:
+                for g in c.skill_groups:
+                    document.add_paragraph(f"{g.category}: {', '.join(g.items)}")
+            else:
+                document.add_paragraph(", ".join(c.skills))
+        elif section == "certifications" and c.certifications:
+            document.add_heading("Certifications", level=1)
+            for cert in c.certifications:
+                parts = [cert.name]
+                if cert.issuer:
+                    parts.append(cert.issuer)
+                if cert.date:
+                    parts.append(cert.date)
+                document.add_paragraph(" — ".join(parts), style="List Bullet")
+        elif section == "languages" and c.languages:
+            document.add_heading("Languages", level=1)
+            for lang in c.languages:
+                text = f"{lang.name} — {lang.proficiency}" if lang.proficiency else lang.name
+                document.add_paragraph(text, style="List Bullet")
 
     buf = io.BytesIO()
     document.save(buf)

@@ -27,19 +27,25 @@ const TONES = [
 const WELCOME = {
   role: "assistant",
   content:
-    "Hi! Start typing — your name, role, company, experience, education, skills. From your very first message I'll build your CV on the right. Pick a **template** (8 designs) from the header, or say \"use modern template\". Say \"download PDF\" when ready.",
+    "Hi! Share your name, role, experience, education, and skills — from your first message I'll build a modern, clean CV on the right.\n\nI'll improve your Professional Summary, convert experience into achievement bullets, organize skills, format certifications & languages, and suggest missing sections (without inventing fake data).\n\nPick a template (12 designs) from the header, or say \"use startup template\". Say \"download PDF\" when ready.",
 };
 
 function detectTemplateSwitch(text) {
   const m = (text || "").toLowerCase();
-  if (/modern|sidebar/.test(m) && /template|use|switch/.test(m)) return "modern";
-  if (/executive/.test(m) && /template|use|switch/.test(m)) return "executive";
-  if (/minimal/.test(m) && /template|use|switch/.test(m)) return "minimal";
-  if (/fresh|graduate/.test(m) && /template|use|switch/.test(m)) return "fresh_graduate";
-  if (/creative/.test(m) && /template|use|switch/.test(m)) return "creative";
-  if (/tech|developer/.test(m) && /template|use|switch/.test(m)) return "tech";
-  if (/elegant/.test(m) && /template|use|switch/.test(m)) return "elegant";
-  if (/professional/.test(m) && /template|use|switch/.test(m)) return "professional";
+  const wantsSwitch = /template|use|switch|apply/.test(m);
+  if (!wantsSwitch) return null;
+  if (/corporate/.test(m)) return "corporate";
+  if (/startup/.test(m)) return "startup";
+  if (/academic|research/.test(m)) return "academic";
+  if (/international|global/.test(m)) return "international";
+  if (/modern|sidebar/.test(m)) return "modern";
+  if (/executive/.test(m)) return "executive";
+  if (/minimal/.test(m)) return "minimal";
+  if (/fresh|graduate/.test(m)) return "fresh_graduate";
+  if (/creative/.test(m)) return "creative";
+  if (/tech|developer/.test(m)) return "tech";
+  if (/elegant/.test(m)) return "elegant";
+  if (/professional/.test(m)) return "professional";
   return null;
 }
 
@@ -184,11 +190,15 @@ export default function App() {
       }
 
       let reply = result.data?.reply || result.message || "Done.";
+      const suggestions = result.suggestions || result.data?.missing_sections || [];
       if (templateSwitch) {
         const tname = templates.find((t) => t.id === templateSwitch)?.name || templateSwitch;
         reply = `Switched to ${tname} template. ${reply}`;
       }
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: reply, suggestions: suggestions.length ? suggestions : undefined },
+      ]);
 
       if (action === "export_pdf" || action === "export_docx") {
         triggerDownload(action, cvForChat.id);
@@ -324,6 +334,14 @@ export default function App() {
                 <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>
                   <span className="chat-role">{msg.role === "user" ? "You" : "AI"}</span>
                   <p>{msg.content}</p>
+                  {msg.suggestions?.length > 0 && (
+                    <div className="chat-suggestions-wrap">
+                      <p className="chat-suggestions-title">Suggestions (add real info — AI won&apos;t invent data)</p>
+                      <ul className="chat-suggestions">
+                        {msg.suggestions.map((s, j) => <li key={j}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               ))}
               {loading && <AILoadingBubble />}
