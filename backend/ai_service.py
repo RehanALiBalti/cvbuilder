@@ -225,6 +225,52 @@ def linkedin_content(content: CVContent, tone: WritingTone = WritingTone.PROFESS
     return AIResponse(success=True, data=parsed)
 
 
+def chat_cv(
+    message: str,
+    history: List[Dict[str, str]],
+    content: CVContent,
+    tone: WritingTone = WritingTone.PROFESSIONAL,
+) -> AIResponse:
+    prompt = prompts.chat_cv_prompt(message, history, content, tone)
+    raw = _call_llm(prompt, max_tokens=2000)
+    parsed = _extract_json(raw)
+
+    if "raw_text" in parsed and len(parsed) == 1:
+        return AIResponse(success=False, message="AI did not return valid JSON", data={"raw": raw})
+
+    reply = parsed.get("reply") or parsed.get("message") or "CV updated."
+    cv_data = parsed.get("content") or parsed
+    action = parsed.get("action")
+
+    if isinstance(cv_data, dict) and "reply" in cv_data and "content" in cv_data:
+        reply = cv_data.get("reply", reply)
+        cv_data = cv_data.get("content", content.model_dump())
+    elif isinstance(cv_data, dict) and "full_name" not in cv_data and "content" in parsed:
+        cv_data = parsed["content"]
+
+    try:
+        if isinstance(cv_data, dict) and cv_data:
+            updated = _merge_content(content, cv_data)
+        else:
+            updated = content
+    except Exception as exc:
+        return AIResponse(
+            success=False,
+            message=str(exc),
+            data={"raw": raw, "parsed": parsed, "reply": reply},
+        )
+
+    return AIResponse(
+        success=True,
+        message=reply,
+        data={
+            "reply": reply,
+            "content": updated.model_dump(),
+            "action": action,
+        },
+    )
+
+
 def _detect_missing_fields(content: CVContent) -> List[str]:
     missing: List[str] = []
     if not content.full_name.strip():

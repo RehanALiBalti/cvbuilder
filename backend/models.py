@@ -197,6 +197,19 @@ class AILinkedInRequest(BaseModel):
     tone: WritingTone = WritingTone.PROFESSIONAL
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class AIChatRequest(BaseModel):
+    message: str
+    history: List[ChatMessage] = Field(default_factory=list)
+    content: CVContent = Field(default_factory=CVContent)
+    tone: WritingTone = WritingTone.PROFESSIONAL
+    template_id: str = "professional"
+
+
 class AIResponse(BaseModel):
     success: bool = True
     data: Dict[str, Any] = Field(default_factory=dict)

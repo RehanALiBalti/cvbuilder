@@ -87,6 +87,15 @@ export function exportDocxUrl(id) {
   return `${API_BASE}/api/cvs/${id}/export/docx`;
 }
 
+export async function aiChat(payload) {
+  const res = await fetch(`${API_BASE}/api/ai/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
 export async function aiGenerate(payload) {
   const res = await fetch(`${API_BASE}/api/ai/generate`, {
     method: "POST",

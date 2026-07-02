@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from backend.models import CVContent, WritingTone
 
@@ -198,4 +198,64 @@ Return ONLY valid JSON:
   "bio": "...",
   "profile_recommendations": ["..."]
 }}
+"""
+
+
+def chat_cv_prompt(
+    message: str,
+    history: List[Dict[str, str]],
+    content: CVContent,
+    tone: WritingTone,
+) -> str:
+    history_lines = []
+    for item in history[-8:]:
+        role = item.get("role", "user")
+        text = (item.get("content") or "")[:600]
+        history_lines.append(f"{role.upper()}: {text}")
+    history_text = "\n".join(history_lines) if history_lines else "(no prior messages)"
+
+    return f"""You are an AI CV builder assistant. The user chats with you to build and update their CV in real time.
+
+Writing tone: {_tone(tone)}
+
+Conversation so far:
+{history_text}
+
+Current CV JSON:
+{_content_json(content)}
+
+User message:
+{message}
+
+Update the CV based on the user message. Merge new info into existing CV — do not remove data unless asked.
+
+Return ONLY valid JSON (no markdown):
+{{
+  "reply": "Short friendly reply explaining what you changed (2-4 sentences)",
+  "content": {{
+    "full_name": "",
+    "job_title": "",
+    "contact": {{"email":"","phone":"","location":"","linkedin":"","website":"","github":""}},
+    "summary": "",
+    "experience": [],
+    "education": [],
+    "projects": [],
+    "skills": [],
+    "certifications": [],
+    "languages": [],
+    "awards": []
+  }},
+  "action": null
+}}
+
+For action use only when user explicitly asks to download/export:
+- "export_pdf" for PDF download
+- "export_docx" for Word download
+- null otherwise
+
+Rules:
+- summary must be a plain string, never nested object
+- Keep all existing CV data and add/update from user message
+- Use strong action verbs and ATS-friendly wording
+- If user shares background for first time, build a complete CV
 """

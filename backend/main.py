@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, Response
 from backend import ai_service, export, storage, templates
 from backend.storage import StorageError
 from backend.models import (
+    AIChatRequest,
     AICareerGuidanceRequest,
     AIAnalyzeRequest,
     AICoverLetterRequest,
@@ -287,6 +288,16 @@ def ai_career_guidance(req: AICareerGuidanceRequest) -> Dict[str, Any]:
     result = _ai_handler(
         ai_service.career_guidance,
         req.content, req.target_role, req.years_experience,
+    )
+    return result.model_dump()
+
+
+@app.post("/api/ai/chat")
+def ai_chat(req: AIChatRequest) -> Dict[str, Any]:
+    history = [{"role": m.role, "content": m.content} for m in req.history]
+    result = _ai_handler(
+        ai_service.chat_cv,
+        req.message, history, req.content, req.tone,
     )
     return result.model_dump()
 
