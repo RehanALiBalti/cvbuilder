@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import AILoadingBubble from "./components/AILoadingBubble";
+import CVPreviewSkeleton from "./components/CVPreviewSkeleton";
 import {
   aiChat,
   createCV,
@@ -403,12 +405,7 @@ export default function App() {
                   <p>{msg.content}</p>
                 </div>
               ))}
-              {loading && (
-                <div className="chat-bubble chat-bubble--assistant">
-                  <span className="chat-role">AI</span>
-                  <p className="chat-typing">Updating your CV...</p>
-                </div>
-              )}
+              {loading && <AILoadingBubble />}
               <div ref={chatEndRef} />
             </div>
 
@@ -424,21 +421,41 @@ export default function App() {
               />
               <button
                 type="button"
-                className="btn btn-primary chat-send"
+                className={`btn btn-primary chat-send ${loading ? "is-loading" : ""}`}
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
               >
-                Send
+                {loading ? (
+                  <>
+                    <span className="btn-spinner" aria-hidden="true" />
+                    <span>Wait</span>
+                  </>
+                ) : (
+                  "Send"
+                )}
               </button>
             </div>
           </section>
 
-          <aside className="preview-panel">
+          <aside className={`preview-panel ${loading ? "preview-panel--loading" : ""}`}>
             <div className="preview-toolbar">
               <h3>Live CV Preview</h3>
-              <span className="muted">Updates as you chat</span>
+              <span className={`preview-status ${loading ? "preview-status--active" : ""}`}>
+                {loading ? (
+                  <>
+                    <span className="preview-pulse-dot" aria-hidden="true" />
+                    Updating…
+                  </>
+                ) : (
+                  "Updates as you chat"
+                )}
+              </span>
             </div>
-            <CVPreview cv={activeCv} template={activeTemplate} />
+            {loading ? (
+              <CVPreviewSkeleton />
+            ) : (
+              <CVPreview cv={activeCv} template={activeTemplate} />
+            )}
           </aside>
         </div>
       )}
