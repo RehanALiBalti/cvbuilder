@@ -19,7 +19,7 @@ import {
   getCV,
   renameCV,
   updateCV,
-} from "../api/client";
+} from "./api/client";
 
 const TONES = [
   { id: "professional", label: "Professional" },
