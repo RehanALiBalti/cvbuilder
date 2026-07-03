@@ -333,28 +333,35 @@ export default function CVBuilder() {
     setToast(`Template: ${templates.find((t) => t.id === templateId)?.name || templateId}`);
   }
 
+  const aiUsed = profile?.ai_messages_used ?? 0;
+  const aiLimit = profile?.ai_messages_limit ?? 50;
+  const aiPct = Math.min(100, Math.round((aiUsed / Math.max(aiLimit, 1)) * 100));
+  const userInitial = (user?.name || "U").charAt(0).toUpperCase();
+
   return (
-    <div className="cv-app">
-      <header className="cv-header-bar">
-        <div className="brand">
-          <div className="brand-mark">CV</div>
-          <div>
-            <h1>ResumeAI Builder</h1>
-            <p className="muted">
-              {user?.name ? `Hi, ${user.name.split(" ")[0]} · ` : ""}
-              <span className={`plan-badge plan-badge--${plan}`} style={{ marginRight: 6 }}>{planLabel}</span>
-              Ollama {health?.ollama_model || "qwen2.5:7b"}
-            </p>
-          </div>
+    <div className="account-layout builder-layout">
+      <header className="account-topbar">
+        {view === "chat" ? (
+          <button type="button" className="account-topbar-back" onClick={() => setView("list")}>
+            <span aria-hidden="true">←</span> My CVs
+          </button>
+        ) : (
+          <Link to="/" className="account-topbar-back">
+            <span aria-hidden="true">←</span> Home
+          </Link>
+        )}
+        <div className="account-topbar-brand">
+          <span className="account-topbar-mark">CV</span>
+          <span>ResumeAI</span>
         </div>
-        <div className="header-actions">
+        <div className="builder-topbar-actions">
           {view === "chat" && activeCv && (
             <>
               <button type="button" className="btn btn-sm" onClick={() => setShowTemplates(true)}>
                 Templates
               </button>
               <select
-                className="header-select"
+                className="builder-select"
                 value={activeCv.tone}
                 onChange={(e) => {
                   const next = { ...activeCv, tone: e.target.value };
@@ -384,154 +391,212 @@ export default function CVBuilder() {
               </button>
             </>
           )}
-          {view !== "list" && (
-            <button type="button" className="btn btn-ghost" onClick={() => setView("list")}>
-              ← My CVs
-            </button>
-          )}
-          <Link to="/builder/account" className="btn btn-ghost btn-sm">Account</Link>
-          <button type="button" className="btn btn-primary" onClick={handleCreate}>
+          <Link to="/builder/account" className="btn btn-sm btn-ghost">Account</Link>
+          <button type="button" className="btn btn-sm btn-primary" onClick={handleCreate}>
             + New CV
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={handleLogout}>
+          <button type="button" className="account-topbar-logout" onClick={handleLogout}>
             Log out
           </button>
         </div>
       </header>
 
-      {toast && <div className="toast" onClick={() => setToast("")}>{toast}</div>}
-
-      {view === "list" && (
-        <section className="panel">
-          <h2>Your CVs</h2>
-          {plan === "starter" && (
-            <p className="muted" style={{ marginBottom: 12 }}>
-              Free plan: {profile?.max_cvs ?? 1} CV · {profile?.ai_messages_used ?? 0}/{profile?.ai_messages_limit ?? 50} AI messages this month.
-              {" "}<Link to="/builder/account">Upgrade to Pro</Link>
-            </p>
-          )}
-          {cvs.length === 0 ? (
-            <div className="empty-state">
-              <p>Start a conversation — AI will build your CV as you type.</p>
-              <button type="button" className="btn btn-primary" onClick={handleCreate}>
-                Start building with AI
-              </button>
-            </div>
-          ) : (
-            <div className="cv-grid">
-              {cvs.map((cv) => (
-                <article key={cv.id} className="cv-card">
-                  <h3>{cv.name}</h3>
-                  <p className="muted">{cv.job_title || "No title yet"}</p>
-                  <p className="cv-date">Updated {new Date(cv.updated_at).toLocaleDateString()}</p>
-                  <div className="cv-card-actions">
-                    <button type="button" className="btn btn-sm" onClick={() => openCV(cv.id)}>Open chat</button>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-ghost"
-                      onClick={async () => { await duplicateCV(cv.id); loadCVs(); }}
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-danger"
-                      onClick={async () => {
-                        if (confirm("Delete this CV?")) {
-                          await deleteCV(cv.id);
-                          loadCVs();
-                        }
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {view === "chat" && activeCv && (
-        <div className="chat-layout">
-          <section className="chat-panel">
-            <div className="chat-messages">
-              {messages.map((msg, i) => (
-                <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>
-                  <span className="chat-role">{msg.role === "user" ? "You" : "AI"}</span>
-                  <p>{msg.content}</p>
-                  {msg.suggestions?.length > 0 && (
-                    <div className="chat-suggestions-wrap">
-                      <p className="chat-suggestions-title">Suggestions (add real info — AI won&apos;t invent data)</p>
-                      <ul className="chat-suggestions">
-                        {msg.suggestions.map((s, j) => <li key={j}>{s}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {loading && <AILoadingBubble />}
-              <div ref={chatEndRef} />
-            </div>
-
-            <div className="chat-input-area">
-              <UploadBar
-                disabled={loading || exporting}
-                onCvUpload={handleCvUpload}
-                onPhotoUpload={handlePhotoUpload}
-              />
-              <div className="chat-input-row">
-                <textarea
-                  className="chat-input"
-                  rows={3}
-                  placeholder="Type here... e.g. I'm Ali Khan, software engineer with 5 years Python experience. Or: improve summary, download PDF"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  className={`btn btn-primary chat-send ${loading ? "is-loading" : ""}`}
-                  onClick={sendMessage}
-                  disabled={loading || !input.trim()}
-                >
-                  {loading ? (
-                    <>
-                      <span className="btn-spinner" aria-hidden="true" />
-                      <span>Wait</span>
-                    </>
-                  ) : (
-                    "Send"
-                  )}
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <aside className={`preview-panel ${loading ? "preview-panel--loading" : ""}`}>
-            <div className="preview-toolbar">
-              <h3>Live CV Preview</h3>
-              <span className={`preview-status ${loading ? "preview-status--active" : ""}`}>
-                {loading ? (
-                  <>
-                    <span className="preview-pulse-dot" aria-hidden="true" />
-                    Updating…
-                  </>
-                ) : (
-                  "Updates as you chat"
-                )}
-              </span>
-            </div>
-            {loading ? (
-              <CVPreviewSkeleton />
-            ) : (
-              <TemplateRenderer ref={previewRef} cv={activeCv} template={activeTemplate} />
-            )}
-          </aside>
+      {toast && (
+        <div className="account-alert account-alert--success builder-toast" role="status" onClick={() => setToast("")}>
+          <span>✓</span> {toast}
         </div>
       )}
+
+      <div className={`builder-shell ${view === "chat" ? "builder-shell--wide" : ""}`}>
+        {view === "list" && (
+          <>
+            <div className="account-hero">
+              <div className="account-avatar" aria-hidden="true">{userInitial}</div>
+              <div className="account-hero-info">
+                <h1>{user?.name ? `${user.name.split(" ")[0]}'s workspace` : "Your CVs"}</h1>
+                <p>
+                  AI-powered builder · Ollama {health?.ollama_model || "qwen2.5:7b"}
+                  {health?.status === "degraded" && " · storage syncing"}
+                </p>
+              </div>
+              <span className={`plan-badge plan-badge--lg plan-badge--${plan}`}>{planLabel}</span>
+            </div>
+
+            <div className="account-stats">
+              <div className="account-stat">
+                <span className="account-stat-label">Your CVs</span>
+                <strong>{cvs.length}</strong>
+              </div>
+              <div className="account-stat">
+                <span className="account-stat-label">CV limit</span>
+                <strong>{profile?.max_cvs ?? 1}</strong>
+              </div>
+              <div className="account-stat account-stat--wide">
+                <div className="account-stat-row">
+                  <span className="account-stat-label">AI messages this month</span>
+                  <strong>{aiUsed} / {aiLimit}</strong>
+                </div>
+                <div className="account-progress">
+                  <div className="account-progress-fill" style={{ width: `${aiPct}%` }} />
+                </div>
+              </div>
+            </div>
+
+            <section className="account-card">
+              <div className="account-card-head builder-card-head">
+                <div>
+                  <h2>Your CVs</h2>
+                  <p>Create, edit, and export professional CVs with AI assistance.</p>
+                </div>
+                <button type="button" className="btn btn-primary" onClick={handleCreate}>
+                  + New CV
+                </button>
+              </div>
+
+              {plan === "starter" && (
+                <p className="builder-plan-hint">
+                  Free plan: {profile?.max_cvs ?? 1} CV · {aiUsed}/{aiLimit} AI messages.
+                  {" "}<Link to="/builder/account">Upgrade to Pro</Link>
+                </p>
+              )}
+
+              {cvs.length === 0 ? (
+                <div className="builder-empty">
+                  <div className="builder-empty-icon" aria-hidden="true">✨</div>
+                  <h3>Start your first CV</h3>
+                  <p>Chat with AI — it builds your CV as you type. No forms required.</p>
+                  <button type="button" className="btn btn-primary" onClick={handleCreate}>
+                    Start building with AI
+                  </button>
+                </div>
+              ) : (
+                <div className="builder-cv-grid">
+                  {cvs.map((cv) => (
+                    <article key={cv.id} className="builder-cv-card">
+                      <div className="builder-cv-card-top">
+                        <h3>{cv.name}</h3>
+                        <span className="builder-cv-card-tone">{cv.tone?.replace("_", " ") || "professional"}</span>
+                      </div>
+                      <p className="muted">{cv.job_title || "No title yet"}</p>
+                      <p className="builder-cv-date">Updated {new Date(cv.updated_at).toLocaleDateString()}</p>
+                      <div className="builder-cv-card-actions">
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => openCV(cv.id)}>
+                          Open chat
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={async () => { await duplicateCV(cv.id); loadCVs(); }}
+                        >
+                          Duplicate
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger"
+                          onClick={async () => {
+                            if (confirm("Delete this CV?")) {
+                              await deleteCV(cv.id);
+                              loadCVs();
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
+        {view === "chat" && activeCv && (
+          <div className="builder-chat-layout">
+            <section className="account-card builder-chat-panel">
+              <div className="account-card-head builder-chat-head">
+                <div>
+                  <h2>{activeCv.name}</h2>
+                  <p>Describe your experience — AI updates your CV in real time.</p>
+                </div>
+              </div>
+              <div className="chat-messages">
+                {messages.map((msg, i) => (
+                  <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>
+                    <span className="chat-role">{msg.role === "user" ? "You" : "AI"}</span>
+                    <p>{msg.content}</p>
+                    {msg.suggestions?.length > 0 && (
+                      <div className="chat-suggestions-wrap">
+                        <p className="chat-suggestions-title">Suggestions (add real info — AI won&apos;t invent data)</p>
+                        <ul className="chat-suggestions">
+                          {msg.suggestions.map((s, j) => <li key={j}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {loading && <AILoadingBubble />}
+                <div ref={chatEndRef} />
+              </div>
+
+              <div className="chat-input-area">
+                <UploadBar
+                  disabled={loading || exporting}
+                  onCvUpload={handleCvUpload}
+                  onPhotoUpload={handlePhotoUpload}
+                />
+                <div className="chat-input-row">
+                  <textarea
+                    className="chat-input"
+                    rows={3}
+                    placeholder="Type here... e.g. I'm Ali Khan, software engineer with 5 years Python experience. Or: improve summary, download PDF"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={onKeyDown}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    className={`btn btn-primary chat-send ${loading ? "is-loading" : ""}`}
+                    onClick={sendMessage}
+                    disabled={loading || !input.trim()}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="btn-spinner" aria-hidden="true" />
+                        <span>Wait</span>
+                      </>
+                    ) : (
+                      "Send"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <aside className={`account-card builder-preview-panel ${loading ? "preview-panel--loading" : ""}`}>
+              <div className="preview-toolbar">
+                <h3>Live CV Preview</h3>
+                <span className={`preview-status ${loading ? "preview-status--active" : ""}`}>
+                  {loading ? (
+                    <>
+                      <span className="preview-pulse-dot" aria-hidden="true" />
+                      Updating…
+                    </>
+                  ) : (
+                    "Updates as you chat"
+                  )}
+                </span>
+              </div>
+              {loading ? (
+                <CVPreviewSkeleton />
+              ) : (
+                <TemplateRenderer ref={previewRef} cv={activeCv} template={activeTemplate} />
+              )}
+            </aside>
+          </div>
+        )}
+      </div>
 
       {showTemplates && activeCv && (
         <TemplatePicker

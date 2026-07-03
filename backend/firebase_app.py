@@ -77,7 +77,8 @@ def get_db():
     from firebase_admin import firestore
 
     get_app()
-    return firestore.client()
+    database_id = os.getenv("FIRESTORE_DATABASE_ID", "(default)").strip() or "(default)"
+    return firestore.client(database_id=database_id)
 
 
 def get_bucket():
