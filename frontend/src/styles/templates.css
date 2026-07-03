@@ -1,5 +1,36 @@
 /* CV Template layouts — each tpl-* class is a distinct HTML/CSS design */
 
+.tpl-profile-photo {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+.tpl-profile-photo--sidebar {
+  display: block;
+  margin: 0 auto 14px;
+  border-color: #99f6e4;
+}
+.tpl-header-with-photo {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.tpl-header-text { flex: 1; min-width: 0; }
+.tpl-tech-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.tpl-tech-bar .tpl-profile-photo {
+  width: 72px;
+  height: 72px;
+  border-color: #334155;
+}
+
 .cv-preview-paper {
   background: #fff;
   min-height: 700px;
@@ -305,6 +336,47 @@
 .tprev-startup { background: linear-gradient(180deg, #6366f1 38%, #fff 38%); }
 .tprev-academic { background: #fff; border-left: 6px solid #7f1d1d; }
 .tprev-international { background: linear-gradient(180deg, #e0f2fe 25%, #fff 25%); border-bottom: 2px solid #0369a1; }
+.tprev-custom { background: linear-gradient(135deg, #6366f1 40%, #c9a227 40%); }
+
+/* Custom / chat-defined theme overrides */
+.cv-themed {
+  --cv-accent: #6366f1;
+  --cv-header-bg: var(--cv-accent);
+  --cv-sidebar-bg: var(--cv-accent);
+}
+.cv-themed .tpl,
+.cv-themed .tpl h1,
+.cv-themed .tpl p,
+.cv-themed .tpl li {
+  font-family: var(--cv-font, inherit);
+}
+.cv-themed .tpl-section-title,
+.cv-themed .tpl-intl-block h3,
+.cv-themed .tpl-academic-label {
+  color: var(--cv-accent) !important;
+  border-color: var(--cv-accent);
+}
+.cv-themed .tpl-professional-header,
+.cv-themed .tpl-corporate-header,
+.cv-themed .tpl-intl-header {
+  border-bottom-color: var(--cv-accent) !important;
+}
+.cv-themed .tpl-modern-side,
+.cv-themed .tpl-startup-hero,
+.cv-themed .tpl-tech-bar {
+  background: var(--cv-sidebar-bg) !important;
+}
+.cv-themed .tpl-startup-hero,
+.cv-themed .tpl-executive-banner {
+  background: linear-gradient(135deg, var(--cv-header-bg), var(--cv-accent)) !important;
+}
+.cv-themed .tpl-skill-tag {
+  background: color-mix(in srgb, var(--cv-accent) 15%, white);
+  color: var(--cv-accent);
+}
+.cv-themed .tpl-custom .tpl-professional-header {
+  border-bottom: 3px solid var(--cv-accent);
+}
 
 /* Skill groups */
 .tpl-skill-groups { display: flex; flex-direction: column; gap: 12px; }

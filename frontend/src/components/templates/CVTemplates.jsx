@@ -1,11 +1,28 @@
 import { forwardRef } from "react";
 import {
   getContactLine,
+  getProfilePhotoUrl,
   getSkillGroups,
   hasCvContent,
   sectionBlocks,
   visibleSections,
 } from "./cvHelpers";
+
+function ProfilePhoto({ cv, className = "" }) {
+  const url = getProfilePhotoUrl(cv);
+  if (!url) return null;
+  return <img src={url} alt="" className={`tpl-profile-photo ${className}`.trim()} />;
+}
+
+function HeaderWithPhoto({ cv, children, className = "" }) {
+  if (!getProfilePhotoUrl(cv)) return children;
+  return (
+    <div className={`tpl-header-with-photo ${className}`.trim()}>
+      <ProfilePhoto cv={cv} />
+      <div className="tpl-header-text">{children}</div>
+    </div>
+  );
+}
 
 function ExpList({ items }) {
   return items.map((exp, i) => (
@@ -108,9 +125,11 @@ export function ProfessionalTemplate({ cv }) {
   return (
     <div className="tpl tpl-professional">
       <header className="tpl-professional-header">
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <p className="tpl-contact">{contact.join(" | ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" | ")}</p>
+        </HeaderWithPhoto>
       </header>
       <MainSections c={c} />
     </div>
@@ -129,6 +148,7 @@ export function ModernTemplate({ cv }) {
   return (
     <div className="tpl tpl-modern">
       <aside className="tpl-modern-side">
+        <ProfilePhoto cv={cv} className="tpl-profile-photo--sidebar" />
         <h1>{c.full_name || "Your Name"}</h1>
         <p className="tpl-job">{c.job_title}</p>
         <div className="tpl-side-block">
@@ -248,9 +268,12 @@ export function TechTemplate({ cv }) {
   return (
     <div className="tpl tpl-tech">
       <header className="tpl-tech-bar">
-        <div>
-          <h1>{c.full_name || "Your Name"}</h1>
-          <p>{c.job_title}</p>
+        <div className="tpl-tech-bar-left">
+          <ProfilePhoto cv={cv} />
+          <div>
+            <h1>{c.full_name || "Your Name"}</h1>
+            <p>{c.job_title}</p>
+          </div>
         </div>
         <div className="tpl-tech-contact">
           {contact.map((line, i) => <span key={i}>{line}</span>)}
@@ -314,9 +337,11 @@ export function StartupTemplate({ cv }) {
   return (
     <div className="tpl tpl-startup">
       <header className="tpl-startup-hero">
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <p className="tpl-contact">{contact.join("  ·  ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join("  ·  ")}</p>
+        </HeaderWithPhoto>
       </header>
       <MainSections c={c} classPrefix="tpl-startup-" />
     </div>
@@ -383,13 +408,50 @@ const MAP = {
   startup: StartupTemplate,
   academic: AcademicTemplate,
   international: InternationalTemplate,
+  custom: CustomTemplate,
 };
+
+/* 13 — Custom: user-defined theme (via chat) */
+export function CustomTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-professional tpl-custom">
+      <header className="tpl-professional-header">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" | ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <MainSections c={c} />
+    </div>
+  );
+}
+
+function buildThemeStyle(theme) {
+  if (!theme?.accent_color) return undefined;
+  const style = {
+    "--cv-accent": theme.accent_color,
+    "--cv-header-bg": theme.header_bg || theme.accent_color,
+    "--cv-sidebar-bg": theme.sidebar_bg || theme.accent_color,
+  };
+  if (theme.font_family) style["--cv-font"] = theme.font_family;
+  return style;
+}
 
 export default forwardRef(function TemplateRenderer({ cv, template }, ref) {
   const id = template?.id || cv?.template_id || "professional";
   const Component = MAP[id] || ProfessionalTemplate;
+  const themeStyle = buildThemeStyle(cv?.theme_override);
+  const themed = id === "custom" || themeStyle;
   return (
-    <div className="cv-preview-paper" ref={ref}>
+    <div
+      className={`cv-preview-paper${themed ? " cv-themed" : ""}`}
+      style={themeStyle}
+      ref={ref}
+    >
       <Component cv={cv} template={template} />
     </div>
   );

@@ -8,7 +8,8 @@ from typing import Any, Dict, List
 
 from backend import llm, prompts
 from backend.config import OLLAMA_MODEL
-from backend.models import AIResponse, CVContent, WritingTone
+from backend.models import AIResponse, CVContent, CustomTheme, WritingTone
+from backend import template_chat
 
 
 def check_ollama() -> Dict[str, Any]:
@@ -186,6 +187,37 @@ def generate_cv(
     return AIResponse(success=True, data={"content": content.model_dump()}, suggestions=suggestions)
 
 
+def process_cv_upload(
+    raw_text: str,
+    content: CVContent,
+    tone: WritingTone = WritingTone.PROFESSIONAL,
+) -> AIResponse:
+    """Parse uploaded CV/resume text into structured CV JSON."""
+    photo = content.profile_photo
+    context = (
+        "Parse this EXISTING CV/resume document into a complete structured CV.\n"
+        "Extract ONLY information present in the document — never invent employers, degrees, or credentials.\n"
+        "Improve wording into achievement-oriented bullets where the source provides responsibilities.\n\n"
+        f"--- UPLOADED CV TEXT ---\n{raw_text[:14000]}"
+    )
+    gen = generate_cv(context, tone, content.job_title or "", "")
+    if not gen.success or not gen.data.get("content"):
+        return gen
+
+    updated = _apply_generated_cv(content, gen.data["content"])
+    if photo:
+        data = updated.model_dump()
+        data["profile_photo"] = photo
+        updated = CVContent(**data)
+
+    return AIResponse(
+        success=True,
+        data={"content": updated.model_dump()},
+        suggestions=gen.suggestions,
+        message="CV imported from uploaded file",
+    )
+
+
 def regenerate_section(
     section: str,
     content: CVContent,
@@ -296,6 +328,8 @@ def _apply_generated_cv(base: CVContent, generated: Dict[str, Any]) -> CVContent
             continue
         else:
             data[key] = value
+    if base.profile_photo and not data.get("profile_photo"):
+        data["profile_photo"] = base.profile_photo
     return CVContent(**data)
 
 
@@ -336,11 +370,33 @@ def _is_export_only(message: str) -> bool:
     return bool(re.search(r"\b(download|export|save|get)\b.*\b(pdf|docx|word)\b", t)) or t in {"pdf", "docx"}
 
 
+def _message_has_cv_content(message: str) -> bool:
+    m = (message or "").strip().lower()
+    if len(m) > 90:
+        return True
+    return bool(
+        re.search(
+            r"\b(company|experience|worked|university|degree|skills?|email|phone|@|engineer|developer|manager|years?)\b",
+            m,
+        )
+    )
+
+
+def _theme_to_dict(theme: CustomTheme | Dict[str, Any] | None) -> Dict[str, Any] | None:
+    if theme is None:
+        return None
+    if isinstance(theme, CustomTheme):
+        return theme.model_dump()
+    return theme if isinstance(theme, dict) else None
+
+
 def chat_cv(
     message: str,
     history: List[Dict[str, str]],
     content: CVContent,
     tone: WritingTone = WritingTone.PROFESSIONAL,
+    template_id: str = "professional",
+    theme_override: CustomTheme | None = None,
 ) -> AIResponse:
     action = None
     if re.search(r"export_pdf|download.*pdf|\bpdf\b", message or "", re.I):
@@ -353,7 +409,62 @@ def chat_cv(
         return AIResponse(
             success=True,
             message=reply,
-            data={"reply": reply, "content": content.model_dump(), "action": action},
+            data={
+                "reply": reply,
+                "content": content.model_dump(),
+                "action": action,
+                "template_id": template_id,
+                "theme_override": _theme_to_dict(theme_override),
+            },
+        )
+
+    intent = template_chat.parse_chat_template_intent(message, template_id)
+    has_cv_update = _message_has_cv_content(message)
+
+    if intent.get("action") == "list_templates":
+        reply = intent["reply"]
+        return AIResponse(
+            success=True,
+            message=reply,
+            data={
+                "reply": reply,
+                "content": content.model_dump(),
+                "template_id": template_id,
+                "theme_override": _theme_to_dict(theme_override),
+            },
+        )
+
+    if intent.get("action") == "recommend" and not has_cv_update:
+        reply = intent["reply"]
+        return AIResponse(
+            success=True,
+            message=reply,
+            data={
+                "reply": reply,
+                "content": content.model_dump(),
+                "template_id": template_id,
+                "theme_override": _theme_to_dict(theme_override),
+                "recommended_template": intent.get("recommended_template"),
+            },
+        )
+
+    if intent.get("action") in ("switch", "custom_theme") and not has_cv_update:
+        new_tid = intent.get("template_id", template_id)
+        new_theme = theme_override
+        if intent.get("action") == "switch":
+            new_theme = None
+        elif intent.get("action") == "custom_theme":
+            new_theme = CustomTheme(**intent["theme_override"])
+        reply = intent["reply"]
+        return AIResponse(
+            success=True,
+            message=reply,
+            data={
+                "reply": reply,
+                "content": content.model_dump(),
+                "template_id": new_tid,
+                "theme_override": _theme_to_dict(new_theme),
+            },
         )
 
     # Every message: rebuild full CV from entire conversation (from first message onward)
@@ -371,6 +482,18 @@ def chat_cv(
         updated = _apply_generated_cv(content, gen.data["content"])
         suggestions = _suggest_missing_sections(updated)
         reply = _make_chat_reply(content, updated, suggestions)
+
+        final_template_id = template_id
+        final_theme = theme_override
+        if intent.get("action") == "switch":
+            final_template_id = intent["template_id"]
+            final_theme = None
+            reply = f"{intent['reply']}\n\n{reply}"
+        elif intent.get("action") == "custom_theme":
+            final_template_id = "custom"
+            final_theme = CustomTheme(**intent["theme_override"])
+            reply = f"{intent['reply']}\n\n{reply}"
+
         return AIResponse(
             success=True,
             message=reply,
@@ -379,6 +502,8 @@ def chat_cv(
                 "content": updated.model_dump(),
                 "action": action or gen.data.get("action"),
                 "missing_sections": suggestions,
+                "template_id": final_template_id,
+                "theme_override": _theme_to_dict(final_theme),
             },
             suggestions=suggestions,
         )

@@ -3,6 +3,7 @@ import AILoadingBubble from "./components/AILoadingBubble";
 import CVPreviewSkeleton from "./components/CVPreviewSkeleton";
 import TemplatePicker from "./components/TemplatePicker";
 import TemplateRenderer from "./components/templates/CVTemplates";
+import UploadBar from "./components/UploadBar";
 import { exportCvPreview } from "./utils/exportCv";
 import {
   aiChat,
@@ -14,6 +15,8 @@ import {
   fetchTemplates,
   getCV,
   updateCV,
+  uploadCvFile,
+  uploadProfilePhoto,
 } from "./api/client";
 
 const TONES = [
@@ -26,26 +29,26 @@ const TONES = [
 const WELCOME = {
   role: "assistant",
   content:
-    "Hi! Share your name, role, experience, education, and skills — from your first message I'll build a modern, clean CV on the right.\n\nI'll improve your Professional Summary, convert experience into achievement bullets, organize skills, format certifications & languages, and suggest missing sections (without inventing fake data).\n\nPick a template (12 designs) from the header, or say \"use startup template\". Say \"download PDF\" when ready.",
+    "Hi! A random template is already applied — change it anytime via chat (`use modern template`).\n\n" +
+    "**Get started:**\n" +
+    "• Type your details, or **Upload CV** (PDF/Word) to import an existing resume\n" +
+    "• **Profile photo** — adds your picture to the CV header\n" +
+    "• `list templates` · `recommend template for developer` · `create custom template blue and gold`\n\n" +
+    "Say `download PDF` when ready.",
 };
 
-function detectTemplateSwitch(text) {
-  const m = (text || "").toLowerCase();
-  const wantsSwitch = /template|use|switch|apply/.test(m);
-  if (!wantsSwitch) return null;
-  if (/corporate/.test(m)) return "corporate";
-  if (/startup/.test(m)) return "startup";
-  if (/academic|research/.test(m)) return "academic";
-  if (/international|global/.test(m)) return "international";
-  if (/modern|sidebar/.test(m)) return "modern";
-  if (/executive/.test(m)) return "executive";
-  if (/minimal/.test(m)) return "minimal";
-  if (/fresh|graduate/.test(m)) return "fresh_graduate";
-  if (/creative/.test(m)) return "creative";
-  if (/tech|developer/.test(m)) return "tech";
-  if (/elegant/.test(m)) return "elegant";
-  if (/professional/.test(m)) return "professional";
-  return null;
+function applyChatCvUpdates(cv, data) {
+  if (!data) return cv;
+  const next = { ...cv };
+  if (data.content) {
+    next.content = data.content;
+    if (data.content.full_name) next.name = `${data.content.full_name} CV`;
+  }
+  if (data.template_id) next.template_id = data.template_id;
+  if (Object.prototype.hasOwnProperty.call(data, "theme_override")) {
+    next.theme_override = data.theme_override;
+  }
+  return next;
 }
 
 function detectExportIntent(text) {
@@ -99,6 +102,7 @@ export default function App() {
         template_id: cv.template_id,
         tone: cv.tone,
         content: cv.content,
+        theme_override: cv.theme_override ?? null,
       });
     } catch {
       /* auto-save silent */
@@ -152,11 +156,68 @@ export default function App() {
   async function handleCreate() {
     setLoading(true);
     try {
-      const data = await createCV({ name: "New CV", template_id: "professional" });
+      const data = await createCV({ name: "New CV", template_id: "random" });
       await loadCVs();
-      setActiveCv(data.cv);
-      setMessages([WELCOME]);
+      const cv = data.cv;
+      const tname = data.template_name || templates.find((t) => t.id === cv.template_id)?.name || cv.template_id;
+      setActiveCv(cv);
+      setMessages([
+        WELCOME,
+        {
+          role: "assistant",
+          content: `Started with **${tname}** template (picked randomly). Upload your CV or photo, or type your details.`,
+        },
+      ]);
       setView("chat");
+    } catch (e) {
+      setToast(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCvUpload(file) {
+    if (!activeCv || loading) return;
+    setLoading(true);
+    setToast("Processing your CV file…");
+    try {
+      const result = await uploadCvFile(activeCv.id, file);
+      const updated = result.cv;
+      setActiveCv(updated);
+      await saveCv(updated);
+      await loadCVs();
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: `[Uploaded CV: ${file.name}]` },
+        { role: "assistant", content: result.reply || result.message || "CV imported." },
+      ]);
+      setToast("CV imported from file");
+    } catch (e) {
+      setToast(e.message);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `Could not process CV file: ${e.message}` },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePhotoUpload(file) {
+    if (!activeCv || loading) return;
+    setLoading(true);
+    setToast("Uploading photo…");
+    try {
+      const result = await uploadProfilePhoto(activeCv.id, file);
+      const updated = result.cv;
+      setActiveCv(updated);
+      await saveCv(updated);
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: "[Uploaded profile photo]" },
+        { role: "assistant", content: result.reply || "Profile photo added to your CV." },
+      ]);
+      setToast("Profile photo updated");
     } catch (e) {
       setToast(e.message);
     } finally {
@@ -175,17 +236,11 @@ export default function App() {
     setLoading(true);
 
     const localExport = detectExportIntent(text);
-    const templateSwitch = detectTemplateSwitch(text);
     let cvForExport = null;
     let exportAction = null;
 
     try {
-      let cvForChat = activeCv;
-      if (templateSwitch) {
-        cvForChat = { ...activeCv, template_id: templateSwitch };
-        setActiveCv(cvForChat);
-        await saveCv(cvForChat);
-      }
+      const cvForChat = activeCv;
 
       const result = await aiChat({
         message: text,
@@ -193,32 +248,19 @@ export default function App() {
         content: cvForChat.content,
         tone: cvForChat.tone,
         template_id: cvForChat.template_id,
+        theme_override: cvForChat.theme_override || null,
       });
 
       const action = result.data?.action || localExport;
 
-      if (result.data?.content) {
-        const updated = {
-          ...cvForChat,
-          content: result.data.content,
-          name: result.data.content.full_name
-            ? `${result.data.content.full_name} CV`
-            : cvForChat.name,
-        };
-        setActiveCv(updated);
-        cvForExport = updated;
-        await saveCv(updated);
-        await loadCVs();
-      } else {
-        cvForExport = cvForChat;
-      }
+      const updated = applyChatCvUpdates(cvForChat, result.data);
+      setActiveCv(updated);
+      cvForExport = updated;
+      await saveCv(updated);
+      if (result.data?.content) await loadCVs();
 
-      let reply = result.data?.reply || result.message || "Done.";
+      const reply = result.data?.reply || result.message || "Done.";
       const suggestions = result.suggestions || result.data?.missing_sections || [];
-      if (templateSwitch) {
-        const tname = templates.find((t) => t.id === templateSwitch)?.name || templateSwitch;
-        reply = `Switched to ${tname} template. ${reply}`;
-      }
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: reply, suggestions: suggestions.length ? suggestions : undefined },
@@ -226,7 +268,6 @@ export default function App() {
 
       if (action === "export_pdf" || action === "export_docx") {
         exportAction = action;
-        if (!cvForExport) cvForExport = cvForChat;
       }
     } catch (e) {
       setMessages((prev) => [
@@ -251,7 +292,7 @@ export default function App() {
 
   function selectTemplate(templateId) {
     if (!activeCv) return;
-    const next = { ...activeCv, template_id: templateId };
+    const next = { ...activeCv, template_id: templateId, theme_override: null };
     setActiveCv(next);
     saveCv(next);
     setToast(`Template: ${templates.find((t) => t.id === templateId)?.name || templateId}`);
@@ -388,6 +429,12 @@ export default function App() {
             </div>
 
             <div className="chat-input-area">
+              <UploadBar
+                disabled={loading || exporting}
+                onCvUpload={handleCvUpload}
+                onPhotoUpload={handlePhotoUpload}
+              />
+              <div className="chat-input-row">
               <textarea
                 className="chat-input"
                 rows={3}
@@ -412,6 +459,7 @@ export default function App() {
                   "Send"
                 )}
               </button>
+              </div>
             </div>
           </section>
 

@@ -6,11 +6,11 @@ import os
 import traceback
 from typing import Any, Dict
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 
-from backend import ai_service, export, storage, templates
+from backend import ai_service, export, storage, templates, upload_service
 from backend.storage import StorageError
 from backend.models import (
     AIChatRequest,
@@ -102,14 +102,22 @@ def list_cvs() -> Dict[str, Any]:
 
 @app.post("/api/cvs")
 def create_cv(req: CreateCVRequest) -> Dict[str, Any]:
+    tid = req.template_id
+    if not tid or tid == "random":
+        tid = templates.random_template_id()
     doc = CVDocument(
         name=req.name,
-        template_id=req.template_id,
+        template_id=tid,
         tone=req.tone,
         content=req.content or CVDocument().content,
     )
     saved = storage.create_cv(doc)
-    return {"success": True, "cv": saved.model_dump()}
+    t = templates.get_template(saved.template_id)
+    return {
+        "success": True,
+        "cv": saved.model_dump(),
+        "template_name": t["name"],
+    }
 
 
 @app.get("/api/cvs/{cv_id}")
@@ -135,6 +143,8 @@ def update_cv(cv_id: str, req: UpdateCVRequest) -> Dict[str, Any]:
         updated.tone = req.tone
     if req.content is not None:
         updated.content = req.content
+    if req.theme_override is not None:
+        updated.theme_override = req.theme_override
 
     saved = storage.update_cv(
         cv_id, updated,
@@ -186,6 +196,63 @@ def restore_version(cv_id: str, version_id: str) -> Dict[str, Any]:
     if not doc:
         raise HTTPException(404, "CV or version not found")
     return {"success": True, "cv": doc.model_dump()}
+
+
+@app.get("/api/cvs/{cv_id}/photo")
+def get_cv_photo(cv_id: str) -> FileResponse:
+    if not storage.get_cv(cv_id):
+        raise HTTPException(404, "CV not found")
+    path = upload_service.get_photo_path(cv_id)
+    if not path:
+        raise HTTPException(404, "No profile photo")
+    media = "image/jpeg"
+    if path.lower().endswith(".png"):
+        media = "image/png"
+    elif path.lower().endswith(".webp"):
+        media = "image/webp"
+    return FileResponse(path, media_type=media)
+
+
+@app.post("/api/cvs/{cv_id}/upload/cv")
+async def upload_cv_file(cv_id: str, file: UploadFile = File(...)) -> Dict[str, Any]:
+    doc = storage.get_cv(cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    data = await file.read()
+    try:
+        updated, message = upload_service.process_cv_file(doc, file.filename or "resume.pdf", data, doc.tone)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    updated.content.profile_photo = doc.content.profile_photo or updated.content.profile_photo
+    saved = storage.update_cv(cv_id, updated)
+    return {
+        "success": True,
+        "message": message,
+        "cv": saved.model_dump(),
+        "reply": message,
+    }
+
+
+@app.post("/api/cvs/{cv_id}/upload/photo")
+async def upload_profile_photo(cv_id: str, file: UploadFile = File(...)) -> Dict[str, Any]:
+    doc = storage.get_cv(cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    data = await file.read()
+    try:
+        photo_path = upload_service.save_profile_photo(cv_id, file.filename or "photo.jpg", data)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    updated = doc.model_copy(deep=True)
+    updated.content.profile_photo = photo_path
+    saved = storage.update_cv(cv_id, updated)
+    return {
+        "success": True,
+        "message": "Profile photo uploaded.",
+        "cv": saved.model_dump(),
+        "reply": "Profile photo added to your CV preview.",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -315,7 +382,7 @@ def ai_chat(req: AIChatRequest) -> Dict[str, Any]:
     history = [{"role": m.role, "content": m.content} for m in req.history]
     result = _ai_handler(
         ai_service.chat_cv,
-        req.message, history, req.content, req.tone,
+        req.message, history, req.content, req.tone, req.template_id, req.theme_override,
     )
     return result.model_dump()
 

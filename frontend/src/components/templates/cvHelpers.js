@@ -35,6 +35,15 @@ export function formatCertification(cert) {
   return parts.join(" — ");
 }
 
+export function getProfilePhotoUrl(cv) {
+  const photo = cv?.content?.profile_photo;
+  if (!photo) return null;
+  const base = import.meta.env.VITE_API_URL || import.meta.env.BASE_URL.replace(/\/$/, "");
+  if (photo.startsWith("http")) return photo;
+  const path = photo.startsWith("/") ? photo : `/${photo}`;
+  return `${base}${path}?t=${cv?.updated_at || ""}`;
+}
+
 export function formatLanguage(lang) {
   if (typeof lang === "string") return lang;
   if (!lang?.name) return "";

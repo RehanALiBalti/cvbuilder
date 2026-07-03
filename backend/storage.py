@@ -180,6 +180,12 @@ def delete_cv(cv_id: str) -> bool:
     if os.path.isfile(vpath):
         os.remove(vpath)
 
+    try:
+        from backend import upload_service
+        upload_service.delete_uploads(cv_id)
+    except Exception:
+        pass
+
     index = _load_index()
     index["cvs"] = [e for e in index.get("cvs", []) if e.get("id") != cv_id]
     _save_index(index)
@@ -192,11 +198,20 @@ def duplicate_cv(cv_id: str) -> Optional[CVDocument]:
         return None
     data = source.model_dump()
     from uuid import uuid4
-    data["id"] = str(uuid4())
+    new_id = str(uuid4())
+    data["id"] = new_id
     data["name"] = f"{source.name} (Copy)"
     data["created_at"] = datetime.utcnow().isoformat()
     data["updated_at"] = data["created_at"]
-    return create_cv(CVDocument(**data))
+    doc = CVDocument(**data)
+    if source.content.profile_photo:
+        try:
+            from backend import upload_service
+            upload_service.copy_uploads(cv_id, new_id)
+            doc.content.profile_photo = f"/api/cvs/{new_id}/photo"
+        except Exception:
+            pass
+    return create_cv(doc)
 
 
 def rename_cv(cv_id: str, name: str) -> Optional[CVDocument]:

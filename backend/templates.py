@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from typing import Any, Dict, List
 
 TEMPLATES: List[Dict[str, Any]] = [
@@ -113,6 +114,15 @@ TEMPLATES: List[Dict[str, Any]] = [
         "preview_color": "#0369a1",
         "font": "Helvetica Neue, Arial, sans-serif",
     },
+    {
+        "id": "custom",
+        "name": "Custom",
+        "category": "custom",
+        "layout": "themed",
+        "description": "Your own colors — say e.g. create custom template blue and gold",
+        "preview_color": "#6366f1",
+        "font": "Georgia, serif",
+    },
 ]
 
 
@@ -125,3 +135,11 @@ def get_template(template_id: str) -> Dict[str, Any]:
         if t["id"] == template_id:
             return t
     return TEMPLATES[0]
+
+
+def preset_template_ids() -> List[str]:
+    return [t["id"] for t in TEMPLATES if t["id"] != "custom"]
+
+
+def random_template_id() -> str:
+    return random.choice(preset_template_ids())

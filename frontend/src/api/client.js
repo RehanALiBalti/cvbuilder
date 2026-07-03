@@ -100,6 +100,26 @@ export async function exportStyledDocx(cvId, html) {
   return res.blob();
 }
 
+export async function uploadCvFile(cvId, file) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/cvs/${cvId}/upload/cv`, {
+    method: "POST",
+    body: form,
+  });
+  return handleResponse(res);
+}
+
+export async function uploadProfilePhoto(cvId, file) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/cvs/${cvId}/upload/photo`, {
+    method: "POST",
+    body: form,
+  });
+  return handleResponse(res);
+}
+
 export async function aiChat(payload) {
   const res = await fetch(`${API_BASE}/api/ai/chat`, {
     method: "POST",

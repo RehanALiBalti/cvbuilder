@@ -99,6 +99,7 @@ class SectionVisibility(BaseModel):
 class CVContent(BaseModel):
     full_name: str = ""
     job_title: str = ""
+    profile_photo: str = ""
     contact: ContactInfo = Field(default_factory=ContactInfo)
     summary: str = ""
     experience: List[ExperienceItem] = Field(default_factory=list)
@@ -138,12 +139,21 @@ class CVContent(BaseModel):
         return data
 
 
+class CustomTheme(BaseModel):
+    name: str = "Custom Theme"
+    accent_color: str = "#6366f1"
+    header_bg: str = ""
+    sidebar_bg: str = ""
+    font_family: str = ""
+
+
 class CVDocument(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     name: str = "Untitled CV"
     template_id: str = "professional"
     tone: WritingTone = WritingTone.PROFESSIONAL
     content: CVContent = Field(default_factory=CVContent)
+    theme_override: Optional[CustomTheme] = None
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
@@ -166,7 +176,7 @@ class CVListItem(BaseModel):
 
 class CreateCVRequest(BaseModel):
     name: str = "Untitled CV"
-    template_id: str = "professional"
+    template_id: str = "random"
     tone: WritingTone = WritingTone.PROFESSIONAL
     content: Optional[CVContent] = None
 
@@ -176,6 +186,7 @@ class UpdateCVRequest(BaseModel):
     template_id: Optional[str] = None
     tone: Optional[WritingTone] = None
     content: Optional[CVContent] = None
+    theme_override: Optional[CustomTheme] = None
     save_version: bool = False
     version_label: str = ""
 
@@ -246,6 +257,7 @@ class AIChatRequest(BaseModel):
     content: CVContent = Field(default_factory=CVContent)
     tone: WritingTone = WritingTone.PROFESSIONAL
     template_id: str = "professional"
+    theme_override: Optional[CustomTheme] = None
 
 
 class StyledExportRequest(BaseModel):
