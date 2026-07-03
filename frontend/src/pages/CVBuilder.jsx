@@ -13,6 +13,13 @@ import {
 } from "../services/chatHistory";
 import { exportCvPreview } from "../utils/exportCv";
 import {
+  closeDialog,
+  confirmDeleteCv,
+  showDeleteError,
+  showDeleteProgress,
+  showDeleteSuccess,
+} from "../utils/confirmDialog";
+import {
   aiChat,
   createCV,
   deleteCV,
@@ -67,6 +74,7 @@ export default function CVBuilder() {
   const [toast, setToast] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const chatEndRef = useRef(null);
   const previewRef = useRef(null);
 
@@ -95,6 +103,31 @@ export default function CVBuilder() {
 
   async function persistChat(cvId, msgs) {
     if (user?.uid && cvId) await saveChatHistory(user.uid, cvId, msgs);
+  }
+
+  async function handleDeleteCv(cv) {
+    const confirmed = await confirmDeleteCv(cv.name);
+    if (!confirmed) return;
+
+    setDeletingId(cv.id);
+    showDeleteProgress();
+    try {
+      await deleteCV(cv.id);
+      if (activeCv?.id === cv.id) {
+        setActiveCv(null);
+        setMessages([]);
+        setView("list");
+      }
+      setCvs((prev) => prev.filter((c) => c.id !== cv.id));
+      closeDialog();
+      await showDeleteSuccess();
+    } catch (e) {
+      closeDialog();
+      await showDeleteError(e.message);
+      await loadCVs();
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function loadCVs() {
@@ -448,7 +481,10 @@ export default function CVBuilder() {
               ) : (
                 <div className="builder-cv-grid">
                   {cvs.map((cv) => (
-                    <article key={cv.id} className="builder-cv-card">
+                    <article
+                      key={cv.id}
+                      className={`builder-cv-card ${deletingId === cv.id ? "builder-cv-card--deleting" : ""}`}
+                    >
                       <div className="builder-cv-card-top">
                         <h3>{cv.name}</h3>
                         <span className="builder-cv-card-tone">{cv.tone?.replace("_", " ") || "professional"}</span>
@@ -469,14 +505,10 @@ export default function CVBuilder() {
                         <button
                           type="button"
                           className="btn btn-sm btn-danger"
-                          onClick={async () => {
-                            if (confirm("Delete this CV?")) {
-                              await deleteCV(cv.id);
-                              loadCVs();
-                            }
-                          }}
+                          disabled={deletingId === cv.id}
+                          onClick={() => handleDeleteCv(cv)}
                         >
-                          Delete
+                          {deletingId === cv.id ? "Deleting…" : "Delete"}
                         </button>
                       </div>
                     </article>

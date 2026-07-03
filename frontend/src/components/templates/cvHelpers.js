@@ -10,25 +10,28 @@ export function getContactLine(contact) {
 
 export function hasCvContent(c) {
   return !!(
-    c?.full_name || c?.summary || c?.experience?.length ||
+    c?.full_name?.trim() || c?.summary?.trim() || c?.experience?.length ||
     c?.skills?.length || c?.skill_groups?.length || c?.education?.length ||
-    c?.profile_photo
+    c?.projects?.length || c?.job_title?.trim()
   );
+}
+
+export function hasProfilePhoto(cv) {
+  const photo = cv?.content?.profile_photo;
+  return typeof photo === "string" && photo.trim().length > 0;
 }
 
 export function getProfilePhotoUrl(cv) {
   const photo = cv?.content?.profile_photo;
-  const cvId = cv?.id;
-  if (!photo && !cvId) return null;
+  if (!photo || !String(photo).trim()) return null;
 
   const base = (import.meta.env.VITE_API_URL || import.meta.env.BASE_URL.replace(/\/$/, "")).replace(/\/$/, "");
-  if (photo?.startsWith("http")) {
+  if (photo.startsWith("http")) {
     return `${photo}${photo.includes("?") ? "&" : "?"}t=${encodeURIComponent(cv?.updated_at || "")}`;
   }
 
-  const apiPath = photo || `/api/cvs/${cvId}/photo`;
-  const normalized = apiPath.startsWith("/") ? apiPath : `/${apiPath}`;
-  return `${base}${normalized}?t=${encodeURIComponent(cv?.updated_at || "")}`;
+  const apiPath = photo.startsWith("/") ? photo : `/${photo}`;
+  return `${base}${apiPath}?t=${encodeURIComponent(cv?.updated_at || "")}`;
 }
 
 export function visibleSections(c) {

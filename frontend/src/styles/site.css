@@ -1,4 +1,21 @@
-/* Shared site chrome — header & footer on every page */
+@import "sweetalert2/dist/sweetalert2.min.css";
+
+/* SweetAlert — match ResumeAI theme */
+.swal2-popup.cv-swal-popup,
+.swal2-popup {
+  font-family: var(--font);
+  border-radius: 16px;
+}
+
+.swal2-styled.swal2-confirm {
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.swal2-styled.swal2-cancel {
+  font-weight: 600;
+  border-radius: 10px;
+}
 
 .site-layout {
   min-height: 100vh;

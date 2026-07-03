@@ -4,6 +4,7 @@ import {
   getProfilePhotoUrl,
   getSkillGroups,
   hasCvContent,
+  hasProfilePhoto,
   sectionBlocks,
   visibleSections,
 } from "./cvHelpers";
@@ -121,10 +122,17 @@ function MainSections({ c, classPrefix = "" }) {
 }
 
 function EmptyPreview({ cv }) {
-  const url = getProfilePhotoUrl(cv);
+  const url = hasProfilePhoto(cv) ? getProfilePhotoUrl(cv) : null;
   return (
     <div className="cv-empty-preview">
-      {url && <img src={url} alt="" className="tpl-profile-photo tpl-profile-photo--empty" />}
+      {url && (
+        <img
+          src={url}
+          alt=""
+          className="tpl-profile-photo tpl-profile-photo--empty"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
+        />
+      )}
       <p>Your CV will appear here as you chat with AI.</p>
     </div>
   );
