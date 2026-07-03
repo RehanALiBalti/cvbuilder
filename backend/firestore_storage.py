@@ -36,6 +36,7 @@ def check_storage() -> Dict[str, Any]:
         "project_id": fb.get("project_id"),
         "storage_bucket": fb.get("storage_bucket"),
         "error": fb.get("error"),
+        "fix": fb.get("fix"),
     }
 
 

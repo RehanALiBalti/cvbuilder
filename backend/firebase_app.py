@@ -61,7 +61,10 @@ def get_app():
 
     import firebase_admin
 
-    options = {}
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+    options: dict[str, Any] = {}
+    if project_id:
+        options["projectId"] = project_id
     bucket = os.getenv("FIREBASE_STORAGE_BUCKET", "").strip()
     if bucket:
         options["storageBucket"] = bucket
@@ -88,16 +91,43 @@ def get_bucket():
 
 
 def check_firebase() -> dict:
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+    storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET", "").strip()
     if not is_enabled():
-        return {"ok": False, "enabled": False, "error": "Firebase env vars not set"}
+        return {
+            "ok": False,
+            "enabled": False,
+            "project_id": project_id or None,
+            "error": "Firebase env vars not set",
+        }
     try:
         db = get_db()
         db.collection("_health").document("ping").get()
         return {
             "ok": True,
             "enabled": True,
-            "project_id": os.getenv("FIREBASE_PROJECT_ID"),
-            "storage_bucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+            "project_id": project_id,
+            "storage_bucket": storage_bucket,
         }
     except Exception as exc:
-        return {"ok": False, "enabled": True, "error": str(exc)}
+        err = str(exc)
+        fix: list[str] = []
+        if "SERVICE_DISABLED" in err or "firestore.googleapis.com" in err:
+            fix.append(
+                "Enable Cloud Firestore API: "
+                "https://console.developers.google.com/apis/api/firestore.googleapis.com/overview"
+                f"?project={project_id}"
+            )
+        if "does not exist" in err.lower() and "database" in err.lower():
+            fix.append(
+                "Create Firestore database (default): "
+                f"https://console.cloud.google.com/firestore/databases?project={project_id}"
+            )
+        return {
+            "ok": False,
+            "enabled": True,
+            "project_id": project_id,
+            "storage_bucket": storage_bucket,
+            "error": err,
+            "fix": fix,
+        }
