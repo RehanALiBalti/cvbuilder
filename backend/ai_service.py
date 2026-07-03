@@ -382,6 +382,99 @@ def _message_has_cv_content(message: str) -> bool:
     )
 
 
+def _is_general_chat(message: str, template_id: str = "professional") -> bool:
+    """Casual chat (greetings, thanks, small talk) — not a CV update."""
+    if _message_has_cv_content(message):
+        return False
+    if _is_export_only(message):
+        return False
+
+    m = (message or "").strip().lower()
+    if not m or len(m) > 120:
+        return False
+
+    intent = template_chat.parse_chat_template_intent(m, template_id)
+    if intent.get("action") in ("list_templates", "recommend", "switch", "custom_theme"):
+        return False
+
+    general_patterns = [
+        r"^(hi|hello|hey|hiya|yo|sup|greetings|salam|assalam|asalam|aoa|ola)\b",
+        r"\bhow are you\b",
+        r"\bhow r u\b",
+        r"\bhow('?s| is) it going\b",
+        r"\bwhat'?s up\b",
+        r"\b(kaise ho|kya hal|kaisa hai)\b",
+        r"^(thanks|thank you|thx|ty|shukriya|shukria)\b",
+        r"\bwho are you\b",
+        r"\bwhat can you do\b",
+        r"\bwhat do you do\b",
+        r"^(help|help me)\s*[!.?]*$",
+        r"\b(good morning|good evening|good afternoon|good night)\b",
+        r"^(bye|goodbye|see you|see ya)\b",
+        r"^(ok|okay|k|sure|alright|cool|nice|great|good|perfect|awesome)\s*[!.?]*$",
+        r"^\?+$",
+    ]
+    if any(re.search(p, m) for p in general_patterns):
+        return True
+
+    # Short casual message without CV signals (e.g. "how are you doing today")
+    words = re.findall(r"[a-z']+", m)
+    if len(words) <= 8 and len(m) < 50:
+        casual_cues = (
+            "how", "you", "are", "doing", "fine", "well", "hello", "hi", "hey",
+            "thanks", "please", "yes", "no", "maybe", "sorry",
+        )
+        if words and all(w in casual_cues or len(w) <= 3 for w in words):
+            return True
+
+    return False
+
+
+def _canned_general_reply(message: str) -> str | None:
+    m = (message or "").strip().lower()
+    if re.match(r"^(hi|hello|hey|hiya|salam|assalam|aoa|ola)[\s!.?]*$", m):
+        return (
+            "Hello! I'm doing well — thanks for asking. "
+            "I'm your CV assistant: share your experience, skills, or education and I'll build your resume. "
+            "You can also say `list templates` or `download PDF` when you're ready."
+        )
+    if re.search(r"\bhow are you\b|\bhow r u\b|\bkaise ho\b|\bkya hal\b", m):
+        return (
+            "I'm doing great, thank you! Ready to help with your CV whenever you are. "
+            "Tell me your name and job title to get started, or upload an existing resume."
+        )
+    if re.match(r"^(thanks|thank you|thx|ty|shukriya|shukria)\b", m):
+        return "You're welcome! Let me know if you'd like to add more to your CV or export it."
+    if re.search(r"\bwhat can you do\b|\bwho are you\b|\bhelp\b", m):
+        return (
+            "I'm ResumeAI — I help you build a professional CV through chat. "
+            "Add work experience, skills, education, switch templates, upload a resume or photo, "
+            "and download PDF or Word. Just type naturally!"
+        )
+    if re.search(r"\b(bye|goodbye)\b", m):
+        return "Goodbye! Your CV is saved — come back anytime to continue editing."
+    return None
+
+
+def _general_chat_reply(message: str, content: CVContent, tone: WritingTone) -> str:
+    canned = _canned_general_reply(message)
+    if canned:
+        return canned
+    try:
+        prompt = prompts.general_chat_prompt(message, content, tone)
+        raw = _call_llm(prompt, max_tokens=220)
+        parsed = _extract_json(raw)
+        reply = (parsed.get("reply") or "").strip()
+        if reply:
+            return reply
+    except Exception:
+        pass
+    return (
+        "I'm here to help with your CV! Share your experience, education, or skills "
+        "and I'll update the preview on the right."
+    )
+
+
 def _theme_to_dict(theme: CustomTheme | Dict[str, Any] | None) -> Dict[str, Any] | None:
     if theme is None:
         return None
@@ -464,6 +557,19 @@ def chat_cv(
                 "content": content.model_dump(),
                 "template_id": new_tid,
                 "theme_override": _theme_to_dict(new_theme),
+            },
+        )
+
+    if _is_general_chat(message, template_id):
+        reply = _general_chat_reply(message, content, tone)
+        return AIResponse(
+            success=True,
+            message=reply,
+            data={
+                "reply": reply,
+                "content": content.model_dump(),
+                "template_id": template_id,
+                "theme_override": _theme_to_dict(theme_override),
             },
         )
 

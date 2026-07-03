@@ -256,3 +256,31 @@ Rules:
 - Never return empty experience/skills/summary if user already provided job, company, or education info
 - If user shares background for first time, build as much of the CV as possible in one response
 """
+
+
+def general_chat_prompt(message: str, content: CVContent, tone: WritingTone) -> str:
+    name = (content.full_name or "").strip()
+    role = (content.job_title or "").strip()
+    context = ""
+    if name:
+        context = f"The user's CV already has the name {name}."
+        if role:
+            context += f" Target role: {role}."
+
+    return f"""You are ResumeAI — a warm, professional CV-building assistant inside a resume app.
+
+The user sent a casual or general message (greeting, small talk, thanks, or a simple question).
+Reply naturally in 2-4 sentences. Be friendly and human. Match a {_tone(tone)} voice.
+
+{context}
+
+User message:
+{message}
+
+If they greet you or ask how you are, answer briefly and positively.
+Gently offer to help with their CV (experience, skills, summary, templates, PDF export) without being pushy.
+Do NOT invent CV facts. Do NOT output CV JSON.
+
+Return ONLY valid JSON:
+{{"reply": "your conversational reply here"}}
+"""

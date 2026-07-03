@@ -4,7 +4,7 @@ import { getFirebaseDb, isFirebaseConfigured } from "../lib/firebase";
 export const WELCOME_MESSAGE = {
   role: "assistant",
   content:
-    "Hi! A random template is already applied — change it anytime via chat (`use modern template`).\n\n" +
+    "Hi! I'm your CV assistant — chat naturally, whether you're sharing experience or just saying hello.\n\n" +
     "**Get started:**\n" +
     "• Type your details, or **Upload CV** (PDF/Word) to import an existing resume\n" +
     "• **Profile photo** — adds your picture to the CV header\n" +
