@@ -11,8 +11,24 @@ export function getContactLine(contact) {
 export function hasCvContent(c) {
   return !!(
     c?.full_name || c?.summary || c?.experience?.length ||
-    c?.skills?.length || c?.skill_groups?.length || c?.education?.length
+    c?.skills?.length || c?.skill_groups?.length || c?.education?.length ||
+    c?.profile_photo
   );
+}
+
+export function getProfilePhotoUrl(cv) {
+  const photo = cv?.content?.profile_photo;
+  const cvId = cv?.id;
+  if (!photo && !cvId) return null;
+
+  const base = (import.meta.env.VITE_API_URL || import.meta.env.BASE_URL.replace(/\/$/, "")).replace(/\/$/, "");
+  if (photo?.startsWith("http")) {
+    return `${photo}${photo.includes("?") ? "&" : "?"}t=${encodeURIComponent(cv?.updated_at || "")}`;
+  }
+
+  const apiPath = photo || `/api/cvs/${cvId}/photo`;
+  const normalized = apiPath.startsWith("/") ? apiPath : `/${apiPath}`;
+  return `${base}${normalized}?t=${encodeURIComponent(cv?.updated_at || "")}`;
 }
 
 export function visibleSections(c) {
@@ -33,15 +49,6 @@ export function formatCertification(cert) {
   if (cert?.issuer) parts.push(cert.issuer);
   if (cert?.date) parts.push(cert.date);
   return parts.join(" — ");
-}
-
-export function getProfilePhotoUrl(cv) {
-  const photo = cv?.content?.profile_photo;
-  if (!photo) return null;
-  const base = import.meta.env.VITE_API_URL || import.meta.env.BASE_URL.replace(/\/$/, "");
-  if (photo.startsWith("http")) return photo;
-  const path = photo.startsWith("/") ? photo : `/${photo}`;
-  return `${base}${path}?t=${cv?.updated_at || ""}`;
 }
 
 export function formatLanguage(lang) {

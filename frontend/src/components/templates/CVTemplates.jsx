@@ -11,7 +11,14 @@ import {
 function ProfilePhoto({ cv, className = "" }) {
   const url = getProfilePhotoUrl(cv);
   if (!url) return null;
-  return <img src={url} alt="" className={`tpl-profile-photo ${className}`.trim()} />;
+  return (
+    <img
+      src={url}
+      alt="Profile"
+      className={`tpl-profile-photo ${className}`.trim()}
+      onError={(e) => { e.currentTarget.style.display = "none"; }}
+    />
+  );
 }
 
 function HeaderWithPhoto({ cv, children, className = "" }) {
@@ -113,14 +120,20 @@ function MainSections({ c, classPrefix = "" }) {
   ));
 }
 
-function EmptyPreview() {
-  return <div className="cv-empty-preview"><p>Your CV will appear here as you chat with AI.</p></div>;
+function EmptyPreview({ cv }) {
+  const url = getProfilePhotoUrl(cv);
+  return (
+    <div className="cv-empty-preview">
+      {url && <img src={url} alt="" className="tpl-profile-photo tpl-profile-photo--empty" />}
+      <p>Your CV will appear here as you chat with AI.</p>
+    </div>
+  );
 }
 
 /* 1 — Professional: classic single column */
 export function ProfessionalTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   return (
     <div className="tpl tpl-professional">
@@ -139,7 +152,7 @@ export function ProfessionalTemplate({ cv }) {
 /* 2 — Modern: dark sidebar */
 export function ModernTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   const skillGroups = getSkillGroups(c);
   const mainSections = visibleSections(c).filter((s) => !["skills", "education", "languages"].includes(s));
@@ -182,15 +195,17 @@ export function ModernTemplate({ cv }) {
 /* 3 — Executive: centered banner */
 export function ExecutiveTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   return (
     <div className="tpl tpl-executive">
       <header className="tpl-executive-banner">
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <div className="tpl-executive-rule" />
-        <p className="tpl-contact">{contact.join("  ·  ")}</p>
+        <HeaderWithPhoto cv={cv} className="tpl-header-with-photo--center">
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <div className="tpl-executive-rule" />
+          <p className="tpl-contact">{contact.join("  ·  ")}</p>
+        </HeaderWithPhoto>
       </header>
       <div className="tpl-executive-body">
         <MainSections c={c} />
@@ -202,14 +217,16 @@ export function ExecutiveTemplate({ cv }) {
 /* 4 — Minimal */
 export function MinimalTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   return (
     <div className="tpl tpl-minimal">
       <header>
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <p className="tpl-contact">{contact.join(" / ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" / ")}</p>
+        </HeaderWithPhoto>
       </header>
       <MainSections c={c} classPrefix="tpl-minimal-" />
     </div>
@@ -219,16 +236,18 @@ export function MinimalTemplate({ cv }) {
 /* 5 — Fresh Graduate: education first */
 export function FreshGraduateTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   const order = ["education", "summary", "experience", "projects", "skills", "certifications", "languages", "awards"]
     .filter((s) => visibleSections(c).includes(s));
   return (
     <div className="tpl tpl-fresh">
       <header className="tpl-fresh-header">
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <p className="tpl-contact">{contact.join(" · ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" · ")}</p>
+        </HeaderWithPhoto>
       </header>
       <MainSections c={{ ...c, section_order: order }} />
     </div>
@@ -238,15 +257,17 @@ export function FreshGraduateTemplate({ cv }) {
 /* 6 — Creative: gradient + cards */
 export function CreativeTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   const blocks = sectionBlocks(c, visibleSections(c));
   return (
     <div className="tpl tpl-creative">
       <header className="tpl-creative-hero">
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p>{c.job_title}</p>
-        <p className="tpl-contact">{contact.join(" · ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p>{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" · ")}</p>
+        </HeaderWithPhoto>
       </header>
       <div className="tpl-creative-grid">
         {blocks.map((block, i) => (
@@ -263,7 +284,7 @@ export function CreativeTemplate({ cv }) {
 /* 7 — Tech: dark top bar */
 export function TechTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   return (
     <div className="tpl tpl-tech">
@@ -292,15 +313,17 @@ export function TechTemplate({ cv }) {
 /* 8 — Elegant: serif + gold accent */
 export function ElegantTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   return (
     <div className="tpl tpl-elegant">
       <header>
-        <p className="tpl-elegant-label">Curriculum Vitae</p>
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <p className="tpl-contact">{contact.join("  |  ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <p className="tpl-elegant-label">Curriculum Vitae</p>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join("  |  ")}</p>
+        </HeaderWithPhoto>
       </header>
       <MainSections c={c} />
     </div>
@@ -310,16 +333,18 @@ export function ElegantTemplate({ cv }) {
 /* 9 — Corporate: two column */
 export function CorporateTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   const leftSections = ["summary", "experience", "projects"].filter((s) => visibleSections(c).includes(s));
   const rightSections = ["education", "skills", "certifications", "languages", "awards"].filter((s) => visibleSections(c).includes(s));
   return (
     <div className="tpl tpl-corporate">
       <header className="tpl-corporate-header">
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <p className="tpl-contact">{contact.join(" · ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" · ")}</p>
+        </HeaderWithPhoto>
       </header>
       <div className="tpl-corporate-grid">
         <div><MainSections c={{ ...c, section_order: leftSections }} /></div>
@@ -332,7 +357,7 @@ export function CorporateTemplate({ cv }) {
 /* 10 — Startup: bold header */
 export function StartupTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   return (
     <div className="tpl tpl-startup">
@@ -351,17 +376,19 @@ export function StartupTemplate({ cv }) {
 /* 11 — Academic */
 export function AcademicTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   const order = ["education", "summary", "experience", "projects", "skills", "certifications", "languages", "awards"]
     .filter((s) => visibleSections(c).includes(s));
   return (
     <div className="tpl tpl-academic">
       <header>
-        <p className="tpl-academic-label">Curriculum Vitae</p>
-        <h1>{c.full_name || "Your Name"}</h1>
-        <p className="tpl-job">{c.job_title}</p>
-        <p className="tpl-contact">{contact.join(" | ")}</p>
+        <HeaderWithPhoto cv={cv}>
+          <p className="tpl-academic-label">Curriculum Vitae</p>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" | ")}</p>
+        </HeaderWithPhoto>
       </header>
       <MainSections c={{ ...c, section_order: order }} />
     </div>
@@ -371,16 +398,18 @@ export function AcademicTemplate({ cv }) {
 /* 12 — International */
 export function InternationalTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   const blocks = sectionBlocks(c, visibleSections(c));
   return (
     <div className="tpl tpl-international">
       <header className="tpl-intl-header">
-        <div>
-          <h1>{c.full_name || "Your Name"}</h1>
-          <p className="tpl-job">{c.job_title}</p>
-        </div>
+        <HeaderWithPhoto cv={cv}>
+          <div>
+            <h1>{c.full_name || "Your Name"}</h1>
+            <p className="tpl-job">{c.job_title}</p>
+          </div>
+        </HeaderWithPhoto>
         <div className="tpl-intl-contact">
           {contact.map((line, i) => <span key={i}>{line}</span>)}
         </div>
@@ -414,7 +443,7 @@ const MAP = {
 /* 13 — Custom: user-defined theme (via chat) */
 export function CustomTemplate({ cv }) {
   const c = cv.content;
-  if (!hasCvContent(c)) return <EmptyPreview />;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
   const contact = getContactLine(c.contact);
   return (
     <div className="tpl tpl-professional tpl-custom">

@@ -8,18 +8,45 @@
   border: 3px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
+  display: block;
 }
 .tpl-profile-photo--sidebar {
-  display: block;
   margin: 0 auto 14px;
   border-color: #99f6e4;
+}
+.tpl-profile-photo--empty {
+  margin: 0 auto 16px;
+  width: 100px;
+  height: 100px;
 }
 .tpl-header-with-photo {
   display: flex;
   align-items: center;
   gap: 18px;
 }
+.tpl-header-with-photo--center {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.tpl-header-with-photo--center .tpl-profile-photo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 4px;
+}
 .tpl-header-text { flex: 1; min-width: 0; }
+.tpl-creative-hero .tpl-header-with-photo,
+.tpl-startup-hero .tpl-header-with-photo {
+  flex-direction: row;
+  align-items: center;
+}
+.tpl-creative-hero .tpl-profile-photo {
+  border-color: rgba(255, 255, 255, 0.85);
+}
+.tpl-intl-header .tpl-header-with-photo {
+  flex: 1;
+  min-width: 0;
+}
 .tpl-tech-bar-left {
   display: flex;
   align-items: center;

@@ -328,7 +328,7 @@ def _apply_generated_cv(base: CVContent, generated: Dict[str, Any]) -> CVContent
             continue
         else:
             data[key] = value
-    if base.profile_photo and not data.get("profile_photo"):
+    if base.profile_photo:
         data["profile_photo"] = base.profile_photo
     return CVContent(**data)
 

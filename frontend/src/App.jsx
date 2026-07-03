@@ -209,7 +209,10 @@ export default function App() {
     setToast("Uploading photo…");
     try {
       const result = await uploadProfilePhoto(activeCv.id, file);
-      const updated = result.cv;
+      const updated = { ...result.cv, updated_at: new Date().toISOString() };
+      if (!updated.content?.profile_photo) {
+        updated.content = { ...updated.content, profile_photo: `/api/cvs/${activeCv.id}/photo` };
+      }
       setActiveCv(updated);
       await saveCv(updated);
       setMessages((prev) => [
