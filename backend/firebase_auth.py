@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Request
 
-from backend.firebase_app import is_enabled
+from backend.firebase_app import allow_local_auth_fallback, is_enabled
 
 
 @dataclass
@@ -18,9 +18,21 @@ class AuthUser:
 
 
 async def require_user(request: Request) -> AuthUser:
-    """Require a valid Firebase user, or local-dev fallback when Firebase is off."""
+    """Require a valid Firebase user.
+
+    The old local fallback made every server user share the same CV list. Keep it
+    only for explicit local development via CVBUILDER_ALLOW_LOCAL_AUTH=1.
+    """
     if not is_enabled():
-        return AuthUser(uid="local-dev", email="dev@local", name="Local Dev")
+        if allow_local_auth_fallback():
+            return AuthUser(uid="local-dev", email="dev@local", name="Local Dev")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Firebase backend is not configured. Set FIREBASE_PROJECT_ID, "
+                "FIREBASE_STORAGE_BUCKET, and GOOGLE_APPLICATION_CREDENTIALS."
+            ),
+        )
 
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):

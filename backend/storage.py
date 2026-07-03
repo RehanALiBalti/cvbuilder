@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from backend.firebase_app import is_enabled
+from backend.firebase_app import allow_local_auth_fallback, is_enabled
 from backend.local_storage import StorageError
 from backend.models import CVDocument, CVListItem, CVVersion
 
@@ -13,6 +13,10 @@ def _impl():
     if is_enabled():
         from backend import firestore_storage
         return firestore_storage
+    if not allow_local_auth_fallback():
+        raise StorageError(
+            "Firebase backend is not configured. Refusing to use shared local CV storage."
+        )
     from backend import local_storage
     return local_storage
 

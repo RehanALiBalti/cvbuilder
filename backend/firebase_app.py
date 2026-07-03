@@ -18,6 +18,15 @@ def is_enabled() -> bool:
     return bool(project and has_creds)
 
 
+def allow_local_auth_fallback() -> bool:
+    """Local fallback is opt-in so production never shares CVs across users."""
+    return os.getenv("CVBUILDER_ALLOW_LOCAL_AUTH", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
 def _load_credentials():
     from firebase_admin import credentials
 
