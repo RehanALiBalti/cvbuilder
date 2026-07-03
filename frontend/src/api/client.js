@@ -25,7 +25,11 @@ async function handleResponse(res) {
 async function apiFetch(path, options = {}, requireAuth = false) {
   const headers = { ...(options.headers || {}) };
   if (requireAuth) {
-    Object.assign(headers, await authHeaders());
+    const auth = await authHeaders();
+    if (!auth.Authorization) {
+      throw new Error("Authentication required. Please sign in.");
+    }
+    Object.assign(headers, auth);
   }
   if (options.body && !(options.body instanceof FormData) && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
@@ -134,7 +138,7 @@ export async function aiChat(payload) {
   return apiFetch("/api/ai/chat", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }, true);
 }
 
 export async function aiGenerate(payload) {
