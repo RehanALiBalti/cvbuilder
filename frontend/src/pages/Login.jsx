@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import AppLayout from "../components/AppLayout";
 import AuthForm from "../components/AuthForm";
 import AuthLayout from "../components/AuthLayout";
 import { useAuth } from "../context/AuthContext";
@@ -16,22 +17,26 @@ export default function Login() {
 
   if (!isFirebaseConfigured) {
     return (
-      <div className="auth-page" style={{ placeItems: "center", padding: 48 }}>
-        <div className="auth-form-wrap" style={{ textAlign: "center" }}>
-          <h2>Firebase not configured</h2>
-          <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
-          <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+      <AppLayout mainClassName="site-main--app">
+        <div className="auth-page" style={{ placeItems: "center", padding: 48, minHeight: "50vh" }}>
+          <div className="auth-form-wrap" style={{ textAlign: "center" }}>
+            <h2>Firebase not configured</h2>
+            <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
+            <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (authLoading) {
     return (
-      <div className="auth-loading">
-        <div className="auth-loading-spinner" />
-        <p>Loading…</p>
-      </div>
+      <AppLayout mainClassName="site-main--app">
+        <div className="auth-loading">
+          <div className="auth-loading-spinner" />
+          <p>Loading…</p>
+        </div>
+      </AppLayout>
     );
   }
 
@@ -54,15 +59,17 @@ export default function Login() {
   }
 
   return (
-    <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to continue building and downloading your professional CVs."
-      perks={["Your own CV workspace", "Saved chat history per CV", "Free plan · upgrade inside app"]}
-    >
-      <AuthForm mode="login" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
-      <p className="auth-forgot-link">
-        <Link to="/forgot-password">Forgot password?</Link>
-      </p>
-    </AuthLayout>
+    <AppLayout mainClassName="site-main--auth">
+      <AuthLayout
+        title="Welcome back"
+        subtitle="Sign in to continue building and downloading your professional CVs."
+        perks={["Your own CV workspace", "Saved chat history per CV", "Free plan · upgrade inside app"]}
+      >
+        <AuthForm mode="login" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
+        <p className="auth-forgot-link">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
+      </AuthLayout>
+    </AppLayout>
   );
 }

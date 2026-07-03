@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import AppLayout from "../components/AppLayout";
 import { createCheckoutSession } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
@@ -30,11 +31,9 @@ export default function Account() {
     plan,
     planLabel,
     refreshProfile,
-    logout,
     updateProfileInfo,
     changePassword,
   } = useAuth();
-  const navigate = useNavigate();
   const [params] = useSearchParams();
   const [activeSection, setActiveSection] = useState("profile");
   const [annual, setAnnual] = useState(false);
@@ -110,26 +109,8 @@ export default function Account() {
     }
   }
 
-  async function handleLogout() {
-    await logout();
-    navigate("/");
-  }
-
   return (
-    <div className="account-layout">
-      <header className="account-topbar">
-        <Link to="/builder" className="account-topbar-back">
-          <span aria-hidden="true">←</span> Back to builder
-        </Link>
-        <div className="account-topbar-brand">
-          <span className="account-topbar-mark">CV</span>
-          <span>ResumeAI</span>
-        </div>
-        <button type="button" className="account-topbar-logout" onClick={handleLogout}>
-          Log out
-        </button>
-      </header>
-
+    <AppLayout mainClassName="site-main--app">
       <div className="account-shell">
         {/* Profile hero */}
         <div className="account-hero">
@@ -357,6 +338,6 @@ export default function Account() {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

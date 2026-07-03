@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import AppLayout from "../components/AppLayout";
 import AuthForm from "../components/AuthForm";
 import AuthLayout from "../components/AuthLayout";
 import { useAuth } from "../context/AuthContext";
@@ -14,22 +15,26 @@ export default function Signup() {
 
   if (!isFirebaseConfigured) {
     return (
-      <div className="auth-page" style={{ placeItems: "center", padding: 48 }}>
-        <div className="auth-form-wrap" style={{ textAlign: "center" }}>
-          <h2>Firebase not configured</h2>
-          <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
-          <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+      <AppLayout mainClassName="site-main--app">
+        <div className="auth-page" style={{ placeItems: "center", padding: 48, minHeight: "50vh" }}>
+          <div className="auth-form-wrap" style={{ textAlign: "center" }}>
+            <h2>Firebase not configured</h2>
+            <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
+            <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (authLoading) {
     return (
-      <div className="auth-loading">
-        <div className="auth-loading-spinner" />
-        <p>Loading…</p>
-      </div>
+      <AppLayout mainClassName="site-main--app">
+        <div className="auth-loading">
+          <div className="auth-loading-spinner" />
+          <p>Loading…</p>
+        </div>
+      </AppLayout>
     );
   }
 
@@ -52,12 +57,14 @@ export default function Signup() {
   }
 
   return (
-    <AuthLayout
-      title="Start for free"
-      subtitle="Every account starts on the free plan. Upgrade to Pro anytime from your dashboard."
-      perks={["Free plan included", "1 CV to get started", "Secure Firebase account"]}
-    >
-      <AuthForm mode="signup" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
-    </AuthLayout>
+    <AppLayout mainClassName="site-main--auth">
+      <AuthLayout
+        title="Start for free"
+        subtitle="Every account starts on the free plan. Upgrade to Pro anytime from your dashboard."
+        perks={["Free plan included", "1 CV to get started", "Secure Firebase account"]}
+      >
+        <AuthForm mode="signup" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
+      </AuthLayout>
+    </AppLayout>
   );
 }

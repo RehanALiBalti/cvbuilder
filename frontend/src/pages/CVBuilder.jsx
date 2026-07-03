@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import AppLayout from "../components/AppLayout";
 import AILoadingBubble from "../components/AILoadingBubble";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
 import TemplatePicker from "../components/TemplatePicker";
@@ -58,8 +59,7 @@ function detectExportIntent(text) {
 }
 
 export default function CVBuilder() {
-  const { user, logout, plan, planLabel, profile, refreshProfile } = useAuth();
-  const navigate = useNavigate();
+  const { user, plan, planLabel, profile, refreshProfile } = useAuth();
   const [view, setView] = useState("list");
   const [cvs, setCvs] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -96,11 +96,6 @@ export default function CVBuilder() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  async function handleLogout() {
-    await logout();
-    navigate("/");
-  }
 
   async function persistChat(cvId, msgs) {
     if (user?.uid && cvId) await saveChatHistory(user.uid, cvId, msgs);
@@ -338,69 +333,57 @@ export default function CVBuilder() {
   const aiPct = Math.min(100, Math.round((aiUsed / Math.max(aiLimit, 1)) * 100));
   const userInitial = (user?.name || "U").charAt(0).toUpperCase();
 
-  return (
-    <div className="account-layout builder-layout">
-      <header className="account-topbar">
-        {view === "chat" ? (
-          <button type="button" className="account-topbar-back" onClick={() => setView("list")}>
-            <span aria-hidden="true">←</span> My CVs
+  const headerActions = (
+    <>
+      {view === "chat" && (
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => setView("list")}>
+          ← My CVs
+        </button>
+      )}
+      {view === "chat" && activeCv && (
+        <>
+          <button type="button" className="btn btn-sm" onClick={() => setShowTemplates(true)}>
+            Templates
           </button>
-        ) : (
-          <Link to="/" className="account-topbar-back">
-            <span aria-hidden="true">←</span> Home
-          </Link>
-        )}
-        <div className="account-topbar-brand">
-          <span className="account-topbar-mark">CV</span>
-          <span>ResumeAI</span>
-        </div>
-        <div className="builder-topbar-actions">
-          {view === "chat" && activeCv && (
-            <>
-              <button type="button" className="btn btn-sm" onClick={() => setShowTemplates(true)}>
-                Templates
-              </button>
-              <select
-                className="builder-select"
-                value={activeCv.tone}
-                onChange={(e) => {
-                  const next = { ...activeCv, tone: e.target.value };
-                  setActiveCv(next);
-                  saveCv(next);
-                }}
-              >
-                {TONES.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn btn-sm"
-                disabled={loading || exporting}
-                onClick={() => triggerDownload("export_pdf", activeCv)}
-              >
-                PDF
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm"
-                disabled={loading || exporting}
-                onClick={() => triggerDownload("export_docx", activeCv)}
-              >
-                DOCX
-              </button>
-            </>
-          )}
-          <Link to="/builder/account" className="btn btn-sm btn-ghost">Account</Link>
-          <button type="button" className="btn btn-sm btn-primary" onClick={handleCreate}>
-            + New CV
+          <select
+            className="builder-select"
+            value={activeCv.tone}
+            onChange={(e) => {
+              const next = { ...activeCv, tone: e.target.value };
+              setActiveCv(next);
+              saveCv(next);
+            }}
+          >
+            {TONES.map((t) => (
+              <option key={t.id} value={t.id}>{t.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={loading || exporting}
+            onClick={() => triggerDownload("export_pdf", activeCv)}
+          >
+            PDF
           </button>
-          <button type="button" className="account-topbar-logout" onClick={handleLogout}>
-            Log out
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={loading || exporting}
+            onClick={() => triggerDownload("export_docx", activeCv)}
+          >
+            DOCX
           </button>
-        </div>
-      </header>
+        </>
+      )}
+      <button type="button" className="btn btn-sm btn-primary" onClick={handleCreate}>
+        + New CV
+      </button>
+    </>
+  );
 
+  return (
+    <AppLayout headerActions={headerActions} mainClassName="site-main--app">
       {toast && (
         <div className="account-alert account-alert--success builder-toast" role="status" onClick={() => setToast("")}>
           <span>✓</span> {toast}
@@ -606,6 +589,6 @@ export default function CVBuilder() {
           onClose={() => setShowTemplates(false)}
         />
       )}
-    </div>
+    </AppLayout>
   );
 }

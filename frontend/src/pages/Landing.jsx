@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
+import AppLayout from "../components/AppLayout";
 import LandingLoader from "../components/LandingLoader";
 import PricingSection from "../components/PricingSection";
 import Reveal from "../components/Reveal";
@@ -70,29 +71,15 @@ export default function Landing() {
     <>
       {loading && <LandingLoader onDone={finishLoad} />}
 
-      <div className={`landing ${loading ? "landing--hidden" : "landing--ready"}`}>
-        <div className="landing-bg" aria-hidden="true">
-          <div className="landing-blob landing-blob--1" />
-          <div className="landing-blob landing-blob--2" />
-          <div className="landing-blob landing-blob--3" />
-        </div>
-
-        <nav className="landing-nav landing-animate landing-animate--1">
-          <Link to="/" className="landing-logo">
-            <span className="landing-logo-mark">CV</span>
-            <span>ResumeAI</span>
-          </Link>
-          <div className="landing-nav-links">
-            <a href="#pricing">Pricing</a>
-            <a href="#faq">FAQ</a>
+      <AppLayout>
+        <div className={`landing ${loading ? "landing--hidden" : "landing--ready"}`}>
+          <div className="landing-bg" aria-hidden="true">
+            <div className="landing-blob landing-blob--1" />
+            <div className="landing-blob landing-blob--2" />
+            <div className="landing-blob landing-blob--3" />
           </div>
-          <div className="landing-nav-actions">
-            <Link to="/login" className="btn btn-ghost">Log in</Link>
-            <Link to="/signup" className="btn btn-primary landing-btn-glow">Get started free</Link>
-          </div>
-        </nav>
 
-        <header className="landing-hero">
+          <header className="landing-hero">
           <div className="landing-hero-content">
             <p className="landing-eyebrow landing-animate landing-animate--2">
               <span className="landing-eyebrow-dot" /> AI CV Builder · Professional & Modern
@@ -244,15 +231,8 @@ export default function Landing() {
             <Link to="/signup" className="btn btn-primary btn-lg landing-btn-glow">Create free account</Link>
           </div>
         </Reveal>
-
-        <footer className="landing-footer">
-          <Link to="/" className="landing-logo">
-            <span className="landing-logo-mark">CV</span>
-            <span>ResumeAI</span>
-          </Link>
-          <p className="muted">© {new Date().getFullYear()} ResumeAI · AI CV Builder</p>
-        </footer>
-      </div>
+        </div>
+      </AppLayout>
     </>
   );
 }

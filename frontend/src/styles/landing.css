@@ -1132,7 +1132,7 @@
 
 /* Auth pages */
 .auth-page {
-  min-height: 100vh;
+  min-height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
 }
@@ -1150,7 +1150,7 @@
 }
 
 .auth-panel--brand h1 {
-  margin: 32px 0 12px;
+  margin: 0 0 12px;
   font-size: 2rem;
 }
 

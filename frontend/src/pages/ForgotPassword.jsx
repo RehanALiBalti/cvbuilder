@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import AppLayout from "../components/AppLayout";
 import AuthLayout from "../components/AuthLayout";
 import { useAuth } from "../context/AuthContext";
 
@@ -12,13 +13,15 @@ export default function ForgotPassword() {
 
   if (!isFirebaseConfigured) {
     return (
-      <div className="auth-page" style={{ placeItems: "center", padding: 48 }}>
-        <div className="auth-form-wrap" style={{ textAlign: "center" }}>
-          <h2>Firebase not configured</h2>
-          <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
-          <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+      <AppLayout mainClassName="site-main--app">
+        <div className="auth-page" style={{ placeItems: "center", padding: 48, minHeight: "50vh" }}>
+          <div className="auth-form-wrap" style={{ textAlign: "center" }}>
+            <h2>Firebase not configured</h2>
+            <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
+            <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
@@ -38,11 +41,12 @@ export default function ForgotPassword() {
   }
 
   return (
-    <AuthLayout
-      title="Reset your password"
-      subtitle="Enter your account email and we will send a secure reset link."
-      perks={["Firebase secure reset email", "No admin required", "Back to builder after login"]}
-    >
+    <AppLayout mainClassName="site-main--auth">
+      <AuthLayout
+        title="Reset your password"
+        subtitle="Enter your account email and we will send a secure reset link."
+        perks={["Firebase secure reset email", "No admin required", "Back to builder after login"]}
+      >
       <div className="auth-form-wrap auth-form-animated">
         <h2>Forgot password</h2>
         <p className="auth-switch">
@@ -84,6 +88,7 @@ export default function ForgotPassword() {
           </button>
         </form>
       </div>
-    </AuthLayout>
+      </AuthLayout>
+    </AppLayout>
   );
 }
