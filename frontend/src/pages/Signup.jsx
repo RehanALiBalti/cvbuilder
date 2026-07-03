@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Signup() {
-  const { signup, isAuthenticated } = useAuth();
+  const { signup, isAuthenticated, loading: authLoading, isFirebaseConfigured } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -11,6 +11,27 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (!isFirebaseConfigured) {
+    return (
+      <div className="auth-page" style={{ placeItems: "center", padding: 48 }}>
+        <div className="auth-form-wrap" style={{ textAlign: "center" }}>
+          <h2>Firebase not configured</h2>
+          <p className="muted">Set VITE_FIREBASE_* environment variables to enable signup.</p>
+          <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <div className="auth-loading">
+        <div className="auth-loading-spinner" />
+        <p>Loading…</p>
+      </div>
+    );
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/builder" replace />;
@@ -21,7 +42,7 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
-      signup(name, email, password);
+      await signup(name, email, password);
       navigate("/builder", { replace: true });
     } catch (err) {
       setError(err.message || "Signup failed");
@@ -94,7 +115,7 @@ export default function Signup() {
             </button>
           </form>
 
-          <p className="auth-note muted">By signing up you agree to use this demo workspace locally.</p>
+          <p className="auth-note muted">Your account and CVs are stored securely in Firebase.</p>
         </div>
       </div>
     </div>

@@ -1,77 +1,111 @@
-import { createContext, useContext, useMemo, useState } from "react";
-
-const AUTH_KEY = "cvbuilder_user";
-const USERS_KEY = "cvbuilder_users";
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "../lib/firebase";
 
 const AuthContext = createContext(null);
 
-function loadUser() {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+function mapUser(fbUser) {
+  if (!fbUser) return null;
+  return {
+    id: fbUser.uid,
+    uid: fbUser.uid,
+    name: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
+    email: fbUser.email || "",
+  };
 }
 
-function loadUsers() {
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+function firebaseAuthError(err) {
+  const code = err?.code || "";
+  const map = {
+    "auth/email-already-in-use": "An account with this email already exists.",
+    "auth/invalid-email": "Please enter a valid email address.",
+    "auth/weak-password": "Password must be at least 6 characters.",
+    "auth/invalid-credential": "Invalid email or password.",
+    "auth/user-not-found": "Invalid email or password.",
+    "auth/wrong-password": "Invalid email or password.",
+  };
+  return map[code] || err?.message || "Authentication failed.";
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(loadUser);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setLoading(false);
+      return undefined;
+    }
+
+    const auth = getFirebaseAuth();
+    const unsub = onAuthStateChanged(auth, (fbUser) => {
+      setUser(mapUser(fbUser));
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
 
   const value = useMemo(() => ({
     user,
+    loading,
     isAuthenticated: !!user,
+    isFirebaseConfigured,
 
-    signup(name, email, password) {
-      const users = loadUsers();
-      const normalized = email.trim().toLowerCase();
-      if (users.some((u) => u.email === normalized)) {
-        throw new Error("An account with this email already exists.");
+    async signup(name, email, password) {
+      if (!isFirebaseConfigured) {
+        throw new Error("Firebase Auth is not configured.");
       }
-      if (!name.trim() || !password || password.length < 6) {
-        throw new Error("Name required and password must be at least 6 characters.");
+      const auth = getFirebaseAuth();
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await updateProfile(cred.user, { displayName: name.trim() });
+
+        const profile = mapUser(cred.user);
+        profile.name = name.trim();
+
+        await setDoc(doc(getFirebaseDb(), "users", cred.user.uid), {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          plan: "starter",
+          createdAt: serverTimestamp(),
+        });
+
+        setUser(profile);
+        return profile;
+      } catch (err) {
+        throw new Error(firebaseAuthError(err));
       }
-      const newUser = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        email: normalized,
-        password,
-        createdAt: new Date().toISOString(),
-      };
-      users.push(newUser);
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      const session = { id: newUser.id, name: newUser.name, email: newUser.email };
-      localStorage.setItem(AUTH_KEY, JSON.stringify(session));
-      setUser(session);
-      return session;
     },
 
-    login(email, password) {
-      const users = loadUsers();
-      const normalized = email.trim().toLowerCase();
-      const match = users.find((u) => u.email === normalized && u.password === password);
-      if (!match) {
-        throw new Error("Invalid email or password.");
+    async login(email, password) {
+      if (!isFirebaseConfigured) {
+        throw new Error("Firebase Auth is not configured.");
       }
-      const session = { id: match.id, name: match.name, email: match.email };
-      localStorage.setItem(AUTH_KEY, JSON.stringify(session));
-      setUser(session);
-      return session;
+      const auth = getFirebaseAuth();
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        const profile = mapUser(cred.user);
+        setUser(profile);
+        return profile;
+      } catch (err) {
+        throw new Error(firebaseAuthError(err));
+      }
     },
 
-    logout() {
-      localStorage.removeItem(AUTH_KEY);
+    async logout() {
+      if (isFirebaseConfigured) {
+        await signOut(getFirebaseAuth());
+      }
       setUser(null);
     },
-  }), [user]);
+  }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

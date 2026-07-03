@@ -1,4 +1,4 @@
-"""Upload handling — CV documents and profile photos."""
+"""Upload handling — CV documents and profile photos (local disk or Firebase Storage)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import shutil
 from typing import Optional, Tuple
 
 from backend.config import DATA_DIR
+from backend.firebase_app import is_enabled
 from backend.models import CVContent, CVDocument, WritingTone
 from backend import ai_service
 
@@ -62,7 +63,14 @@ def extract_cv_text(filename: str, data: bytes) -> str:
     raise ValueError(f"Unsupported CV file type: {ext or 'unknown'}. Use PDF, DOCX, or TXT.")
 
 
-def save_profile_photo(cv_id: str, filename: str, data: bytes) -> str:
+def save_profile_photo(user_id: str, cv_id: str, filename: str, data: bytes) -> str:
+    if is_enabled():
+        from backend import firebase_upload
+        if len(data) > MAX_PHOTO_BYTES:
+            raise ValueError("Profile photo must be under 5 MB.")
+        return firebase_upload.save_profile_photo(user_id, cv_id, filename, data)
+
+    del user_id
     ext = _ext(filename)
     if ext not in PHOTO_EXTENSIONS:
         raise ValueError("Profile photo must be JPG, PNG, or WebP.")
@@ -83,23 +91,48 @@ def save_profile_photo(cv_id: str, filename: str, data: bytes) -> str:
     return f"/api/cvs/{cv_id}/photo"
 
 
-def get_photo_path(cv_id: str) -> Optional[str]:
+def get_photo_bytes(user_id: str, cv_id: str) -> Optional[Tuple[bytes, str]]:
+    if is_enabled():
+        from backend import firebase_upload
+        return firebase_upload.get_photo_bytes(user_id, cv_id)
+
+    del user_id
     dest_dir = os.path.join(UPLOADS_DIR, cv_id)
     if not os.path.isdir(dest_dir):
         return None
     for name in sorted(os.listdir(dest_dir)):
         if name.startswith("profile.") and _ext(name) in PHOTO_EXTENSIONS:
-            return os.path.join(dest_dir, name)
+            path = os.path.join(dest_dir, name)
+            ext = _ext(name)
+            media = "image/jpeg"
+            if ext == ".png":
+                media = "image/png"
+            elif ext == ".webp":
+                media = "image/webp"
+            with open(path, "rb") as f:
+                return f.read(), media
     return None
 
 
-def delete_uploads(cv_id: str) -> None:
+def delete_uploads(user_id: str, cv_id: str) -> None:
+    if is_enabled():
+        from backend import firebase_upload
+        firebase_upload.delete_uploads(user_id, cv_id)
+        return
+
+    del user_id
     path = os.path.join(UPLOADS_DIR, cv_id)
     if os.path.isdir(path):
         shutil.rmtree(path, ignore_errors=True)
 
 
-def copy_uploads(source_id: str, dest_id: str) -> None:
+def copy_uploads(user_id: str, source_id: str, dest_id: str) -> None:
+    if is_enabled():
+        from backend import firebase_upload
+        firebase_upload.copy_uploads(user_id, source_id, dest_id)
+        return
+
+    del user_id
     src = os.path.join(UPLOADS_DIR, source_id)
     if not os.path.isdir(src):
         return

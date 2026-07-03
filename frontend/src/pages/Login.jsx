@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, loading: authLoading, isFirebaseConfigured } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || "/builder";
@@ -12,6 +12,27 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (!isFirebaseConfigured) {
+    return (
+      <div className="auth-page" style={{ placeItems: "center", padding: 48 }}>
+        <div className="auth-form-wrap" style={{ textAlign: "center" }}>
+          <h2>Firebase not configured</h2>
+          <p className="muted">Set VITE_FIREBASE_* environment variables to enable login.</p>
+          <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <div className="auth-loading">
+        <div className="auth-loading-spinner" />
+        <p>Loading…</p>
+      </div>
+    );
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/builder" replace />;
@@ -22,7 +43,7 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      login(email, password);
+      await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || "Login failed");
@@ -83,7 +104,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="auth-note muted">Demo auth — accounts stored locally in your browser for now.</p>
+          <p className="auth-note muted">Secure sign-in powered by Firebase Authentication.</p>
         </div>
       </div>
     </div>

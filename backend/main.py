@@ -6,11 +6,15 @@ import os
 import traceback
 from typing import Any, Dict
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from datetime import timedelta
+
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 
 from backend import ai_service, billing, export, storage, templates, upload_service
+from backend.firebase_app import check_firebase, is_enabled
+from backend.firebase_auth import AuthUser, require_user
 from backend.storage import StorageError
 from backend.models import (
     AIChatRequest,
@@ -72,6 +76,7 @@ def startup_check() -> None:
 def health() -> Dict[str, Any]:
     ollama = ai_service.check_ollama()
     disk = storage.check_storage()
+    firebase = check_firebase() if is_enabled() else {"enabled": False, "ok": False}
     status = "ok" if disk.get("ok") else "degraded"
     return {
         "status": status,
@@ -80,7 +85,15 @@ def health() -> Dict[str, Any]:
         "ollama_model": ai_service.get_model_name(),
         "ollama": ollama,
         "storage": disk,
+        "firebase": firebase,
     }
+
+
+def _cv_or_404(user: AuthUser, cv_id: str) -> CVDocument:
+    doc = storage.get_cv(user.uid, cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    return doc
 
 
 # ---------------------------------------------------------------------------
@@ -97,12 +110,12 @@ def get_templates() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 @app.get("/api/cvs")
-def list_cvs() -> Dict[str, Any]:
-    return {"cvs": [c.model_dump() for c in storage.list_cvs()]}
+def list_cvs(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    return {"cvs": [c.model_dump() for c in storage.list_cvs(user.uid)]}
 
 
 @app.post("/api/cvs")
-def create_cv(req: CreateCVRequest) -> Dict[str, Any]:
+def create_cv(req: CreateCVRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
     tid = req.template_id
     if not tid or tid == "random":
         tid = templates.random_template_id()
@@ -112,7 +125,7 @@ def create_cv(req: CreateCVRequest) -> Dict[str, Any]:
         tone=req.tone,
         content=req.content or CVDocument().content,
     )
-    saved = storage.create_cv(doc)
+    saved = storage.create_cv(user.uid, doc)
     t = templates.get_template(saved.template_id)
     return {
         "success": True,
@@ -122,18 +135,13 @@ def create_cv(req: CreateCVRequest) -> Dict[str, Any]:
 
 
 @app.get("/api/cvs/{cv_id}")
-def get_cv(cv_id: str) -> Dict[str, Any]:
-    doc = storage.get_cv(cv_id)
-    if not doc:
-        raise HTTPException(404, "CV not found")
-    return {"cv": doc.model_dump()}
+def get_cv(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    return {"cv": _cv_or_404(user, cv_id).model_dump()}
 
 
 @app.put("/api/cvs/{cv_id}")
-def update_cv(cv_id: str, req: UpdateCVRequest) -> Dict[str, Any]:
-    existing = storage.get_cv(cv_id)
-    if not existing:
-        raise HTTPException(404, "CV not found")
+def update_cv(cv_id: str, req: UpdateCVRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    existing = _cv_or_404(user, cv_id)
 
     updated = existing.model_copy(deep=True)
     if req.name is not None:
@@ -148,7 +156,7 @@ def update_cv(cv_id: str, req: UpdateCVRequest) -> Dict[str, Any]:
         updated.theme_override = req.theme_override
 
     saved = storage.update_cv(
-        cv_id, updated,
+        user.uid, cv_id, updated,
         save_version=req.save_version,
         version_label=req.version_label,
     )
@@ -156,33 +164,32 @@ def update_cv(cv_id: str, req: UpdateCVRequest) -> Dict[str, Any]:
 
 
 @app.delete("/api/cvs/{cv_id}")
-def delete_cv(cv_id: str) -> Dict[str, Any]:
-    if not storage.delete_cv(cv_id):
+def delete_cv(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    if not storage.delete_cv(user.uid, cv_id):
         raise HTTPException(404, "CV not found")
     return {"success": True}
 
 
 @app.post("/api/cvs/{cv_id}/duplicate")
-def duplicate_cv(cv_id: str) -> Dict[str, Any]:
-    copy = storage.duplicate_cv(cv_id)
+def duplicate_cv(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    copy = storage.duplicate_cv(user.uid, cv_id)
     if not copy:
         raise HTTPException(404, "CV not found")
     return {"success": True, "cv": copy.model_dump()}
 
 
 @app.patch("/api/cvs/{cv_id}/rename")
-def rename_cv(cv_id: str, req: RenameCVRequest) -> Dict[str, Any]:
-    doc = storage.rename_cv(cv_id, req.name)
+def rename_cv(cv_id: str, req: RenameCVRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    doc = storage.rename_cv(user.uid, cv_id, req.name)
     if not doc:
         raise HTTPException(404, "CV not found")
     return {"success": True, "cv": doc.model_dump()}
 
 
 @app.get("/api/cvs/{cv_id}/versions")
-def list_versions(cv_id: str) -> Dict[str, Any]:
-    if not storage.get_cv(cv_id):
-        raise HTTPException(404, "CV not found")
-    versions = storage.list_versions(cv_id)
+def list_versions(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    _cv_or_404(user, cv_id)
+    versions = storage.list_versions(user.uid, cv_id)
     return {
         "versions": [
             {"id": v.id, "label": v.label, "created_at": v.created_at}
@@ -192,40 +199,37 @@ def list_versions(cv_id: str) -> Dict[str, Any]:
 
 
 @app.post("/api/cvs/{cv_id}/versions/{version_id}/restore")
-def restore_version(cv_id: str, version_id: str) -> Dict[str, Any]:
-    doc = storage.restore_version(cv_id, version_id)
+def restore_version(cv_id: str, version_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    doc = storage.restore_version(user.uid, cv_id, version_id)
     if not doc:
         raise HTTPException(404, "CV or version not found")
     return {"success": True, "cv": doc.model_dump()}
 
 
 @app.get("/api/cvs/{cv_id}/photo")
-def get_cv_photo(cv_id: str) -> FileResponse:
-    if not storage.get_cv(cv_id):
-        raise HTTPException(404, "CV not found")
-    path = upload_service.get_photo_path(cv_id)
-    if not path:
+def get_cv_photo(cv_id: str, user: AuthUser = Depends(require_user)) -> Response:
+    _cv_or_404(user, cv_id)
+    photo = upload_service.get_photo_bytes(user.uid, cv_id)
+    if not photo:
         raise HTTPException(404, "No profile photo")
-    media = "image/jpeg"
-    if path.lower().endswith(".png"):
-        media = "image/png"
-    elif path.lower().endswith(".webp"):
-        media = "image/webp"
-    return FileResponse(path, media_type=media)
+    data, media = photo
+    return Response(content=data, media_type=media)
 
 
 @app.post("/api/cvs/{cv_id}/upload/cv")
-async def upload_cv_file(cv_id: str, file: UploadFile = File(...)) -> Dict[str, Any]:
-    doc = storage.get_cv(cv_id)
-    if not doc:
-        raise HTTPException(404, "CV not found")
+async def upload_cv_file(
+    cv_id: str,
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(require_user),
+) -> Dict[str, Any]:
+    doc = _cv_or_404(user, cv_id)
     data = await file.read()
     try:
         updated, message = upload_service.process_cv_file(doc, file.filename or "resume.pdf", data, doc.tone)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(400, str(exc)) from exc
     updated.content.profile_photo = doc.content.profile_photo or updated.content.profile_photo
-    saved = storage.update_cv(cv_id, updated)
+    saved = storage.update_cv(user.uid, cv_id, updated)
     return {
         "success": True,
         "message": message,
@@ -235,19 +239,21 @@ async def upload_cv_file(cv_id: str, file: UploadFile = File(...)) -> Dict[str, 
 
 
 @app.post("/api/cvs/{cv_id}/upload/photo")
-async def upload_profile_photo(cv_id: str, file: UploadFile = File(...)) -> Dict[str, Any]:
-    doc = storage.get_cv(cv_id)
-    if not doc:
-        raise HTTPException(404, "CV not found")
+async def upload_profile_photo(
+    cv_id: str,
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(require_user),
+) -> Dict[str, Any]:
+    doc = _cv_or_404(user, cv_id)
     data = await file.read()
     try:
-        photo_path = upload_service.save_profile_photo(cv_id, file.filename or "photo.jpg", data)
+        photo_path = upload_service.save_profile_photo(user.uid, cv_id, file.filename or "photo.jpg", data)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
     updated = doc.model_copy(deep=True)
     updated.content.profile_photo = photo_path
-    saved = storage.update_cv(cv_id, updated)
+    saved = storage.update_cv(user.uid, cv_id, updated)
     return {
         "success": True,
         "message": "Profile photo uploaded.",
@@ -261,10 +267,8 @@ async def upload_profile_photo(cv_id: str, file: UploadFile = File(...)) -> Dict
 # ---------------------------------------------------------------------------
 
 @app.get("/api/cvs/{cv_id}/export/pdf")
-def export_pdf(cv_id: str) -> Response:
-    doc = storage.get_cv(cv_id)
-    if not doc:
-        raise HTTPException(404, "CV not found")
+def export_pdf(cv_id: str, user: AuthUser = Depends(require_user)) -> Response:
+    doc = _cv_or_404(user, cv_id)
     try:
         data, filename = export.export_pdf(doc)
     except RuntimeError as exc:
@@ -277,10 +281,8 @@ def export_pdf(cv_id: str) -> Response:
 
 
 @app.get("/api/cvs/{cv_id}/export/docx")
-def export_docx(cv_id: str) -> Response:
-    doc = storage.get_cv(cv_id)
-    if not doc:
-        raise HTTPException(404, "CV not found")
+def export_docx(cv_id: str, user: AuthUser = Depends(require_user)) -> Response:
+    doc = _cv_or_404(user, cv_id)
     try:
         data, filename = export.export_docx(doc)
     except RuntimeError as exc:
@@ -293,11 +295,13 @@ def export_docx(cv_id: str) -> Response:
 
 
 @app.post("/api/cvs/{cv_id}/export/styled-docx")
-def export_styled_docx(cv_id: str, body: StyledExportRequest) -> Response:
+def export_styled_docx(
+    cv_id: str,
+    body: StyledExportRequest,
+    user: AuthUser = Depends(require_user),
+) -> Response:
     """Export CV as Word using the same HTML/CSS as the live template preview."""
-    doc = storage.get_cv(cv_id)
-    if not doc:
-        raise HTTPException(404, "CV not found")
+    doc = _cv_or_404(user, cv_id)
     try:
         data, filename = export.export_styled_docx(body.html, doc)
     except (RuntimeError, ValueError) as exc:
@@ -403,12 +407,15 @@ def billing_plans() -> Dict[str, Any]:
 
 
 @app.post("/api/billing/checkout")
-def billing_checkout(req: CheckoutRequest) -> Dict[str, str]:
+def billing_checkout(
+    req: CheckoutRequest,
+    user: AuthUser = Depends(require_user),
+) -> Dict[str, str]:
     try:
         return billing.create_checkout_session(
             req.plan_id,
             req.interval,
-            customer_email=req.email,
+            customer_email=req.email or user.email,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

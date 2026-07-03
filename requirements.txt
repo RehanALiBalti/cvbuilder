@@ -10,6 +10,7 @@ html-for-docx>=1.1.0
 beautifulsoup4>=4.12.0
 pypdf>=4.0.0
 python-multipart>=0.0.9
+firebase-admin>=6.5.0
 stripe>=8.0.0
 
 # LLM: Ollama (qwen2.5:7b) — install Ollama separately, not via pip
