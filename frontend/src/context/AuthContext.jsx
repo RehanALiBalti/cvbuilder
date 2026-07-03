@@ -1,13 +1,22 @@
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   updateProfile,
 } from "firebase/auth";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
-import { ensureUserProfile, planLabel, subscribeUserProfile } from "../services/userProfile";
+import {
+  ensureUserProfile,
+  planLabel,
+  subscribeUserProfile,
+  updateUserProfileDoc,
+} from "../services/userProfile";
 import { fetchUserProfile } from "../api/client";
 
 const AuthContext = createContext(null);
@@ -33,6 +42,8 @@ function firebaseAuthError(err) {
     "auth/wrong-password": "Invalid email or password.",
     "auth/too-many-requests": "Too many attempts. Please wait and try again.",
     "auth/network-request-failed": "Network error. Check your connection.",
+    "auth/requires-recent-login": "Please log out and log in again before changing this setting.",
+    "auth/operation-not-allowed": "This account action is not enabled in Firebase.",
   };
   return map[code] || err?.message || "Authentication failed.";
 }
@@ -113,6 +124,50 @@ export function AuthProvider({ children }) {
         if (data?.profile) setProfile((p) => ({ ...p, ...data.profile }));
       } catch {
         /* ignore */
+      }
+    },
+
+    async updateProfileInfo({ name }) {
+      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      const auth = getFirebaseAuth();
+      const fbUser = auth.currentUser;
+      if (!fbUser) throw new Error("Please sign in again.");
+      const cleanName = name.trim();
+      if (!cleanName) throw new Error("Name is required.");
+      try {
+        await updateProfile(fbUser, { displayName: cleanName });
+        await updateUserProfileDoc(fbUser.uid, { name: cleanName, email: fbUser.email || "" });
+        setUser((prev) => prev ? { ...prev, name: cleanName } : mapUser(fbUser));
+      } catch (err) {
+        throw new Error(firebaseAuthError(err));
+      }
+    },
+
+    async changePassword(currentPassword, newPassword) {
+      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      const auth = getFirebaseAuth();
+      const fbUser = auth.currentUser;
+      if (!fbUser?.email) throw new Error("Please sign in again.");
+      if (!currentPassword) throw new Error("Current password is required.");
+      if (!newPassword || newPassword.length < 6) {
+        throw new Error("New password must be at least 6 characters.");
+      }
+      try {
+        const cred = EmailAuthProvider.credential(fbUser.email, currentPassword);
+        await reauthenticateWithCredential(fbUser, cred);
+        await updatePassword(fbUser, newPassword);
+      } catch (err) {
+        throw new Error(firebaseAuthError(err));
+      }
+    },
+
+    async sendPasswordReset(email) {
+      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      if (!email?.trim()) throw new Error("Email is required.");
+      try {
+        await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
+      } catch (err) {
+        throw new Error(firebaseAuthError(err));
       }
     },
 

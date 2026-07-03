@@ -20,6 +20,15 @@ export async function ensureUserProfile(uid, { name, email }) {
   return snap.data();
 }
 
+export async function updateUserProfileDoc(uid, payload) {
+  if (!isFirebaseConfigured || !uid) return;
+  const clean = {};
+  if (payload.name !== undefined) clean.name = payload.name;
+  if (payload.email !== undefined) clean.email = payload.email?.toLowerCase();
+  clean.updatedAt = serverTimestamp();
+  await setDoc(doc(getFirebaseDb(), "users", uid), clean, { merge: true });
+}
+
 export function subscribeUserProfile(uid, callback) {
   if (!isFirebaseConfigured || !uid) {
     callback({ plan: "starter", subscription_status: "free" });

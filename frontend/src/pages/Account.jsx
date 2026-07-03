@@ -13,13 +13,30 @@ function PlanBadge({ plan }) {
 }
 
 export default function Account() {
-  const { user, profile, plan, planLabel, refreshProfile, logout } = useAuth();
+  const {
+    user,
+    profile,
+    plan,
+    planLabel,
+    refreshProfile,
+    logout,
+    updateProfileInfo,
+    changePassword,
+  } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [annual, setAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [profileName, setProfileName] = useState(user?.name || "");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwords, setPasswords] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
 
   useEffect(() => {
     if (params.get("checkout") === "success") {
@@ -27,6 +44,10 @@ export default function Account() {
       refreshProfile();
     }
   }, [params, refreshProfile]);
+
+  useEffect(() => {
+    setProfileName(user?.name || "");
+  }, [user?.name]);
 
   async function handleUpgrade(planId) {
     if (planId === plan) return;
@@ -38,6 +59,41 @@ export default function Account() {
     } catch (err) {
       setError(err.message || "Checkout failed");
       setLoadingPlan(null);
+    }
+  }
+
+  async function handleProfileSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setToast("");
+    setProfileSaving(true);
+    try {
+      await updateProfileInfo({ name: profileName });
+      setToast("Profile updated successfully.");
+    } catch (err) {
+      setError(err.message || "Could not update profile");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  async function handlePasswordSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setToast("");
+    if (passwords.next !== passwords.confirm) {
+      setError("New password and confirm password do not match.");
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await changePassword(passwords.current, passwords.next);
+      setPasswords({ current: "", next: "", confirm: "" });
+      setToast("Password changed successfully.");
+    } catch (err) {
+      setError(err.message || "Could not change password");
+    } finally {
+      setPasswordSaving(false);
     }
   }
 
@@ -86,6 +142,79 @@ export default function Account() {
           <strong>{profile?.max_cvs ?? 1}</strong>
           <span className="muted">CV limit</span>
         </div>
+      </div>
+
+      <div className="account-settings-grid">
+        <section className="panel account-settings-card">
+          <div className="account-section-title">
+            <h2>Edit profile</h2>
+            <p className="muted">Update the name shown in your account and builder.</p>
+          </div>
+          <form className="account-form" onSubmit={handleProfileSubmit}>
+            <label>
+              <span>Full name</span>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Your name"
+                required
+              />
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" value={user?.email || ""} disabled />
+              <small>Email is managed by Firebase Auth. Use password reset if you cannot access it.</small>
+            </label>
+            <button type="submit" className="btn btn-primary" disabled={profileSaving}>
+              {profileSaving ? "Saving…" : "Save profile"}
+            </button>
+          </form>
+        </section>
+
+        <section className="panel account-settings-card">
+          <div className="account-section-title">
+            <h2>Change password</h2>
+            <p className="muted">For security, enter your current password first.</p>
+          </div>
+          <form className="account-form" onSubmit={handlePasswordSubmit}>
+            <label>
+              <span>Current password</span>
+              <input
+                type="password"
+                value={passwords.current}
+                onChange={(e) => setPasswords((p) => ({ ...p, current: e.target.value }))}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            <label>
+              <span>New password</span>
+              <input
+                type="password"
+                value={passwords.next}
+                onChange={(e) => setPasswords((p) => ({ ...p, next: e.target.value }))}
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            <label>
+              <span>Confirm new password</span>
+              <input
+                type="password"
+                value={passwords.confirm}
+                onChange={(e) => setPasswords((p) => ({ ...p, confirm: e.target.value }))}
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+              {passwordSaving ? "Updating…" : "Change password"}
+            </button>
+          </form>
+        </section>
       </div>
 
       <section className="panel">

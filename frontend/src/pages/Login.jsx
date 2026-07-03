@@ -60,6 +60,9 @@ export default function Login() {
       perks={["Your own CV workspace", "Saved chat history per CV", "Free plan · upgrade inside app"]}
     >
       <AuthForm mode="login" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
+      <p className="auth-forgot-link">
+        <Link to="/forgot-password">Forgot password?</Link>
+      </p>
     </AuthLayout>
   );
 }
