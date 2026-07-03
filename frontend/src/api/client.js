@@ -200,3 +200,17 @@ export async function aiLinkedIn(payload) {
   });
   return handleResponse(res);
 }
+
+export async function fetchBillingPlans() {
+  const res = await fetch(`${API_BASE}/api/billing/plans`);
+  return handleResponse(res);
+}
+
+export async function createCheckoutSession(planId, interval, email) {
+  const res = await fetch(`${API_BASE}/api/billing/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan_id: planId, interval, email: email || undefined }),
+  });
+  return handleResponse(res);
+}

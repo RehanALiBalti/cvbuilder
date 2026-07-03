@@ -10,7 +10,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from backend import ai_service, export, storage, templates, upload_service
+from backend import ai_service, billing, export, storage, templates, upload_service
 from backend.storage import StorageError
 from backend.models import (
     AIChatRequest,
@@ -25,6 +25,7 @@ from backend.models import (
     AIResponse,
     CreateCVRequest,
     CVDocument,
+    CheckoutRequest,
     RenameCVRequest,
     StyledExportRequest,
     UpdateCVRequest,
@@ -391,3 +392,28 @@ def ai_chat(req: AIChatRequest) -> Dict[str, Any]:
 def ai_linkedin(req: AILinkedInRequest) -> Dict[str, Any]:
     result = _ai_handler(ai_service.linkedin_content, req.content, req.tone)
     return result.model_dump()
+
+
+@app.get("/api/billing/plans")
+def billing_plans() -> Dict[str, Any]:
+    return {
+        "plans": billing.get_public_plans(),
+        "stripe_configured": billing.stripe_configured(),
+    }
+
+
+@app.post("/api/billing/checkout")
+def billing_checkout(req: CheckoutRequest) -> Dict[str, str]:
+    try:
+        return billing.create_checkout_session(
+            req.plan_id,
+            req.interval,
+            customer_email=req.email,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Checkout failed") from exc

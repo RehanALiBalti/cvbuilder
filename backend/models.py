@@ -264,6 +264,12 @@ class StyledExportRequest(BaseModel):
     html: str
 
 
+class CheckoutRequest(BaseModel):
+    plan_id: str = Field(..., pattern=r"^(pro|business)$")
+    interval: str = Field(..., pattern=r"^(monthly|yearly)$")
+    email: Optional[str] = None
+
+
 class AIResponse(BaseModel):
     success: bool = True
     data: Dict[str, Any] = Field(default_factory=dict)
