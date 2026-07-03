@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 from backend.firebase_app import get_db, is_enabled
+from backend.local_storage import StorageError
 
 PLAN_LIMITS: Dict[str, Dict[str, int]] = {
     "starter": {"max_cvs": 1, "max_ai_messages_month": 50},
@@ -18,19 +19,31 @@ def _month_key() -> str:
     return datetime.utcnow().strftime("%Y-%m")
 
 
+def _default_user_doc() -> Dict[str, Any]:
+    return {"plan": "starter", "ai_usage_month": _month_key(), "ai_messages_used": 0}
+
+
 def _users():
-    return get_db().collection("users")
+    try:
+        return get_db().collection("users")
+    except Exception as exc:
+        raise StorageError(f"Firestore unavailable: {exc}") from exc
 
 
 def get_user_doc(uid: str) -> Dict[str, Any]:
     if not is_enabled():
-        return {"plan": "starter", "ai_usage_month": _month_key(), "ai_messages_used": 0}
-    snap = _users().document(uid).get()
-    if not snap.exists:
-        return {"plan": "starter", "ai_usage_month": _month_key(), "ai_messages_used": 0}
-    data = snap.to_dict() or {}
-    data.setdefault("plan", "starter")
-    return data
+        return _default_user_doc()
+    try:
+        snap = _users().document(uid).get()
+        if not snap.exists:
+            return _default_user_doc()
+        data = snap.to_dict() or {}
+        data.setdefault("plan", "starter")
+        return data
+    except StorageError:
+        raise
+    except Exception as exc:
+        raise StorageError(f"Could not read user profile: {exc}") from exc
 
 
 def get_user_plan(uid: str) -> str:

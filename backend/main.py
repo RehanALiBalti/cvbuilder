@@ -69,7 +69,9 @@ async def storage_error_handler(_request: Request, exc: StorageError) -> JSONRes
 
 @app.on_event("startup")
 def startup_check() -> None:
-    storage.check_storage()
+    result = storage.check_storage()
+    if not result.get("ok"):
+        print(f"[cvbuilder] Storage warning: {result}")
 
 
 @app.get("/api/health")
@@ -107,7 +109,10 @@ def get_templates() -> Dict[str, Any]:
 
 @app.get("/api/user/me")
 def get_current_user_profile(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
-    return {"profile": user_service.get_user_profile(user.uid)}
+    try:
+        return {"profile": user_service.get_user_profile(user.uid)}
+    except StorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +121,10 @@ def get_current_user_profile(user: AuthUser = Depends(require_user)) -> Dict[str
 
 @app.get("/api/cvs")
 def list_cvs(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
-    return {"cvs": [c.model_dump() for c in storage.list_cvs(user.uid)]}
+    try:
+        return {"cvs": [c.model_dump() for c in storage.list_cvs(user.uid)]}
+    except StorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.post("/api/cvs")

@@ -10,12 +10,21 @@ _app: Any = None
 
 
 def is_enabled() -> bool:
+    """True only when project id and usable credentials are present."""
     project = os.getenv("FIREBASE_PROJECT_ID", "").strip()
-    has_creds = bool(
-        os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
-        or os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
-    )
-    return bool(project and has_creds)
+    if not project:
+        return False
+
+    json_raw = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    if json_raw:
+        try:
+            json.loads(json_raw)
+            return True
+        except json.JSONDecodeError:
+            return False
+
+    path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    return bool(path and os.path.isfile(path))
 
 
 def allow_local_auth_fallback() -> bool:

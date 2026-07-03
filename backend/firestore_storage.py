@@ -6,16 +6,20 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from backend.firebase_app import get_db, is_enabled
+from backend.firebase_app import get_db
+from backend.local_storage import StorageError
 from backend.models import CVDocument, CVListItem, CVVersion
 
 
-class StorageError(RuntimeError):
-    """Raised when Firestore storage cannot be read or written."""
+def _firestore():
+    try:
+        return get_db()
+    except Exception as exc:
+        raise StorageError(f"Firestore unavailable: {exc}") from exc
 
 
 def _cvs_col(user_id: str):
-    return get_db().collection("users").document(user_id).collection("cvs")
+    return _firestore().collection("users").document(user_id).collection("cvs")
 
 
 def _versions_col(user_id: str, cv_id: str):
