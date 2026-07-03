@@ -4,12 +4,23 @@ import { createCheckoutSession } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
 
-function PlanBadge({ plan }) {
+const SECTIONS = [
+  { id: "profile", label: "Profile", icon: "👤" },
+  { id: "security", label: "Security", icon: "🔒" },
+  { id: "billing", label: "Billing", icon: "💳" },
+];
+
+function PlanBadge({ plan, large }) {
   return (
-    <span className={`plan-badge plan-badge--${plan || "starter"}`}>
+    <span className={`plan-badge plan-badge--${plan || "starter"} ${large ? "plan-badge--lg" : ""}`}>
       {plan === "pro" ? "Pro" : plan === "business" ? "Business" : "Free"}
     </span>
   );
+}
+
+function UserAvatar({ name }) {
+  const initial = (name || "U").charAt(0).toUpperCase();
+  return <div className="account-avatar" aria-hidden="true">{initial}</div>;
 }
 
 export default function Account() {
@@ -25,6 +36,7 @@ export default function Account() {
   } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const [activeSection, setActiveSection] = useState("profile");
   const [annual, setAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [error, setError] = useState("");
@@ -32,15 +44,16 @@ export default function Account() {
   const [profileName, setProfileName] = useState(user?.name || "");
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwords, setPasswords] = useState({
-    current: "",
-    next: "",
-    confirm: "",
-  });
+  const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
+
+  const aiUsed = profile?.ai_messages_used ?? 0;
+  const aiLimit = profile?.ai_messages_limit ?? 50;
+  const aiPct = Math.min(100, Math.round((aiUsed / aiLimit) * 100));
 
   useEffect(() => {
     if (params.get("checkout") === "success") {
-      setToast("Payment successful! Your plan is being updated…");
+      setToast("Payment successful! Your plan is being updated.");
+      setActiveSection("billing");
       refreshProfile();
     }
   }, [params, refreshProfile]);
@@ -103,183 +116,247 @@ export default function Account() {
   }
 
   return (
-    <div className="cv-app account-page">
-      <header className="cv-header-bar">
-        <div className="brand">
-          <div className="brand-mark">CV</div>
-          <div>
-            <h1>Account & Billing</h1>
-            <p className="muted">{user?.email}</p>
-          </div>
+    <div className="account-layout">
+      <header className="account-topbar">
+        <Link to="/builder" className="account-topbar-back">
+          <span aria-hidden="true">←</span> Back to builder
+        </Link>
+        <div className="account-topbar-brand">
+          <span className="account-topbar-mark">CV</span>
+          <span>ResumeAI</span>
         </div>
-        <div className="header-actions">
-          <Link to="/builder" className="btn btn-ghost">← Back to builder</Link>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={handleLogout}>Log out</button>
-        </div>
+        <button type="button" className="account-topbar-logout" onClick={handleLogout}>
+          Log out
+        </button>
       </header>
 
-      {toast && <div className="account-toast">{toast}</div>}
-      {error && <div className="auth-error">{error}</div>}
-
-      <section className="panel account-header">
-        <div>
-          <h2>{user?.name}</h2>
-          <p className="muted">Manage your subscription and usage</p>
-        </div>
-        <PlanBadge plan={plan} />
-      </section>
-
-      <div className="account-usage">
-        <div className="account-usage-card">
-          <strong>{planLabel}</strong>
-          <span className="muted">Current plan</span>
-        </div>
-        <div className="account-usage-card">
-          <strong>{profile?.ai_messages_used ?? 0}</strong>
-          <span className="muted">AI messages this month</span>
-        </div>
-        <div className="account-usage-card">
-          <strong>{profile?.max_cvs ?? 1}</strong>
-          <span className="muted">CV limit</span>
-        </div>
-      </div>
-
-      <div className="account-settings-grid">
-        <section className="panel account-settings-card">
-          <div className="account-section-title">
-            <h2>Edit profile</h2>
-            <p className="muted">Update the name shown in your account and builder.</p>
+      <div className="account-shell">
+        {/* Profile hero */}
+        <div className="account-hero">
+          <UserAvatar name={user?.name} />
+          <div className="account-hero-info">
+            <h1>{user?.name || "Your Account"}</h1>
+            <p>{user?.email}</p>
           </div>
-          <form className="account-form" onSubmit={handleProfileSubmit}>
-            <label>
-              <span>Full name</span>
-              <input
-                type="text"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                placeholder="Your name"
-                required
-              />
-            </label>
-            <label>
-              <span>Email</span>
-              <input type="email" value={user?.email || ""} disabled />
-              <small>Email is managed by Firebase Auth. Use password reset if you cannot access it.</small>
-            </label>
-            <button type="submit" className="btn btn-primary" disabled={profileSaving}>
-              {profileSaving ? "Saving…" : "Save profile"}
-            </button>
-          </form>
-        </section>
+          <PlanBadge plan={plan} large />
+        </div>
 
-        <section className="panel account-settings-card">
-          <div className="account-section-title">
-            <h2>Change password</h2>
-            <p className="muted">For security, enter your current password first.</p>
+        {/* Alerts */}
+        {toast && (
+          <div className="account-alert account-alert--success" role="status">
+            <span>✓</span> {toast}
           </div>
-          <form className="account-form" onSubmit={handlePasswordSubmit}>
-            <label>
-              <span>Current password</span>
-              <input
-                type="password"
-                value={passwords.current}
-                onChange={(e) => setPasswords((p) => ({ ...p, current: e.target.value }))}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            <label>
-              <span>New password</span>
-              <input
-                type="password"
-                value={passwords.next}
-                onChange={(e) => setPasswords((p) => ({ ...p, next: e.target.value }))}
-                autoComplete="new-password"
-                minLength={6}
-                required
-              />
-            </label>
-            <label>
-              <span>Confirm new password</span>
-              <input
-                type="password"
-                value={passwords.confirm}
-                onChange={(e) => setPasswords((p) => ({ ...p, confirm: e.target.value }))}
-                autoComplete="new-password"
-                minLength={6}
-                required
-              />
-            </label>
-            <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
-              {passwordSaving ? "Updating…" : "Change password"}
-            </button>
-          </form>
-        </section>
-      </div>
+        )}
+        {error && (
+          <div className="account-alert account-alert--error" role="alert">
+            <span>!</span> {error}
+          </div>
+        )}
 
-      <section className="panel">
-        <h2>Upgrade your plan</h2>
-        <p className="muted" style={{ marginBottom: 16 }}>
-          Secure payments via Stripe. Cancel anytime.
-        </p>
-
-        <div className="landing-pricing-toggle-wrap">
-          <div className="landing-pricing-toggle" role="group" aria-label="Billing period">
-            <button type="button" className={!annual ? "is-active" : ""} onClick={() => setAnnual(false)}>Monthly</button>
-            <button type="button" className={annual ? "is-active" : ""} onClick={() => setAnnual(true)}>
-              Yearly <span className="landing-pricing-save">Save</span>
-            </button>
+        {/* Usage stats */}
+        <div className="account-stats">
+          <div className="account-stat">
+            <span className="account-stat-label">Current plan</span>
+            <strong>{planLabel}</strong>
+          </div>
+          <div className="account-stat">
+            <span className="account-stat-label">CV limit</span>
+            <strong>{profile?.max_cvs ?? 1}</strong>
+          </div>
+          <div className="account-stat account-stat--wide">
+            <div className="account-stat-row">
+              <span className="account-stat-label">AI messages this month</span>
+              <strong>{aiUsed} / {aiLimit}</strong>
+            </div>
+            <div className="account-progress">
+              <div className="account-progress-fill" style={{ width: `${aiPct}%` }} />
+            </div>
           </div>
         </div>
 
-        <div className="account-pricing-grid">
-          {PRICING_PLANS.map((p) => {
-            const price = annual ? p.yearlyPrice : p.monthlyPrice;
-            const isCurrent = p.id === plan;
-            const savings = yearlySavingsPct(p);
-            return (
-              <article
-                key={p.id}
-                className={`account-plan-card ${p.highlighted ? "account-plan-card--featured" : ""} ${isCurrent ? "account-plan-card--current" : ""}`}
+        <div className="account-body">
+          {/* Sidebar nav */}
+          <nav className="account-nav" aria-label="Account sections">
+            {SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={`account-nav-item ${activeSection === s.id ? "is-active" : ""}`}
+                onClick={() => { setActiveSection(s.id); setError(""); }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ margin: 0 }}>{p.name}</h3>
-                  {isCurrent && <span className="plan-badge plan-badge--pro">Current</span>}
+                <span className="account-nav-icon" aria-hidden="true">{s.icon}</span>
+                {s.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Content panels */}
+          <div className="account-content">
+            {activeSection === "profile" && (
+              <section className="account-card">
+                <div className="account-card-head">
+                  <h2>Profile information</h2>
+                  <p>Update your display name shown across the app.</p>
                 </div>
-                <p className="muted" style={{ margin: 0, fontSize: "0.88rem" }}>{p.description}</p>
-                <div>
-                  <strong style={{ fontSize: "1.8rem" }}>
-                    {p.monthlyPrice === 0 ? "Free" : `$${annual ? Math.round(price / 12) : price}`}
-                  </strong>
-                  {p.monthlyPrice > 0 && <span className="muted"> /mo</span>}
-                  {annual && savings > 0 && p.yearlyPrice > 0 && (
-                    <p className="muted" style={{ margin: "4px 0 0", fontSize: "0.8rem" }}>
-                      Billed ${price}/year · save {savings}%
-                    </p>
-                  )}
+                <form className="account-form" onSubmit={handleProfileSubmit}>
+                  <div className="account-form-row">
+                    <label>
+                      <span>Full name</span>
+                      <input
+                        type="text"
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        placeholder="Your name"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Email address</span>
+                      <input type="email" value={user?.email || ""} disabled />
+                    </label>
+                  </div>
+                  <p className="account-form-hint">
+                    Email is linked to your Firebase account and cannot be changed here.
+                    {" "}<Link to="/forgot-password">Reset password via email</Link>
+                  </p>
+                  <div className="account-form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={profileSaving}>
+                      {profileSaving ? "Saving…" : "Save changes"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+            {activeSection === "security" && (
+              <section className="account-card">
+                <div className="account-card-head">
+                  <h2>Password & security</h2>
+                  <p>Keep your account secure with a strong password.</p>
                 </div>
-                <ul>
-                  {p.features.slice(0, 5).map((f) => <li key={f}>{f}</li>)}
-                </ul>
-                {p.id === "starter" ? (
-                  <button type="button" className="btn btn-block" disabled={isCurrent}>
-                    {isCurrent ? "Your current plan" : "Free tier"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className={`btn btn-block ${p.highlighted ? "btn-primary" : ""}`}
-                    disabled={isCurrent || loadingPlan === p.id}
-                    onClick={() => handleUpgrade(p.id)}
-                  >
-                    {loadingPlan === p.id ? "Redirecting…" : isCurrent ? "Current plan" : `Upgrade to ${p.name}`}
-                  </button>
-                )}
-              </article>
-            );
-          })}
+                <form className="account-form" onSubmit={handlePasswordSubmit}>
+                  <label>
+                    <span>Current password</span>
+                    <input
+                      type="password"
+                      value={passwords.current}
+                      onChange={(e) => setPasswords((p) => ({ ...p, current: e.target.value }))}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </label>
+                  <div className="account-form-row">
+                    <label>
+                      <span>New password</span>
+                      <input
+                        type="password"
+                        value={passwords.next}
+                        onChange={(e) => setPasswords((p) => ({ ...p, next: e.target.value }))}
+                        autoComplete="new-password"
+                        minLength={6}
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Confirm new password</span>
+                      <input
+                        type="password"
+                        value={passwords.confirm}
+                        onChange={(e) => setPasswords((p) => ({ ...p, confirm: e.target.value }))}
+                        autoComplete="new-password"
+                        minLength={6}
+                        required
+                      />
+                    </label>
+                  </div>
+                  <div className="account-form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+                      {passwordSaving ? "Updating…" : "Update password"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+            {activeSection === "billing" && (
+              <section className="account-card">
+                <div className="account-card-head">
+                  <h2>Subscription & billing</h2>
+                  <p>Manage your plan. Secure payments powered by Stripe.</p>
+                </div>
+
+                <div className="account-billing-toggle">
+                  <div className="landing-pricing-toggle" role="group" aria-label="Billing period">
+                    <button type="button" className={!annual ? "is-active" : ""} onClick={() => setAnnual(false)}>
+                      Monthly
+                    </button>
+                    <button type="button" className={annual ? "is-active" : ""} onClick={() => setAnnual(true)}>
+                      Yearly <span className="landing-pricing-save">Save</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="account-plans">
+                  {PRICING_PLANS.map((p) => {
+                    const price = annual ? p.yearlyPrice : p.monthlyPrice;
+                    const isCurrent = p.id === plan;
+                    const savings = yearlySavingsPct(p);
+                    return (
+                      <article
+                        key={p.id}
+                        className={`account-plan ${p.highlighted ? "account-plan--featured" : ""} ${isCurrent ? "account-plan--current" : ""}`}
+                      >
+                        <div className="account-plan-top">
+                          <div>
+                            <h3>{p.name}</h3>
+                            <p>{p.description}</p>
+                          </div>
+                          {isCurrent && <span className="account-plan-current-tag">Current</span>}
+                          {p.badge && !isCurrent && <span className="account-plan-popular-tag">{p.badge}</span>}
+                        </div>
+                        <div className="account-plan-price">
+                          <strong>
+                            {p.monthlyPrice === 0 ? "Free" : `$${annual ? Math.round(price / 12) : price}`}
+                          </strong>
+                          {p.monthlyPrice > 0 && <span>/month</span>}
+                          {annual && savings > 0 && p.yearlyPrice > 0 && (
+                            <em>Billed ${price}/yr · save {savings}%</em>
+                          )}
+                        </div>
+                        <ul className="account-plan-features">
+                          {p.features.map((f) => <li key={f}>{f}</li>)}
+                        </ul>
+                        {p.id === "starter" ? (
+                          <button type="button" className="btn btn-block" disabled={isCurrent}>
+                            {isCurrent ? "Your current plan" : "Included free"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className={`btn btn-block ${p.highlighted && !isCurrent ? "btn-primary" : ""}`}
+                            disabled={isCurrent || loadingPlan === p.id}
+                            onClick={() => handleUpgrade(p.id)}
+                          >
+                            {loadingPlan === p.id
+                              ? "Redirecting to Stripe…"
+                              : isCurrent
+                                ? "Current plan"
+                                : `Upgrade to ${p.name}`}
+                          </button>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <p className="account-stripe-note">
+                  Payments secured by Stripe. We never store your card details.
+                </p>
+              </section>
+            )}
+          </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
