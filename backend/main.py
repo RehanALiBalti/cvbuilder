@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
-from backend import ai_service, billing, export, storage, templates, upload_service
+from backend import ai_service, billing, export, storage, templates, upload_service, user_service
 from backend.firebase_app import check_firebase, is_enabled
 from backend.firebase_auth import AuthUser, require_user
 from backend.storage import StorageError
@@ -105,6 +105,11 @@ def get_templates() -> Dict[str, Any]:
     return {"templates": templates.list_templates()}
 
 
+@app.get("/api/user/me")
+def get_current_user_profile(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    return {"profile": user_service.get_user_profile(user.uid)}
+
+
 # ---------------------------------------------------------------------------
 # CV CRUD
 # ---------------------------------------------------------------------------
@@ -116,6 +121,10 @@ def list_cvs(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
 
 @app.post("/api/cvs")
 def create_cv(req: CreateCVRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    existing = storage.list_cvs(user.uid)
+    ok, msg = user_service.check_can_create_cv(user.uid, len(existing))
+    if not ok:
+        raise HTTPException(403, msg)
     tid = req.template_id
     if not tid or tid == "random":
         tid = templates.random_template_id()
@@ -383,12 +392,18 @@ def ai_career_guidance(req: AICareerGuidanceRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/ai/chat")
-def ai_chat(req: AIChatRequest) -> Dict[str, Any]:
+def ai_chat(req: AIChatRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    ok, msg = user_service.check_can_send_ai(user.uid)
+    if not ok:
+        raise HTTPException(403, msg)
+
     history = [{"role": m.role, "content": m.content} for m in req.history]
     result = _ai_handler(
         ai_service.chat_cv,
         req.message, history, req.content, req.tone, req.template_id, req.theme_override,
     )
+    if result.success:
+        user_service.increment_ai_usage(user.uid)
     return result.model_dump()
 
 
@@ -416,6 +431,7 @@ def billing_checkout(
             req.plan_id,
             req.interval,
             customer_email=req.email or user.email,
+            firebase_uid=user.uid,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -424,3 +440,19 @@ def billing_checkout(
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Checkout failed") from exc
+
+
+@app.post("/api/billing/webhook")
+async def billing_webhook(request: Request) -> Dict[str, str]:
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    try:
+        billing.handle_stripe_webhook(payload, sig)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail="Webhook error") from exc
+    return {"status": "ok"}

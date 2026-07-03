@@ -102,6 +102,7 @@ def create_checkout_session(
     plan_id: str,
     interval: str,
     customer_email: Optional[str] = None,
+    firebase_uid: Optional[str] = None,
 ) -> Dict[str, str]:
     if plan_id == "starter":
         raise ValueError("Starter plan is free — sign up instead.")
@@ -129,11 +130,14 @@ def create_checkout_session(
     params: Dict[str, Any] = {
         "mode": "subscription",
         "line_items": [{"price": price_id, "quantity": 1}],
-        "success_url": f"{base}/builder?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
-        "cancel_url": f"{base}/?checkout=cancel#pricing",
+        "success_url": f"{base}/builder/account?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
+        "cancel_url": f"{base}/builder/account?checkout=cancel",
         "metadata": {"plan_id": plan_id, "interval": interval},
         "allow_promotion_codes": True,
     }
+    if firebase_uid:
+        params["metadata"]["firebase_uid"] = firebase_uid
+        params["client_reference_id"] = firebase_uid
     if customer_email:
         params["customer_email"] = customer_email
 
@@ -141,3 +145,34 @@ def create_checkout_session(
     if not session.url:
         raise RuntimeError("Stripe did not return a checkout URL.")
     return {"url": session.url, "session_id": session.id}
+
+
+def handle_stripe_webhook(payload: bytes, sig_header: str) -> None:
+    secret = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+    if not secret:
+        raise RuntimeError("STRIPE_WEBHOOK_SECRET is not set.")
+
+    import stripe
+
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    event = stripe.Webhook.construct_event(payload, sig_header, secret)
+
+    from backend import user_service
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        uid = session.get("client_reference_id") or (session.get("metadata") or {}).get("firebase_uid")
+        plan = (session.get("metadata") or {}).get("plan_id", "pro")
+        if uid:
+            user_service.set_user_plan(
+                uid,
+                plan,
+                subscription_id=session.get("subscription") or "",
+                customer_id=session.get("customer") or "",
+                status="active",
+            )
+    elif event["type"] == "customer.subscription.deleted":
+        sub = event["data"]["object"]
+        uid = (sub.get("metadata") or {}).get("firebase_uid")
+        if uid:
+            user_service.downgrade_to_starter(uid)

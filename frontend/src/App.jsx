@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
+import Account from "./pages/Account";
 import CVBuilder from "./pages/CVBuilder";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -14,6 +15,14 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/builder/account"
+            element={(
+              <ProtectedRoute>
+                <Account />
+              </ProtectedRoute>
+            )}
+          />
           <Route
             path="/builder"
             element={(

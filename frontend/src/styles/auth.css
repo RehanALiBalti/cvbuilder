@@ -1,0 +1,364 @@
+/* Auth page animations & form polish */
+.auth-page--animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.auth-bg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.35;
+}
+
+.auth-bg-blob--1 {
+  width: 420px;
+  height: 420px;
+  background: #93c5fd;
+  top: -80px;
+  right: -60px;
+  animation: auth-blob 14s ease-in-out infinite;
+}
+
+.auth-bg-blob--2 {
+  width: 360px;
+  height: 360px;
+  background: #c4b5fd;
+  bottom: -60px;
+  left: -40px;
+  animation: auth-blob 18s ease-in-out infinite reverse;
+}
+
+@keyframes auth-blob {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-30px, 20px); }
+}
+
+.auth-panel--slide-in {
+  animation: auth-slide-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-panel--delay {
+  animation-delay: 0.1s;
+}
+
+@keyframes auth-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.auth-form-animated {
+  animation: auth-fade-up 0.5s ease 0.15s both;
+}
+
+@keyframes auth-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+.auth-form--shake {
+  animation: auth-shake 0.45s ease;
+}
+
+@keyframes auth-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.auth-form--success .auth-submit {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field span {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.auth-field input {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-field--error input {
+  border-color: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+}
+
+.auth-field-error {
+  font-size: 0.78rem;
+  color: #dc2626;
+  font-style: normal;
+}
+
+.auth-password-wrap {
+  position: relative;
+}
+
+.auth-password-wrap input {
+  width: 100%;
+  padding-right: 64px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.auth-password-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.auth-password-bars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.auth-password-bars span {
+  height: 4px;
+  flex: 1;
+  border-radius: 999px;
+  background: #e2e8f0;
+  transition: background 0.2s;
+}
+
+.auth-password-bars span.on.s1,
+.auth-password-bars span.on.s2 { background: #f87171; }
+.auth-password-bars span.on.s3 { background: #fbbf24; }
+.auth-password-bars span.on.s4,
+.auth-password-bars span.on.s5 { background: #22c55e; }
+
+.auth-password-strength small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  min-width: 56px;
+}
+
+.auth-error--animated {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  animation: auth-error-in 0.35s ease;
+}
+
+@keyframes auth-error-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+
+.auth-error-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fecaca;
+  color: #b91c1c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.auth-success--animated {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  animation: auth-error-in 0.35s ease;
+}
+
+.auth-success-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.auth-submit {
+  position: relative;
+  min-height: 48px;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.auth-submit:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(29, 78, 216, 0.25);
+}
+
+.auth-submit--loading {
+  opacity: 0.9;
+}
+
+.auth-submit-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: auth-spin 0.7s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Account / billing page */
+.account-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plan-badge--starter {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.plan-badge--pro {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.plan-badge--business {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.account-usage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.account-usage-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.account-usage-card strong {
+  display: block;
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.account-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.account-plan-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.account-plan-card--current {
+  border-color: rgba(29, 78, 216, 0.35);
+  box-shadow: 0 12px 32px rgba(29, 78, 216, 0.1);
+}
+
+.account-plan-card--featured {
+  border-color: rgba(29, 78, 216, 0.45);
+}
+
+.account-plan-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 1;
+}
+
+.account-plan-card li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 8px;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.account-plan-card li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.account-toast {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}

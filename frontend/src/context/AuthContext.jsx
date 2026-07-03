@@ -5,9 +5,10 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "../lib/firebase";
+import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
+import { ensureUserProfile, planLabel, subscribeUserProfile } from "../services/userProfile";
+import { fetchUserProfile } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -30,12 +31,23 @@ function firebaseAuthError(err) {
     "auth/invalid-credential": "Invalid email or password.",
     "auth/user-not-found": "Invalid email or password.",
     "auth/wrong-password": "Invalid email or password.",
+    "auth/too-many-requests": "Too many attempts. Please wait and try again.",
+    "auth/network-request-failed": "Network error. Check your connection.",
   };
   return map[code] || err?.message || "Authentication failed.";
 }
 
+const DEFAULT_PROFILE = {
+  plan: "starter",
+  subscription_status: "free",
+  ai_messages_used: 0,
+  ai_messages_limit: 50,
+  max_cvs: 1,
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,67 +57,101 @@ export function AuthProvider({ children }) {
     }
 
     const auth = getFirebaseAuth();
-    const unsub = onAuthStateChanged(auth, (fbUser) => {
-      setUser(mapUser(fbUser));
+    let unsubProfile = () => {};
+
+    const unsubAuth = onAuthStateChanged(auth, async (fbUser) => {
+      unsubProfile();
+      if (!fbUser) {
+        setUser(null);
+        setProfile(DEFAULT_PROFILE);
+        setLoading(false);
+        return;
+      }
+
+      const mapped = mapUser(fbUser);
+      setUser(mapped);
+
+      unsubProfile = subscribeUserProfile(fbUser.uid, (data) => {
+        setProfile({
+          plan: data.plan || "starter",
+          subscription_status: data.subscription_status || "free",
+          ai_messages_used: data.ai_messages_used || 0,
+          ai_messages_limit: data.ai_messages_limit || 50,
+          max_cvs: data.max_cvs || 1,
+          ...data,
+        });
+      });
+
+      try {
+        const apiProfile = await fetchUserProfile();
+        if (apiProfile?.profile) setProfile((p) => ({ ...p, ...apiProfile.profile }));
+      } catch {
+        /* Firestore snapshot is fallback */
+      }
+
       setLoading(false);
     });
-    return unsub;
+
+    return () => {
+      unsubAuth();
+      unsubProfile();
+    };
   }, []);
 
   const value = useMemo(() => ({
     user,
+    profile,
+    plan: profile?.plan || "starter",
+    planLabel: planLabel(profile?.plan || "starter"),
     loading,
     isAuthenticated: !!user,
     isFirebaseConfigured,
 
-    async signup(name, email, password) {
-      if (!isFirebaseConfigured) {
-        throw new Error("Firebase Auth is not configured.");
+    async refreshProfile() {
+      try {
+        const data = await fetchUserProfile();
+        if (data?.profile) setProfile((p) => ({ ...p, ...data.profile }));
+      } catch {
+        /* ignore */
       }
+    },
+
+    async signup(name, email, password) {
+      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
       const auth = getFirebaseAuth();
       try {
         const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await updateProfile(cred.user, { displayName: name.trim() });
-
-        const profile = mapUser(cred.user);
-        profile.name = name.trim();
-
-        await setDoc(doc(getFirebaseDb(), "users", cred.user.uid), {
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          plan: "starter",
-          createdAt: serverTimestamp(),
-        });
-
-        setUser(profile);
-        return profile;
+        await ensureUserProfile(cred.user.uid, { name: name.trim(), email: email.trim() });
+        const mapped = mapUser(cred.user);
+        mapped.name = name.trim();
+        setUser(mapped);
+        return mapped;
       } catch (err) {
         throw new Error(firebaseAuthError(err));
       }
     },
 
     async login(email, password) {
-      if (!isFirebaseConfigured) {
-        throw new Error("Firebase Auth is not configured.");
-      }
+      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
       const auth = getFirebaseAuth();
       try {
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-        const profile = mapUser(cred.user);
-        setUser(profile);
-        return profile;
+        const mapped = mapUser(cred.user);
+        await ensureUserProfile(cred.user.uid, { name: mapped.name, email: mapped.email });
+        setUser(mapped);
+        return mapped;
       } catch (err) {
         throw new Error(firebaseAuthError(err));
       }
     },
 
     async logout() {
-      if (isFirebaseConfigured) {
-        await signOut(getFirebaseAuth());
-      }
+      if (isFirebaseConfigured) await signOut(getFirebaseAuth());
       setUser(null);
+      setProfile(DEFAULT_PROFILE);
     },
-  }), [user, loading]);
+  }), [user, profile, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

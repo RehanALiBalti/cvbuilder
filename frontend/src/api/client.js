@@ -197,6 +197,10 @@ export async function fetchBillingPlans() {
   return apiFetch("/api/billing/plans");
 }
 
+export async function fetchUserProfile() {
+  return apiFetch("/api/user/me", {}, true);
+}
+
 export async function createCheckoutSession(planId, interval, email) {
   return apiFetch("/api/billing/checkout", {
     method: "POST",

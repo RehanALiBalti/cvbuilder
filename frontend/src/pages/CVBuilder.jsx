@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AILoadingBubble from "../components/AILoadingBubble";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
 import TemplatePicker from "../components/TemplatePicker";
 import TemplateRenderer from "../components/templates/CVTemplates";
 import UploadBar from "../components/UploadBar";
 import { useAuth } from "../context/AuthContext";
+import {
+  defaultChatMessages,
+  loadChatHistory,
+  saveChatHistory,
+  WELCOME_MESSAGE,
+} from "../services/chatHistory";
 import { exportCvPreview } from "../utils/exportCv";
 import {
   aiChat,
@@ -28,16 +34,7 @@ const TONES = [
   { id: "fresh_graduate", label: "Fresh Graduate" },
 ];
 
-const WELCOME = {
-  role: "assistant",
-  content:
-    "Hi! A random template is already applied — change it anytime via chat (`use modern template`).\n\n" +
-    "**Get started:**\n" +
-    "• Type your details, or **Upload CV** (PDF/Word) to import an existing resume\n" +
-    "• **Profile photo** — adds your picture to the CV header\n" +
-    "• `list templates` · `recommend template for developer` · `create custom template blue and gold`\n\n" +
-    "Say `download PDF` when ready.",
-};
+const WELCOME = WELCOME_MESSAGE;
 
 function applyChatCvUpdates(cv, data) {
   if (!data) return cv;
@@ -61,7 +58,7 @@ function detectExportIntent(text) {
 }
 
 export default function CVBuilder() {
-  const { user, logout } = useAuth();
+  const { user, logout, plan, planLabel, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [view, setView] = useState("list");
   const [cvs, setCvs] = useState([]);
@@ -82,8 +79,19 @@ export default function CVBuilder() {
   useEffect(() => {
     fetchHealth().then(setHealth).catch(() => setHealth({ status: "offline" }));
     fetchTemplates().then((d) => setTemplates(d.templates || [])).catch(() => {});
-    loadCVs();
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setCvs([]);
+      setActiveCv(null);
+      setMessages([WELCOME]);
+      setView("list");
+      return;
+    }
+    loadCVs();
+    refreshProfile();
+  }, [user?.uid]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -92,6 +100,10 @@ export default function CVBuilder() {
   async function handleLogout() {
     await logout();
     navigate("/");
+  }
+
+  async function persistChat(cvId, msgs) {
+    if (user?.uid && cvId) await saveChatHistory(user.uid, cvId, msgs);
   }
 
   async function loadCVs() {
@@ -146,14 +158,10 @@ export default function CVBuilder() {
     setLoading(true);
     try {
       const data = await getCV(id);
-      setActiveCv(data.cv);
-      setMessages([
-        WELCOME,
-        {
-          role: "assistant",
-          content: `Opened "${data.cv.name}". Tell me what to add or change, or say "download PDF" when ready.`,
-        },
-      ]);
+      const cv = data.cv;
+      setActiveCv(cv);
+      const saved = user?.uid ? await loadChatHistory(user.uid, id) : null;
+      setMessages(saved || defaultChatMessages(cv.name));
       setView("chat");
     } catch (e) {
       setToast(e.message);
@@ -167,16 +175,13 @@ export default function CVBuilder() {
     try {
       const data = await createCV({ name: "New CV", template_id: "random" });
       await loadCVs();
+      await refreshProfile();
       const cv = data.cv;
       const tname = data.template_name || templates.find((t) => t.id === cv.template_id)?.name || cv.template_id;
+      const msgs = defaultChatMessages(cv.name, tname);
       setActiveCv(cv);
-      setMessages([
-        WELCOME,
-        {
-          role: "assistant",
-          content: `Started with **${tname}** template (picked randomly). Upload your CV or photo, or type your details.`,
-        },
-      ]);
+      setMessages(msgs);
+      await persistChat(cv.id, msgs);
       setView("chat");
     } catch (e) {
       setToast(e.message);
@@ -195,11 +200,15 @@ export default function CVBuilder() {
       setActiveCv(updated);
       await saveCv(updated);
       await loadCVs();
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: `[Uploaded CV: ${file.name}]` },
-        { role: "assistant", content: result.reply || result.message || "CV imported." },
-      ]);
+      setMessages((prev) => {
+        const next = [
+          ...prev,
+          { role: "user", content: `[Uploaded CV: ${file.name}]` },
+          { role: "assistant", content: result.reply || result.message || "CV imported." },
+        ];
+        persistChat(activeCv.id, next);
+        return next;
+      });
       setToast("CV imported from file");
     } catch (e) {
       setToast(e.message);
@@ -224,11 +233,15 @@ export default function CVBuilder() {
       }
       setActiveCv(updated);
       await saveCv(updated);
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: "[Uploaded profile photo]" },
-        { role: "assistant", content: result.reply || "Profile photo added to your CV." },
-      ]);
+      setMessages((prev) => {
+        const next = [
+          ...prev,
+          { role: "user", content: "[Uploaded profile photo]" },
+          { role: "assistant", content: result.reply || "Profile photo added to your CV." },
+        ];
+        persistChat(activeCv.id, next);
+        return next;
+      });
       setToast("Profile photo updated");
     } catch (e) {
       setToast(e.message);
@@ -273,19 +286,29 @@ export default function CVBuilder() {
 
       const reply = result.data?.reply || result.message || "Done.";
       const suggestions = result.suggestions || result.data?.missing_sections || [];
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: reply, suggestions: suggestions.length ? suggestions : undefined },
-      ]);
+      setMessages((prev) => {
+        const next = [
+          ...prev,
+          { role: "assistant", content: reply, suggestions: suggestions.length ? suggestions : undefined },
+        ];
+        persistChat(activeCv.id, next);
+        return next;
+      });
+      await refreshProfile();
 
       if (action === "export_pdf" || action === "export_docx") {
         exportAction = action;
       }
     } catch (e) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: `Sorry, something went wrong: ${e.message}` },
-      ]);
+      const errMsg = e.message || "Something went wrong";
+      setMessages((prev) => {
+        const next = [...prev, { role: "assistant", content: `Sorry: ${errMsg}` }];
+        if (activeCv?.id) persistChat(activeCv.id, next);
+        return next;
+      });
+      if (errMsg.includes("Upgrade") || errMsg.includes("limit")) {
+        setToast(`${errMsg} — visit Account to upgrade.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -319,6 +342,7 @@ export default function CVBuilder() {
             <h1>ResumeAI Builder</h1>
             <p className="muted">
               {user?.name ? `Hi, ${user.name.split(" ")[0]} · ` : ""}
+              <span className={`plan-badge plan-badge--${plan}`} style={{ marginRight: 6 }}>{planLabel}</span>
               Ollama {health?.ollama_model || "qwen2.5:7b"}
             </p>
           </div>
@@ -365,6 +389,7 @@ export default function CVBuilder() {
               ← My CVs
             </button>
           )}
+          <Link to="/builder/account" className="btn btn-ghost btn-sm">Account</Link>
           <button type="button" className="btn btn-primary" onClick={handleCreate}>
             + New CV
           </button>
@@ -379,6 +404,12 @@ export default function CVBuilder() {
       {view === "list" && (
         <section className="panel">
           <h2>Your CVs</h2>
+          {plan === "starter" && (
+            <p className="muted" style={{ marginBottom: 12 }}>
+              Free plan: {profile?.max_cvs ?? 1} CV · {profile?.ai_messages_used ?? 0}/{profile?.ai_messages_limit ?? 50} AI messages this month.
+              {" "}<Link to="/builder/account">Upgrade to Pro</Link>
+            </p>
+          )}
           {cvs.length === 0 ? (
             <div className="empty-state">
               <p>Start a conversation — AI will build your CV as you type.</p>

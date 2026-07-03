@@ -48,6 +48,9 @@ if [[ -f "$APP_DIR/frontend/package.json" ]]; then
     HOME="$APP_HOME" \
     NPM_CONFIG_CACHE="$NPM_CACHE" \
     npm install --no-audit --no-fund
+  if [[ ! -f "$APP_DIR/frontend/.env.production" ]]; then
+    echo "NOTE: Create $APP_DIR/frontend/.env.production with VITE_FIREBASE_* for auth (see frontend/.env.production.example)"
+  fi
   sudo -u "$APP_USER" env HOME="$APP_HOME" VITE_API_URL= npm run build
 fi
 
