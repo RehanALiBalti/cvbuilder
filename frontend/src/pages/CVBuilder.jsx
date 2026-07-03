@@ -8,10 +8,8 @@ import TemplateRenderer from "../components/templates/CVTemplates";
 import UploadBar from "../components/UploadBar";
 import { useAuth } from "../context/AuthContext";
 import {
-  defaultChatMessages,
   loadChatHistory,
   saveChatHistory,
-  WELCOME_MESSAGE,
 } from "../services/chatHistory";
 import { exportCvPreview } from "../utils/exportCv";
 import {
@@ -34,8 +32,6 @@ const TONES = [
   { id: "executive", label: "Executive" },
   { id: "fresh_graduate", label: "Fresh Graduate" },
 ];
-
-const WELCOME = WELCOME_MESSAGE;
 
 function applyChatCvUpdates(cv, data) {
   if (!data) return cv;
@@ -64,7 +60,7 @@ export default function CVBuilder() {
   const [cvs, setCvs] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [activeCv, setActiveCv] = useState(null);
-  const [messages, setMessages] = useState([WELCOME]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -85,7 +81,7 @@ export default function CVBuilder() {
     if (!user?.uid) {
       setCvs([]);
       setActiveCv(null);
-      setMessages([WELCOME]);
+      setMessages([]);
       setView("list");
       return;
     }
@@ -156,7 +152,7 @@ export default function CVBuilder() {
       const cv = data.cv;
       setActiveCv(cv);
       const saved = user?.uid ? await loadChatHistory(user.uid, id) : null;
-      setMessages(saved || defaultChatMessages(cv.name));
+      setMessages(saved ?? []);
       setView("chat");
     } catch (e) {
       setToast(e.message);
@@ -172,11 +168,8 @@ export default function CVBuilder() {
       await loadCVs();
       await refreshProfile();
       const cv = data.cv;
-      const tname = data.template_name || templates.find((t) => t.id === cv.template_id)?.name || cv.template_id;
-      const msgs = defaultChatMessages(cv.name, tname);
       setActiveCv(cv);
-      setMessages(msgs);
-      await persistChat(cv.id, msgs);
+      setMessages([]);
       setView("chat");
     } catch (e) {
       setToast(e.message);
@@ -504,6 +497,9 @@ export default function CVBuilder() {
                 </div>
               </div>
               <div className="chat-messages">
+                {messages.length === 0 && !loading && (
+                  <p className="chat-empty-hint">Type a message to start — e.g. your name, job title, or &quot;hi&quot;.</p>
+                )}
                 {messages.map((msg, i) => (
                   <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>
                     <span className="chat-role">{msg.role === "user" ? "You" : "AI"}</span>

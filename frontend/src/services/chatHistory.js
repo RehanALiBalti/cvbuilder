@@ -1,19 +1,16 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getFirebaseDb, isFirebaseConfigured } from "../lib/firebase";
 
-export const WELCOME_MESSAGE = {
-  role: "assistant",
-  content:
-    "Hi! I'm your CV assistant — chat naturally, whether you're sharing experience or just saying hello.\n\n" +
-    "**Get started:**\n" +
-    "• Type your details, or **Upload CV** (PDF/Word) to import an existing resume\n" +
-    "• **Profile photo** — adds your picture to the CV header\n" +
-    "• `list templates` · `recommend template for developer` · `create custom template blue and gold`\n\n" +
-    "Say `download PDF` when ready.",
-};
-
 function chatRef(uid, cvId) {
   return doc(getFirebaseDb(), "users", uid, "cv_chat", cvId);
+}
+
+/** Drop auto-welcome bubbles when the user has never sent a message. */
+export function normalizeLoadedMessages(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) return [];
+  const hasUser = messages.some((m) => m.role === "user");
+  if (!hasUser) return [];
+  return messages;
 }
 
 export async function loadChatHistory(uid, cvId) {
@@ -22,7 +19,8 @@ export async function loadChatHistory(uid, cvId) {
     const snap = await getDoc(chatRef(uid, cvId));
     if (!snap.exists()) return null;
     const messages = snap.data()?.messages;
-    return Array.isArray(messages) && messages.length ? messages : null;
+    if (!Array.isArray(messages) || !messages.length) return null;
+    return normalizeLoadedMessages(messages);
   } catch {
     return null;
   }
@@ -40,14 +38,6 @@ export async function saveChatHistory(uid, cvId, messages) {
   }
 }
 
-export function defaultChatMessages(cvName, templateName) {
-  return [
-    WELCOME_MESSAGE,
-    {
-      role: "assistant",
-      content: templateName
-        ? `Started with **${templateName}** template. Upload your CV or photo, or type your details.`
-        : `Opened "${cvName}". Tell me what to add or change, or say "download PDF" when ready.`,
-    },
-  ];
+export function defaultChatMessages() {
+  return [];
 }

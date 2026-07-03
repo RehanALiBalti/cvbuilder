@@ -154,6 +154,16 @@ body {
   gap: 12px;
 }
 
+.chat-empty-hint {
+  margin: auto;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 280px;
+  line-height: 1.5;
+  padding: 24px 16px;
+}
+
 .chat-bubble {
   max-width: 92%;
   padding: 12px 14px;
