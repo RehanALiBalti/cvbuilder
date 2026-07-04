@@ -197,7 +197,7 @@ export default function Account() {
                     </label>
                   </div>
                   <p className="account-form-hint">
-                    Email is linked to your Firebase account and cannot be changed here.
+                    Email cannot be changed here.
                     {" "}<Link to="/forgot-password">Reset password via email</Link>
                   </p>
                   <div className="account-form-actions">
@@ -263,7 +263,7 @@ export default function Account() {
               <section className="account-card">
                 <div className="account-card-head">
                   <h2>Subscription & billing</h2>
-                  <p>Manage your plan. Secure payments powered by Stripe.</p>
+                  <p>Manage your plan and subscription billing.</p>
                 </div>
 
                 <div className="account-billing-toggle">
@@ -319,7 +319,7 @@ export default function Account() {
                             onClick={() => handleUpgrade(p.id)}
                           >
                             {loadingPlan === p.id
-                              ? "Redirecting to Stripe…"
+                              ? "Redirecting to checkout…"
                               : isCurrent
                                 ? "Current plan"
                                 : `Upgrade to ${p.name}`}
@@ -331,7 +331,7 @@ export default function Account() {
                 </div>
 
                 <p className="account-stripe-note">
-                  Payments secured by Stripe. We never store your card details.
+                  Payments are secure. We never store your card details.
                 </p>
               </section>
             )}

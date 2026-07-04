@@ -199,21 +199,30 @@ export default function CVBuilder() {
     }
   }
 
-  async function handleCreate() {
-    const maxCvs = profile?.max_cvs ?? 1;
-    if (cvs.length >= maxCvs) {
-      const goUpgrade = await showUpgradePopup({
-        title: "Upgrade to create more CVs",
-        text: isFreePlan(plan)
-          ? "Basic plan includes 1 CV. Upgrade to Pro for up to 10 CVs, or Business for unlimited CVs."
-          : plan === "pro"
-            ? "Pro plan includes 10 CVs. Upgrade to Business for unlimited CVs."
-            : "You have reached your CV limit for this plan.",
-        confirmText: "View plans",
-      });
-      if (goUpgrade) navigate("/builder/account");
-      return;
+  function cvLimitMessage() {
+    if (isFreePlan(plan)) {
+      return "Basic plan includes 1 CV. Upgrade to Pro for up to 10 CVs, or Business for unlimited CVs.";
     }
+    if (plan === "pro") {
+      return "Pro plan includes 10 CVs. Upgrade to Business for unlimited CVs.";
+    }
+    return "You have reached your CV limit for this plan.";
+  }
+
+  async function ensureCanAddCv(actionLabel = "create more CVs") {
+    const maxCvs = profile?.max_cvs ?? 1;
+    if (cvs.length < maxCvs) return true;
+    const goUpgrade = await showUpgradePopup({
+      title: `Upgrade to ${actionLabel}`,
+      text: cvLimitMessage(),
+      confirmText: "View plans",
+    });
+    if (goUpgrade) navigate("/builder/account");
+    return false;
+  }
+
+  async function handleCreate() {
+    if (!(await ensureCanAddCv("create more CVs"))) return;
 
     setLoading(true);
     try {
@@ -225,9 +234,42 @@ export default function CVBuilder() {
       setMessages([]);
       setView("chat");
     } catch (e) {
-      setToast(e.message);
+      const msg = e.message || "";
+      if (msg.includes("Upgrade") || msg.includes("includes") || msg.includes("limit")) {
+        const goUpgrade = await showUpgradePopup({
+          title: "Upgrade to create more CVs",
+          text: msg || cvLimitMessage(),
+          confirmText: "View plans",
+        });
+        if (goUpgrade) navigate("/builder/account");
+      } else {
+        setToast(msg);
+      }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDuplicate(cv) {
+    if (!(await ensureCanAddCv("duplicate this CV"))) return;
+
+    try {
+      await duplicateCV(cv.id);
+      await loadCVs();
+      await refreshProfile();
+      setToast("CV duplicated");
+    } catch (e) {
+      const msg = e.message || "";
+      if (msg.includes("Upgrade") || msg.includes("includes") || msg.includes("limit")) {
+        const goUpgrade = await showUpgradePopup({
+          title: "Upgrade to duplicate this CV",
+          text: msg || cvLimitMessage(),
+          confirmText: "View plans",
+        });
+        if (goUpgrade) navigate("/builder/account");
+      } else {
+        setToast(msg || "Could not duplicate CV");
+      }
     }
   }
 
@@ -539,7 +581,7 @@ export default function CVBuilder() {
                         <button
                           type="button"
                           className="btn btn-sm"
-                          onClick={async () => { await duplicateCV(cv.id); loadCVs(); }}
+                          onClick={() => handleDuplicate(cv)}
                         >
                           Duplicate
                         </button>

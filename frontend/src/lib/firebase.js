@@ -23,7 +23,7 @@ let app = null;
 
 export function getFirebaseApp() {
   if (!isFirebaseConfigured) {
-    throw new Error("Firebase is not configured. Add VITE_FIREBASE_* env variables.");
+    throw new Error("Sign-in is temporarily unavailable.");
   }
   if (!app) {
     app = initializeApp(firebaseConfig);

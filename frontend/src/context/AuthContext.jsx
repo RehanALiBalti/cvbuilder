@@ -43,7 +43,7 @@ function firebaseAuthError(err) {
     "auth/too-many-requests": "Too many attempts. Please wait and try again.",
     "auth/network-request-failed": "Network error. Check your connection.",
     "auth/requires-recent-login": "Please log out and log in again before changing this setting.",
-    "auth/operation-not-allowed": "This account action is not enabled in Firebase.",
+    "auth/operation-not-allowed": "This account action is not available right now.",
   };
   return map[code] || err?.message || "Authentication failed.";
 }
@@ -128,7 +128,7 @@ export function AuthProvider({ children }) {
     },
 
     async updateProfileInfo({ name }) {
-      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      if (!isFirebaseConfigured) throw new Error("Sign-in is temporarily unavailable.");
       const auth = getFirebaseAuth();
       const fbUser = auth.currentUser;
       if (!fbUser) throw new Error("Please sign in again.");
@@ -144,7 +144,7 @@ export function AuthProvider({ children }) {
     },
 
     async changePassword(currentPassword, newPassword) {
-      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      if (!isFirebaseConfigured) throw new Error("Sign-in is temporarily unavailable.");
       const auth = getFirebaseAuth();
       const fbUser = auth.currentUser;
       if (!fbUser?.email) throw new Error("Please sign in again.");
@@ -162,7 +162,7 @@ export function AuthProvider({ children }) {
     },
 
     async sendPasswordReset(email) {
-      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      if (!isFirebaseConfigured) throw new Error("Sign-in is temporarily unavailable.");
       if (!email?.trim()) throw new Error("Email is required.");
       try {
         await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
@@ -172,7 +172,7 @@ export function AuthProvider({ children }) {
     },
 
     async signup(name, email, password) {
-      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      if (!isFirebaseConfigured) throw new Error("Sign-in is temporarily unavailable.");
       const auth = getFirebaseAuth();
       try {
         const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -188,7 +188,7 @@ export function AuthProvider({ children }) {
     },
 
     async login(email, password) {
-      if (!isFirebaseConfigured) throw new Error("Firebase Auth is not configured.");
+      if (!isFirebaseConfigured) throw new Error("Sign-in is temporarily unavailable.");
       const auth = getFirebaseAuth();
       try {
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);

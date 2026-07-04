@@ -133,7 +133,7 @@ export default function PricingSection() {
                   onClick={() => handlePlanClick(plan)}
                 >
                   {loadingPlan === plan.id
-                    ? "Redirecting to Stripe…"
+                    ? "Redirecting to checkout…"
                     : stripeReady
                       ? plan.cta
                       : "Sign up — pay after account"}
@@ -152,11 +152,7 @@ export default function PricingSection() {
             opacity="0.5"
           />
         </svg>
-        Payments secured by{" "}
-        <a href="https://stripe.com" target="_blank" rel="noopener noreferrer">
-          Stripe
-        </a>
-        . We never store your card details.
+        Payments are secure. We never store your card details.
       </p>
     </Reveal>
   );

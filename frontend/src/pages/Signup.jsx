@@ -18,8 +18,8 @@ export default function Signup() {
       <AppLayout mainClassName="site-main--app">
         <div className="auth-page" style={{ placeItems: "center", padding: 48, minHeight: "50vh" }}>
           <div className="auth-form-wrap" style={{ textAlign: "center" }}>
-            <h2>Firebase not configured</h2>
-            <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
+            <h2>Sign-up unavailable</h2>
+            <p className="muted">Authentication is not available right now. Please try again later.</p>
             <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
           </div>
         </div>
@@ -61,7 +61,7 @@ export default function Signup() {
       <AuthLayout
         title="Start for free"
         subtitle="Every account starts on the free plan. Upgrade to Pro anytime from your dashboard."
-        perks={["Basic plan included free", "1 CV to get started", "Secure Firebase account"]}
+        perks={["Basic plan included free", "1 CV to get started", "Secure account & private workspace"]}
       >
         <AuthForm mode="signup" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
       </AuthLayout>

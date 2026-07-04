@@ -57,7 +57,7 @@ export default function SiteFooter() {
             © {year} ResumeAI. All rights reserved.
           </p>
           <p className="site-footer-meta">
-            Secure payments by Stripe · Your data stays private
+            Secure payments · Your data stays private
           </p>
         </div>
       </div>

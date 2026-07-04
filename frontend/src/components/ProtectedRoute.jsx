@@ -18,8 +18,8 @@ export default function ProtectedRoute({ children }) {
     return (
       <div className="auth-page" style={{ placeItems: "center", padding: 48 }}>
         <div className="auth-form-wrap" style={{ textAlign: "center" }}>
-          <h2>Firebase not configured</h2>
-          <p className="muted">Add VITE_FIREBASE_* variables to enable authentication.</p>
+          <h2>Sign-in unavailable</h2>
+          <p className="muted">Authentication is not available right now. Please try again later.</p>
         </div>
       </div>
     );

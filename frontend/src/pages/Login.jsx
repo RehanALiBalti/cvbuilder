@@ -20,8 +20,8 @@ export default function Login() {
       <AppLayout mainClassName="site-main--app">
         <div className="auth-page" style={{ placeItems: "center", padding: 48, minHeight: "50vh" }}>
           <div className="auth-form-wrap" style={{ textAlign: "center" }}>
-            <h2>Firebase not configured</h2>
-            <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
+            <h2>Sign-in unavailable</h2>
+            <p className="muted">Authentication is not available right now. Please try again later.</p>
             <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
           </div>
         </div>

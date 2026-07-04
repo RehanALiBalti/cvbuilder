@@ -16,8 +16,8 @@ export default function ForgotPassword() {
       <AppLayout mainClassName="site-main--app">
         <div className="auth-page" style={{ placeItems: "center", padding: 48, minHeight: "50vh" }}>
           <div className="auth-form-wrap" style={{ textAlign: "center" }}>
-            <h2>Firebase not configured</h2>
-            <p className="muted">Set VITE_FIREBASE_* in frontend/.env.production and rebuild.</p>
+            <h2>Reset unavailable</h2>
+            <p className="muted">Password reset is not available right now. Please try again later.</p>
             <Link to="/" className="btn btn-primary" style={{ marginTop: 16 }}>Back to home</Link>
           </div>
         </div>
@@ -45,7 +45,7 @@ export default function ForgotPassword() {
       <AuthLayout
         title="Reset your password"
         subtitle="Enter your account email and we will send a secure reset link."
-        perks={["Firebase secure reset email", "No admin required", "Back to builder after login"]}
+        perks={["Secure password reset email", "No admin required", "Back to builder after login"]}
       >
       <div className="auth-form-wrap auth-form-animated">
         <h2>Forgot password</h2>

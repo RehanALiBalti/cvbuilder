@@ -209,6 +209,10 @@ def delete_cv(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, A
 
 @app.post("/api/cvs/{cv_id}/duplicate")
 def duplicate_cv(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    existing = storage.list_cvs(user.uid)
+    ok, msg = user_service.check_can_create_cv(user.uid, len(existing))
+    if not ok:
+        raise HTTPException(403, msg)
     copy = storage.duplicate_cv(user.uid, cv_id)
     if not copy:
         raise HTTPException(404, "CV not found")
