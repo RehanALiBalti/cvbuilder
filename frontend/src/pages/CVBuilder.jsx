@@ -5,6 +5,7 @@ import PlanStatusBanner from "../components/PlanStatusBanner";
 import AILoadingBubble from "../components/AILoadingBubble";
 import ChatQuickActions from "../components/ChatQuickActions";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
+import GuidedBuilder from "../components/GuidedBuilder";
 import SectionManager from "../components/SectionManager";
 import TemplatePicker from "../components/TemplatePicker";
 import TemplateRenderer from "../components/templates/CVTemplates";
@@ -31,6 +32,7 @@ import {
 } from "../utils/confirmDialog";
 import {
   aiChat,
+  aiPolish,
   createCV,
   deleteCV,
   duplicateCV,
@@ -84,6 +86,8 @@ export default function CVBuilder() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [buildMode, setBuildMode] = useState("guided"); // guided | chat
+  const [generating, setGenerating] = useState(false);
   const chatEndRef = useRef(null);
   const previewRef = useRef(null);
 
@@ -194,6 +198,11 @@ export default function CVBuilder() {
       setActiveCv(cv);
       const saved = user?.uid ? await loadChatHistory(user.uid, id) : null;
       setMessages(saved ?? []);
+      const hasChat = Array.isArray(saved) && saved.some((m) => m.role === "user");
+      const hasContent = Boolean(
+        cv?.content?.full_name || cv?.content?.summary || cv?.content?.experience?.length,
+      );
+      setBuildMode(hasChat || hasContent ? "chat" : "guided");
       setView("chat");
     } catch (e) {
       setToast(e.message);
@@ -235,6 +244,7 @@ export default function CVBuilder() {
       const cv = data.cv;
       setActiveCv(cv);
       setMessages([]);
+      setBuildMode("guided");
       setView("chat");
     } catch (e) {
       const msg = e.message || "";
@@ -466,6 +476,70 @@ export default function CVBuilder() {
     sendMessage(map[sectionId] || `Remove ${sectionId} from my CV`);
   }
 
+  function handleGuidedLiveUpdate(content) {
+    if (!activeCv) return;
+    const name = content.full_name ? `${content.full_name} CV` : activeCv.name;
+    const next = {
+      ...activeCv,
+      name,
+      content,
+      updated_at: new Date().toISOString(),
+    };
+    setActiveCv(next);
+    saveCv(next);
+  }
+
+  async function handleGuidedGenerate(content) {
+    if (!activeCv || generating) return;
+    setGenerating(true);
+    setToast("Polishing your CV with AI (one pass)…");
+    try {
+      const name = content.full_name ? `${content.full_name} CV` : activeCv.name;
+      const draft = { ...activeCv, name, content, updated_at: new Date().toISOString() };
+      setActiveCv(draft);
+      await saveCv(draft);
+
+      const result = await aiPolish({ content, tone: activeCv.tone || "professional" });
+      if (!result.success) {
+        throw new Error(result.message || "Could not generate CV");
+      }
+      const polished = result.data?.content || content;
+      const updated = {
+        ...draft,
+        name: polished.full_name ? `${polished.full_name} CV` : draft.name,
+        content: polished,
+        updated_at: new Date().toISOString(),
+      };
+      setActiveCv(updated);
+      await saveCv(updated);
+      await loadCVs();
+      await refreshProfile();
+
+      const reply = result.data?.reply || result.message || "Your professional CV is ready.";
+      const msgs = [
+        { role: "assistant", content: reply, suggestions: result.suggestions },
+      ];
+      setMessages(msgs);
+      await persistChat(activeCv.id, msgs);
+      setBuildMode("chat");
+      setToast("Professional CV ready");
+    } catch (e) {
+      const msg = e.message || "Generate failed";
+      if (msg.includes("Upgrade") || msg.includes("limit")) {
+        const goUpgrade = await showUpgradePopup({
+          title: "Upgrade for more AI",
+          text: msg,
+          confirmText: "View plans",
+        });
+        if (goUpgrade) navigate("/builder/account");
+      } else {
+        setToast(msg);
+      }
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function selectTemplate(templateId) {
     if (!activeCv) return;
     if (!canUseTemplates(plan)) {
@@ -664,11 +738,25 @@ export default function CVBuilder() {
         {view === "chat" && activeCv && (
           <div className="builder-chat-layout">
             <section className="account-card builder-chat-panel builder-anim builder-anim--slide-left">
+              {buildMode === "guided" ? (
+                <GuidedBuilder
+                  initialContent={activeCv.content}
+                  tone={activeCv.tone}
+                  generating={generating}
+                  onLiveUpdate={handleGuidedLiveUpdate}
+                  onGenerate={handleGuidedGenerate}
+                  onSwitchToChat={() => setBuildMode("chat")}
+                />
+              ) : (
+                <>
               <div className="account-card-head builder-chat-head">
                 <div>
                   <h2>{activeCv.name}</h2>
                   <p>Chat naturally — or tap a button below. Your CV updates live.</p>
                 </div>
+                <button type="button" className="btn btn-sm" onClick={() => setBuildMode("guided")}>
+                  Guided build
+                </button>
               </div>
               <div className="chat-messages">
                 {messages.length === 0 && !loading && (
@@ -748,30 +836,34 @@ export default function CVBuilder() {
                   </button>
                 </div>
               </div>
+                </>
+              )}
             </section>
 
-            <aside className={`account-card builder-preview-panel builder-anim builder-anim--slide-right ${loading ? "preview-panel--loading" : ""}`}>
+            <aside className={`account-card builder-preview-panel builder-anim builder-anim--slide-right ${loading || generating ? "preview-panel--loading" : ""}`}>
               <div className="preview-toolbar">
                 <h3>Live CV Preview</h3>
-                <span className={`preview-status ${loading ? "preview-status--active" : ""}`}>
-                  {loading ? (
+                <span className={`preview-status ${loading || generating ? "preview-status--active" : ""}`}>
+                  {loading || generating ? (
                     <>
                       <span className="preview-pulse-dot" aria-hidden="true" />
-                      Updating…
+                      {generating ? "Polishing…" : "Updating…"}
                     </>
                   ) : (
-                    "Updates as you chat"
+                    buildMode === "guided" ? "Fills as you complete steps" : "Updates as you chat"
                   )}
                 </span>
               </div>
-              <SectionManager
-                content={activeCv.content}
-                disabled={loading || exporting}
-                onToggle={handleSectionToggle}
-                onAdd={handleSectionAdd}
-                onRemove={handleSectionRemove}
-              />
-              {loading ? (
+              {buildMode === "chat" && (
+                <SectionManager
+                  content={activeCv.content}
+                  disabled={loading || exporting || generating}
+                  onToggle={handleSectionToggle}
+                  onAdd={handleSectionAdd}
+                  onRemove={handleSectionRemove}
+                />
+              )}
+              {loading || generating ? (
                 <CVPreviewSkeleton />
               ) : (
                 <TemplateRenderer ref={previewRef} cv={activeCv} template={activeTemplate} />

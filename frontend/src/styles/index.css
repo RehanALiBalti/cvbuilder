@@ -337,6 +337,181 @@ body {
   .section-manager-list { grid-template-columns: 1fr; }
 }
 
+/* Guided section-wise builder */
+.guided-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px 20px;
+  min-height: 70vh;
+}
+
+.guided-builder-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.guided-eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.guided-builder-top h3 {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.guided-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.guided-progress {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.guided-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1d4ed8, #6366f1);
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.guided-steps-dots {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.guided-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #fff;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.guided-dot.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.guided-dot.is-done {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.guided-panel {
+  flex: 1;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.guided-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.guided-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guided-fields label span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.guided-fields input,
+.guided-fields textarea {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.guided-fields input:focus,
+.guided-fields textarea:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+}
+
+.guided-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.guided-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.guided-finish-card {
+  background: #fff;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.guided-finish-card h4 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.guided-finish-card p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.guided-finish-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
+.guided-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.builder-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .chat-bubble {
   max-width: 92%;
   padding: 12px 14px;

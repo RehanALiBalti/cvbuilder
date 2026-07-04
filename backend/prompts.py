@@ -24,6 +24,28 @@ def _content_json(content: CVContent) -> str:
     return json.dumps(content.model_dump(), indent=2, ensure_ascii=False)
 
 
+def polish_cv_prompt(content: CVContent, tone: WritingTone) -> str:
+    return f"""You are an expert CV writer. Polish this structured CV into a professional, ATS-friendly version.
+
+Writing tone: {_tone(tone)}
+
+Current CV JSON (user-provided facts — do not invent new employers, degrees, or credentials):
+{_content_json(content)}
+
+Tasks:
+1. Improve summary (3-4 sentences) from available facts only
+2. Rewrite experience bullets with strong action verbs (keep real companies/roles/dates)
+3. Keep education, skills, projects, certifications, languages — only improve wording
+4. Organize skills into skill_groups when helpful
+5. Preserve contact details and full_name / job_title exactly unless empty
+
+Return ONLY valid JSON (no markdown):
+{CV_JSON_SCHEMA}
+
+{CV_WRITING_RULES}
+"""
+
+
 def generate_cv_prompt(raw_input: str, tone: WritingTone, target_role: str, industry: str) -> str:
     return f"""You are an expert CV/resume writer. Create a complete, modern, clean professional CV.
 

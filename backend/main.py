@@ -26,6 +26,7 @@ from backend.models import (
     AIGenerateRequest,
     AILinkedInRequest,
     AIOptimizeJobRequest,
+    AIPolishRequest,
     AIRegenerateSectionRequest,
     AIResponse,
     CreateCVRequest,
@@ -389,6 +390,18 @@ def ai_generate(req: AIGenerateRequest) -> Dict[str, Any]:
         ai_service.generate_cv,
         req.raw_input, req.tone, req.target_role, req.industry,
     )
+    return result.model_dump()
+
+
+@app.post("/api/ai/polish")
+def ai_polish(req: AIPolishRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    """One-shot professional polish after guided section-wise collection (faster than chat-per-message)."""
+    ok, msg = user_service.check_can_send_ai(user.uid)
+    if not ok:
+        raise HTTPException(403, msg)
+    result = _ai_handler(ai_service.polish_cv, req.content, req.tone)
+    if result.success:
+        user_service.increment_ai_usage(user.uid)
     return result.model_dump()
 
 

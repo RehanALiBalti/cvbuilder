@@ -260,6 +260,12 @@ class AIChatRequest(BaseModel):
     theme_override: Optional[CustomTheme] = None
 
 
+class AIPolishRequest(BaseModel):
+    """One-shot polish after guided section-wise data collection."""
+    content: CVContent = Field(default_factory=CVContent)
+    tone: WritingTone = WritingTone.PROFESSIONAL
+
+
 class StyledExportRequest(BaseModel):
     html: str
 

@@ -165,6 +165,41 @@ def _build_chat_context(history: List[Dict[str, str]], content: CVContent) -> st
     return "\n".join(p for p in lines if p.strip())
 
 
+def polish_cv(
+    content: CVContent,
+    tone: WritingTone = WritingTone.PROFESSIONAL,
+) -> AIResponse:
+    """One AI call: polish user-collected section data into a professional CV."""
+    prompt = prompts.polish_cv_prompt(content, tone)
+    # Slightly lower tokens — input is already structured
+    raw = _call_llm(prompt, max_tokens=2000)
+    parsed = _extract_json(raw)
+
+    if "raw_text" in parsed and len(parsed) == 1:
+        return AIResponse(success=False, message="AI did not return valid JSON", data={"raw": raw})
+
+    try:
+        polished = CVContent(**_coerce_cv_fields(parsed))
+    except Exception as exc:
+        return AIResponse(success=False, message=str(exc), data={"raw": raw, "parsed": parsed})
+
+    # Merge polish onto original so we never drop user facts on model mistakes
+    updated = _apply_generated_cv(content, polished.model_dump())
+    # Always keep photo
+    if content.profile_photo:
+        data = updated.model_dump()
+        data["profile_photo"] = content.profile_photo
+        updated = CVContent(**data)
+
+    suggestions = _detect_missing_fields(updated)
+    return AIResponse(
+        success=True,
+        message="Your professional CV is ready. Review the preview and edit anything via chat.",
+        data={"content": updated.model_dump(), "reply": "Your professional CV is ready. Check the live preview — you can still edit any section."},
+        suggestions=suggestions,
+    )
+
+
 def generate_cv(
     raw_input: str,
     tone: WritingTone = WritingTone.PROFESSIONAL,

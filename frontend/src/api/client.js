@@ -141,6 +141,13 @@ export async function aiChat(payload) {
   }, true);
 }
 
+export async function aiPolish(payload) {
+  return apiFetch("/api/ai/polish", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, true);
+}
+
 export async function aiGenerate(payload) {
   return apiFetch("/api/ai/generate", {
     method: "POST",
