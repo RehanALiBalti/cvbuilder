@@ -454,11 +454,16 @@ export default function CVBuilder() {
         </div>
       )}
 
-      <div className={`builder-shell ${view === "chat" ? "builder-shell--wide" : ""}`}>
+      <div className={`builder-shell builder-shell--animated ${view === "chat" ? "builder-shell--wide" : ""}`}>
+        <div className="builder-bg" aria-hidden="true">
+          <div className="builder-bg-blob builder-bg-blob--1" />
+          <div className="builder-bg-blob builder-bg-blob--2" />
+        </div>
+
         {view === "list" && (
           <>
-            <div className="account-hero">
-              <div className="account-avatar" aria-hidden="true">{userInitial}</div>
+            <div className="account-hero builder-anim builder-anim--1">
+              <div className="account-avatar builder-avatar-glow" aria-hidden="true">{userInitial}</div>
               <div className="account-hero-info">
                 <h1>{user?.name ? `${user.name.split(" ")[0]}'s workspace` : "Your CVs"}</h1>
                 <p>Build and export professional CVs with AI</p>
@@ -467,15 +472,15 @@ export default function CVBuilder() {
             </div>
 
             <div className="account-stats">
-              <div className="account-stat">
+              <div className="account-stat builder-anim builder-anim--2">
                 <span className="account-stat-label">Your CVs</span>
                 <strong>{cvs.length}</strong>
               </div>
-              <div className="account-stat">
+              <div className="account-stat builder-anim builder-anim--3">
                 <span className="account-stat-label">CV limit</span>
                 <strong>{formatCvLimit(profile?.max_cvs, plan)}</strong>
               </div>
-              <div className="account-stat account-stat--wide">
+              <div className="account-stat account-stat--wide builder-anim builder-anim--4">
                 <div className="account-stat-row">
                   <span className="account-stat-label">AI messages this month</span>
                   <strong>{aiUsed} / {aiLimit}</strong>
@@ -486,13 +491,13 @@ export default function CVBuilder() {
               </div>
             </div>
 
-            <section className="account-card">
+            <section className="account-card builder-anim builder-anim--5">
               <div className="account-card-head builder-card-head">
                 <div>
                   <h2>Your CVs</h2>
                   <p>Create, edit, and export professional CVs with AI assistance.</p>
                 </div>
-                <button type="button" className="btn btn-primary" onClick={handleCreate}>
+                <button type="button" className="btn btn-primary builder-btn-glow" onClick={handleCreate}>
                   + New CV
                 </button>
               </div>
@@ -509,16 +514,17 @@ export default function CVBuilder() {
                   <div className="builder-empty-icon" aria-hidden="true">✨</div>
                   <h3>Start your first CV</h3>
                   <p>Chat with AI — it builds your CV as you type. No forms required.</p>
-                  <button type="button" className="btn btn-primary" onClick={handleCreate}>
+                  <button type="button" className="btn btn-primary builder-btn-glow" onClick={handleCreate}>
                     Start building with AI
                   </button>
                 </div>
               ) : (
                 <div className="builder-cv-grid">
-                  {cvs.map((cv) => (
+                  {cvs.map((cv, index) => (
                     <article
                       key={cv.id}
-                      className={`builder-cv-card ${deletingId === cv.id ? "builder-cv-card--deleting" : ""}`}
+                      className={`builder-cv-card builder-cv-card--enter ${deletingId === cv.id ? "builder-cv-card--deleting" : ""}`}
+                      style={{ "--card-i": index }}
                     >
                       <div className="builder-cv-card-top">
                         <h3>{cv.name}</h3>
@@ -556,7 +562,7 @@ export default function CVBuilder() {
 
         {view === "chat" && activeCv && (
           <div className="builder-chat-layout">
-            <section className="account-card builder-chat-panel">
+            <section className="account-card builder-chat-panel builder-anim builder-anim--slide-left">
               <div className="account-card-head builder-chat-head">
                 <div>
                   <h2>{activeCv.name}</h2>
@@ -565,10 +571,15 @@ export default function CVBuilder() {
               </div>
               <div className="chat-messages">
                 {messages.length === 0 && !loading && (
-                  <p className="chat-empty-hint">Type a message to start — e.g. your name, job title, or &quot;hi&quot;.</p>
+                  <p className="chat-empty-hint builder-anim builder-anim--2">
+                    Type a message to start — e.g. your name, job title, or &quot;hi&quot;.
+                  </p>
                 )}
                 {messages.map((msg, i) => (
-                  <div key={i} className={`chat-bubble chat-bubble--${msg.role}`}>
+                  <div
+                    key={i}
+                    className={`chat-bubble chat-bubble--${msg.role} chat-bubble--enter`}
+                  >
                     <span className="chat-role">{msg.role === "user" ? "You" : "AI"}</span>
                     <p>{msg.content}</p>
                     {msg.suggestions?.length > 0 && (
@@ -603,7 +614,7 @@ export default function CVBuilder() {
                   />
                   <button
                     type="button"
-                    className={`btn btn-primary chat-send ${loading ? "is-loading" : ""}`}
+                    className={`btn btn-primary chat-send builder-btn-glow ${loading ? "is-loading" : ""}`}
                     onClick={sendMessage}
                     disabled={loading || !input.trim()}
                   >
@@ -620,7 +631,7 @@ export default function CVBuilder() {
               </div>
             </section>
 
-            <aside className={`account-card builder-preview-panel ${loading ? "preview-panel--loading" : ""}`}>
+            <aside className={`account-card builder-preview-panel builder-anim builder-anim--slide-right ${loading ? "preview-panel--loading" : ""}`}>
               <div className="preview-toolbar">
                 <h3>Live CV Preview</h3>
                 <span className={`preview-status ${loading ? "preview-status--active" : ""}`}>
