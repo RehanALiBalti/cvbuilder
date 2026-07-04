@@ -309,8 +309,38 @@ def linkedin_content(content: CVContent, tone: WritingTone = WritingTone.PROFESS
     return AIResponse(success=True, data=parsed)
 
 
-def _apply_generated_cv(base: CVContent, generated: Dict[str, Any]) -> CVContent:
+def _sections_to_clear(message: str) -> set[str]:
+    """Sections the user explicitly asked to remove/clear."""
+    m = (message or "").lower()
+    clear: set[str] = set()
+    pairs = [
+        ("certifications", r"certifications?|certs?\b"),
+        ("education", r"education|schooling|degrees?"),
+        ("experience", r"experience|work history|employment"),
+        ("projects", r"projects?"),
+        ("skills", r"skills?"),
+        ("languages", r"languages?"),
+        ("awards", r"awards?"),
+        ("summary", r"summary|profile"),
+    ]
+    for section, noun in pairs:
+        if re.search(
+            rf"\b(remove|delete|clear|drop|hide)\b[\w\s]{{0,24}}\b({noun})\b"
+            rf"|\b({noun})\b[\w\s]{{0,24}}\b(remove|delete|clear|drop|hide)\b",
+            m,
+        ):
+            clear.add(section)
+    return clear
+
+
+def _apply_generated_cv(
+    base: CVContent,
+    generated: Dict[str, Any],
+    *,
+    allow_clear: set[str] | None = None,
+) -> CVContent:
     """Apply full CV generation output, preserving contact fields not re-mentioned."""
+    allow_clear = allow_clear or set()
     new = _coerce_cv_fields(generated)
     data = base.model_dump()
     for key, value in new.items():
@@ -323,43 +353,147 @@ def _apply_generated_cv(base: CVContent, generated: Dict[str, Any]) -> CVContent
                     contact[k] = v
             data["contact"] = contact
         elif isinstance(value, list) and len(value) == 0:
+            # Empty list used to be ignored — that blocked "remove certifications"
+            if key in allow_clear:
+                data[key] = []
+                if key == "skills":
+                    data["skill_groups"] = []
             continue
         elif isinstance(value, str) and not value.strip() and data.get(key):
+            if key in allow_clear:
+                data[key] = ""
             continue
         else:
             data[key] = value
+
+    # Explicit clears even if the model omitted the field
+    for key in allow_clear:
+        if key == "summary":
+            data["summary"] = ""
+        elif key == "skills":
+            data["skills"] = []
+            data["skill_groups"] = []
+        elif key in data and isinstance(data.get(key), list):
+            data[key] = []
+
     if base.profile_photo:
         data["profile_photo"] = base.profile_photo
     return CVContent(**data)
 
 
-def _make_chat_reply(before: CVContent, after: CVContent, _suggestions: List[str] | None = None) -> str:
-    parts: List[str] = []
+def _apply_direct_section_edits(content: CVContent, message: str) -> tuple[CVContent, list[str]]:
+    """Apply clear add/remove edits without waiting on a full CV regenerate."""
+    from backend.models import EducationItem
+
+    m = (message or "").strip().lower()
+    data = content.model_dump()
+    notes: list[str] = []
+
+    for section in _sections_to_clear(message):
+        if section == "summary":
+            if data.get("summary"):
+                data["summary"] = ""
+                notes.append("removed your summary")
+        elif section == "skills":
+            if data.get("skills") or data.get("skill_groups"):
+                data["skills"] = []
+                data["skill_groups"] = []
+                notes.append("removed skills")
+        elif section in data and isinstance(data.get(section), list) and data[section]:
+            data[section] = []
+            notes.append(f"removed {section}")
+
+    # Add high school / secondary education
+    if re.search(
+        r"\b(add|include|put|insert)\b[\w\s]{0,20}\b(high\s*school|secondary\s*school|matric)\b"
+        r"|\b(high\s*school|secondary\s*school|matric)\b[\w\s]{0,20}\b(education|to (my |the )?cv|please)\b",
+        m,
+    ) or re.search(r"\bhigh\s*school\s+educ", m):
+        education = list(data.get("education") or [])
+        already = any(
+            re.search(r"high\s*school|secondary|matric", (e.get("degree") or e.get("institution") or "").lower())
+            for e in education
+        )
+        if not already:
+            education.append(
+                EducationItem(
+                    degree="High School Diploma",
+                    institution="",
+                    field="",
+                    end_date="",
+                ).model_dump()
+            )
+            data["education"] = education
+            notes.append("added high school education")
+
+    # Generic "add education: X" / "add education X at Y"
+    edu_match = re.search(
+        r"\b(?:add|include)\b[\w\s]{0,10}\beducation\b[:\s]+(.+)$",
+        message or "",
+        re.I,
+    )
+    if edu_match and "high school" not in (edu_match.group(1) or "").lower():
+        detail = edu_match.group(1).strip(" .")
+        if detail and len(detail) < 120:
+            education = list(data.get("education") or [])
+            education.append(EducationItem(degree=detail, institution="").model_dump())
+            data["education"] = education
+            notes.append("added education")
+
+    if not notes:
+        return content, notes
+    return CVContent(**data), notes
+
+
+def _make_chat_reply(
+    before: CVContent,
+    after: CVContent,
+    _suggestions: List[str] | None = None,
+    extra_notes: List[str] | None = None,
+) -> str:
+    parts: List[str] = list(extra_notes or [])
     if after.full_name and after.full_name != before.full_name:
         parts.append("updated your header")
     if after.summary and not before.summary.strip():
         parts.append("written a professional summary")
-    elif after.summary and after.summary != before.summary:
+    elif after.summary and after.summary != before.summary and "removed your summary" not in parts:
         parts.append("improved your summary")
     if after.experience and not before.experience:
         parts.append("built achievement-oriented experience bullets")
     elif after.experience and after.experience != before.experience:
-        parts.append("enhanced your experience section")
+        if len(after.experience) < len(before.experience):
+            parts.append("updated experience")
+        else:
+            parts.append("enhanced your experience section")
     if after.projects and not before.projects:
         parts.append("added project descriptions with impact")
     if after.skill_groups and not before.skill_groups:
         parts.append("organized skills by category")
     elif after.skills and len(after.skills or []) > len(before.skills or []):
         parts.append("expanded your skills")
-    if after.education and not before.education:
-        parts.append("added education")
-    if after.certifications and not before.certifications:
+    if len(after.education or []) > len(before.education or []):
+        if "added high school education" not in parts and "added education" not in parts:
+            parts.append("added education")
+    elif after.education and after.education != before.education:
+        parts.append("updated education")
+    if before.certifications and not after.certifications:
+        if "removed certifications" not in parts:
+            parts.append("removed certifications")
+    elif after.certifications and not before.certifications:
         parts.append("formatted certifications")
     if after.languages and not before.languages:
         parts.append("added languages with proficiency levels")
 
-    if parts:
-        return f"I've {', '.join(parts)}. Check the live preview on the right."
+    # de-dupe while preserving order
+    seen: set[str] = set()
+    unique = []
+    for p in parts:
+        if p not in seen:
+            seen.add(p)
+            unique.append(p)
+
+    if unique:
+        return f"I've {', '.join(unique)}. Check the live preview on the right."
     return "Your CV is updated. Keep sharing details or say 'download PDF' when ready."
 
 
@@ -374,9 +508,17 @@ def _message_has_cv_content(message: str) -> bool:
     m = (message or "").strip().lower()
     if len(m) > 90:
         return True
+    if _sections_to_clear(message):
+        return True
     return bool(
         re.search(
-            r"\b(company|experience|worked|university|degree|skills?|email|phone|@|engineer|developer|manager|years?)\b",
+            r"\b("
+            r"company|experience|worked|university|degree|skills?|email|phone|@|"
+            r"engineer|developer|manager|years?|"
+            r"education|school|certifications?|certs?|projects?|languages?|awards?|summary|"
+            r"high\s*school|secondary|matric|bachelor|master|diploma|"
+            r"add|remove|delete|clear|update|change|include"
+            r")\b",
             m,
         )
     )
@@ -573,21 +715,33 @@ def chat_cv(
             },
         )
 
+    # Direct add/remove edits (e.g. "add high school education and remove certification")
+    edited, edit_notes = _apply_direct_section_edits(content, message)
+    clear_sections = _sections_to_clear(message)
+
     # Every message: rebuild full CV from entire conversation (from first message onward)
-    context = _build_chat_context(history, content)
+    context = _build_chat_context(history, edited)
     context += (
         f"\n\nLatest user message: {message}\n\n"
-        "Build the most complete modern professional CV from ALL messages above. "
-        "Improve summary, achievement-oriented experience bullets, categorized skills, "
-        "project impact, formatted certifications and languages. "
+        "Apply the latest user request exactly on top of the current CV.\n"
+        "If the user asks to REMOVE a section (e.g. certifications), return that field as an empty list [].\n"
+        "If the user asks to ADD education (e.g. high school), include it in education[].\n"
+        "Keep all other existing CV data unless the user asked to change or remove it.\n"
         "Never fabricate employers, degrees, or credentials not mentioned by the user."
     )
-    gen = generate_cv(context, tone, content.job_title or "", "")
+    gen = generate_cv(context, tone, edited.job_title or "", "")
 
     if gen.success and gen.data.get("content"):
-        updated = _apply_generated_cv(content, gen.data["content"])
+        updated = _apply_generated_cv(
+            edited,
+            gen.data["content"],
+            allow_clear=clear_sections,
+        )
+        # Direct edits win for explicit clears / high-school add if model ignored them
+        if clear_sections or edit_notes:
+            updated, _ = _apply_direct_section_edits(updated, message)
         suggestions = _suggest_missing_sections(updated)
-        reply = _make_chat_reply(content, updated, suggestions)
+        reply = _make_chat_reply(content, updated, suggestions, extra_notes=edit_notes)
 
         final_template_id = template_id
         final_theme = theme_override
@@ -610,6 +764,23 @@ def chat_cv(
                 "missing_sections": suggestions,
                 "template_id": final_template_id,
                 "theme_override": _theme_to_dict(final_theme),
+            },
+            suggestions=suggestions,
+        )
+
+    # Model failed — still apply direct edits if we have any
+    if edit_notes:
+        suggestions = _suggest_missing_sections(edited)
+        reply = _make_chat_reply(content, edited, suggestions, extra_notes=edit_notes)
+        return AIResponse(
+            success=True,
+            message=reply,
+            data={
+                "reply": reply,
+                "content": edited.model_dump(),
+                "missing_sections": suggestions,
+                "template_id": template_id,
+                "theme_override": _theme_to_dict(theme_override),
             },
             suggestions=suggestions,
         )
