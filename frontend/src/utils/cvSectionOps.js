@@ -1,4 +1,4 @@
-/** Instant CV section edits — no AI required. */
+/** Instant CV section edits — no AI required. Role-aware professional placeholders. */
 
 const LABELS = {
   summary: "Summary",
@@ -23,6 +23,98 @@ export function sectionHasData(content, id) {
   return Array.isArray(val) ? val.length > 0 : Boolean(val);
 }
 
+/** Professional defaults based on job title — not always “Python developer”. */
+export function professionalDefaults(content = {}) {
+  const title = (content.job_title || "").trim();
+  const t = title.toLowerCase();
+  const role = title || "professional";
+
+  if (/develop|engineer|software|programmer|devops|data scientist|it\b|tech/.test(t)) {
+    return {
+      skills: ["Problem solving", "Collaboration", "Technical communication", "Continuous learning"],
+      summary: `Results-oriented ${role} with experience delivering reliable solutions and working effectively in team environments. Committed to quality, clear communication, and continuous improvement.`,
+      experienceRole: title || "Professional",
+      experienceBullets: [
+        "Delivered assigned projects on time with attention to quality",
+        "Collaborated with team members to solve day-to-day challenges",
+      ],
+    };
+  }
+
+  if (/market|sales|business development|account/.test(t)) {
+    return {
+      skills: ["Client communication", "Negotiation", "Relationship building", "Target orientation"],
+      summary: `Driven ${role} focused on building strong client relationships and achieving business goals. Skilled at clear communication and delivering measurable results.`,
+      experienceRole: title || "Sales Professional",
+      experienceBullets: [
+        "Built and maintained professional client relationships",
+        "Met targets through structured planning and follow-up",
+      ],
+    };
+  }
+
+  if (/design|creative|ui|ux|graphic/.test(t)) {
+    return {
+      skills: ["Visual design", "Creativity", "Attention to detail", "Collaboration"],
+      summary: `Creative ${role} with a strong eye for detail and user-focused design. Experienced in turning ideas into clear, professional deliverables.`,
+      experienceRole: title || "Designer",
+      experienceBullets: [
+        "Created professional designs aligned with brand guidelines",
+        "Collaborated with stakeholders to refine concepts",
+      ],
+    };
+  }
+
+  if (/teach|teacher|lectur|education|trainer/.test(t)) {
+    return {
+      skills: ["Communication", "Mentoring", "Lesson planning", "Classroom management"],
+      summary: `Dedicated ${role} committed to student growth and clear instruction. Skilled at explaining concepts and supporting learners.`,
+      experienceRole: title || "Educator",
+      experienceBullets: [
+        "Delivered lessons in a clear and engaging manner",
+        "Supported learners to achieve academic goals",
+      ],
+    };
+  }
+
+  if (/manag|lead|director|head of|supervisor/.test(t)) {
+    return {
+      skills: ["Leadership", "Planning", "Team management", "Decision making"],
+      summary: `Experienced ${role} with a track record of leading teams and delivering outcomes. Focused on clear priorities, accountability, and professional growth.`,
+      experienceRole: title || "Manager",
+      experienceBullets: [
+        "Led team initiatives and tracked progress against goals",
+        "Improved processes to increase efficiency and quality",
+      ],
+    };
+  }
+
+  if (/account|financ|audit|bank/.test(t)) {
+    return {
+      skills: ["Accuracy", "Financial analysis", "Reporting", "Compliance"],
+      summary: `Detail-oriented ${role} with strong analytical skills and a commitment to accuracy. Experienced in structured reporting and professional standards.`,
+      experienceRole: title || "Finance Professional",
+      experienceBullets: [
+        "Prepared accurate reports and maintained organized records",
+        "Supported financial processes with attention to compliance",
+      ],
+    };
+  }
+
+  // Neutral professional default (any field)
+  return {
+    skills: ["Communication", "Teamwork", "Problem solving", "Time management"],
+    summary: title
+      ? `Dedicated ${role} with a strong work ethic and commitment to professional excellence. Skilled at collaborating with others and delivering quality results.`
+      : "Dedicated professional with a strong work ethic and commitment to excellence. Skilled at collaborating with others and delivering quality results.",
+    experienceRole: title || "Professional",
+    experienceBullets: [
+      "Completed responsibilities with reliability and attention to detail",
+      "Worked effectively with colleagues to achieve shared goals",
+    ],
+  };
+}
+
 function withVisibility(content, sectionId, visible) {
   return {
     ...content,
@@ -33,20 +125,24 @@ function withVisibility(content, sectionId, visible) {
   };
 }
 
-/** Add / enable a section with a light placeholder (instant preview). */
+/** Add / enable a section with role-aware professional placeholders. */
 export function addSection(content, sectionId) {
+  const defaults = professionalDefaults(content);
   let next = withVisibility({ ...(content || {}) }, sectionId, true);
 
   if (sectionId === "summary" && !next.summary?.trim()) {
-    next.summary = "Motivated professional ready to contribute and grow. Update this summary with your strengths.";
-    return { content: next, message: "Summary added. You can edit it in chat or run “Polish CV” for a stronger version." };
+    next.summary = defaults.summary;
+    return {
+      content: next,
+      message: "Professional summary added based on your role. Edit details or tap Polish CV to refine.",
+    };
   }
 
   if (sectionId === "education") {
     const education = [...(next.education || [])];
     education.push({
-      degree: "Your degree / qualification",
-      institution: "School or university",
+      degree: "Degree / qualification",
+      institution: "Institution name",
       field: "",
       start_date: "",
       end_date: "",
@@ -54,59 +150,68 @@ export function addSection(content, sectionId) {
       highlights: [],
     });
     next.education = education;
-    return { content: next, message: "Education section added. Replace the placeholder with your real school and degree." };
+    return { content: next, message: "Education section added. Replace placeholders with your real details." };
   }
 
   if (sectionId === "experience") {
     const experience = [...(next.experience || [])];
     experience.push({
-      company: "Company name",
-      role: "Your role",
+      company: "Organization name",
+      role: defaults.experienceRole,
       location: "",
       start_date: "",
       end_date: "Present",
       current: true,
-      bullets: ["Describe one achievement or responsibility"],
+      bullets: defaults.experienceBullets,
     });
     next.experience = experience;
-    return { content: next, message: "Experience section added. Update company, role, and bullet points with your details." };
+    return {
+      content: next,
+      message: "Experience section added with professional wording for your role. Update company and specifics.",
+    };
   }
 
   if (sectionId === "skills") {
-    next.skills = next.skills?.length ? next.skills : ["Communication", "Teamwork"];
+    next.skills = next.skills?.length ? next.skills : defaults.skills;
     next.skill_groups = [{ category: "Core Skills", items: next.skills }];
-    return { content: next, message: "Skills section added. Tell me your real skills in chat (e.g. Python, React) to replace these." };
+    return {
+      content: next,
+      message: "Skills added to match a professional profile for your role. Adjust to your real strengths.",
+    };
   }
 
   if (sectionId === "projects") {
     const projects = [...(next.projects || [])];
     projects.push({
-      name: "Project name",
+      name: "Key project",
       url: "",
       technologies: [],
-      description: "Short project description",
+      description: "Brief description of impact and your contribution",
       bullets: [],
     });
     next.projects = projects;
-    return { content: next, message: "Projects section added. Update the project name and description." };
+    return { content: next, message: "Projects section added. Update with a real project name and outcome." };
   }
 
   if (sectionId === "languages") {
     next.languages = next.languages?.length
       ? next.languages
-      : [{ name: "English", proficiency: "Fluent" }, { name: "Urdu", proficiency: "Native" }];
-    return { content: next, message: "Languages section added. Adjust names and proficiency as needed." };
+      : [
+        { name: "English", proficiency: "Professional" },
+        { name: "Urdu", proficiency: "Native" },
+      ];
+    return { content: next, message: "Languages section added. Adjust proficiency levels as needed." };
   }
 
   if (sectionId === "certifications") {
     const certifications = [...(next.certifications || [])];
-    certifications.push({ name: "Certificate name", issuer: "", date: "" });
+    certifications.push({ name: "Professional certification", issuer: "Issuing body", date: "" });
     next.certifications = certifications;
-    return { content: next, message: "Certificates section added. Replace with your real certificate names." };
+    return { content: next, message: "Certificates section added. Replace with your real credentials." };
   }
 
   if (sectionId === "awards") {
-    next.awards = next.awards?.length ? next.awards : ["Award or achievement"];
+    next.awards = next.awards?.length ? next.awards : ["Professional recognition"];
     return { content: next, message: "Awards section added." };
   }
 
@@ -131,16 +236,20 @@ export function removeSection(content, sectionId) {
   };
 }
 
-/** Apply a simple starter profile without AI. */
+/** Apply a professional starter profile (role-aware, not fixed Python/dev data). */
 export function applyStarterProfile(content, kind) {
   let next = { ...(content || {}) };
+  const defaults = professionalDefaults(next);
+
   if (kind === "developer") {
+    // Tech-oriented but not locked to Python/React unless user already set a title
+    if (!next.job_title?.trim()) next.job_title = "Software Professional";
+    const d = professionalDefaults(next);
     next = {
       ...next,
-      job_title: next.job_title || "Software Developer",
-      summary: next.summary || "Software developer with hands-on experience building web applications. Skilled in modern tools and collaborative delivery.",
-      skills: next.skills?.length ? next.skills : ["Python", "JavaScript", "React", "Problem solving"],
-      skill_groups: [{ category: "Core Skills", items: next.skills?.length ? next.skills : ["Python", "JavaScript", "React", "Problem solving"] }],
+      summary: next.summary || d.summary,
+      skills: next.skills?.length ? next.skills : d.skills,
+      skill_groups: [{ category: "Core Skills", items: next.skills?.length ? next.skills : d.skills }],
       section_visibility: {
         ...(next.section_visibility || {}),
         summary: true,
@@ -148,18 +257,32 @@ export function applyStarterProfile(content, kind) {
         experience: true,
       },
     };
-    return { content: next, message: "Developer profile applied. Add your name, company, and projects — then tap Polish CV." };
+    return {
+      content: next,
+      message: "Professional tech profile applied for your role. Add your name and work history, then tap Polish CV.",
+    };
   }
+
   if (kind === "graduate") {
+    if (!next.job_title?.trim()) next.job_title = "Graduate Professional";
+    const d = professionalDefaults(next);
     next = {
       ...next,
-      job_title: next.job_title || "Graduate",
-      summary: next.summary || "Recent graduate eager to start a professional career. Strong foundation in academics and ready to learn quickly.",
+      summary: next.summary
+        || `Recent graduate prepared to begin a professional career. Strong academic foundation with ${d.skills.slice(0, 2).join(" and ").toLowerCase()} skills and a commitment to continuous learning.`,
       education: next.education?.length
         ? next.education
-        : [{ degree: "Bachelor's degree", institution: "Your university", field: "", start_date: "", end_date: "", gpa: "", highlights: [] }],
-      skills: next.skills?.length ? next.skills : ["Communication", "Teamwork", "MS Office"],
-      skill_groups: [{ category: "Core Skills", items: ["Communication", "Teamwork", "MS Office"] }],
+        : [{
+          degree: "Bachelor's degree",
+          institution: "University / College name",
+          field: "",
+          start_date: "",
+          end_date: "",
+          gpa: "",
+          highlights: [],
+        }],
+      skills: next.skills?.length ? next.skills : d.skills,
+      skill_groups: [{ category: "Core Skills", items: next.skills?.length ? next.skills : d.skills }],
       section_visibility: {
         ...(next.section_visibility || {}),
         summary: true,
@@ -167,7 +290,24 @@ export function applyStarterProfile(content, kind) {
         skills: true,
       },
     };
-    return { content: next, message: "Fresh graduate profile applied. Add your real university and skills — then tap Polish CV." };
+    return {
+      content: next,
+      message: "Early-career professional profile applied. Add your university and strengths, then tap Polish CV.",
+    };
   }
-  return { content: next, message: "" };
+
+  // Generic professional starter
+  next = {
+    ...next,
+    job_title: next.job_title || "Professional",
+    summary: next.summary || defaults.summary,
+    skills: next.skills?.length ? next.skills : defaults.skills,
+    skill_groups: [{ category: "Core Skills", items: next.skills?.length ? next.skills : defaults.skills }],
+    section_visibility: {
+      ...(next.section_visibility || {}),
+      summary: true,
+      skills: true,
+    },
+  };
+  return { content: next, message: "Professional profile applied. Add your details, then tap Polish CV." };
 }

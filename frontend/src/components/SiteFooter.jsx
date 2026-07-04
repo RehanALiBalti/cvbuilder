@@ -11,7 +11,11 @@ export default function SiteFooter() {
       <div className="site-footer-inner">
         <div className="site-footer-top">
           <div className="site-footer-brand">
-            <BrandLogo to={isAuthenticated ? "/builder" : "/"} className="brand-logo--footer" />
+            <BrandLogo
+              to={isAuthenticated ? "/builder" : "/"}
+              variant="white"
+              className="brand-logo--footer"
+            />
             <p className="site-footer-tagline">
               AI-powered resume builder — professional CVs in minutes.
             </p>

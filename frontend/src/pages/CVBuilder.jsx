@@ -502,7 +502,7 @@ export default function CVBuilder() {
     if (type === "starter" && starter) {
       const { content, message } = applyStarterProfile(activeCv.content, starter);
       applyContentLocally(content, message, {
-        userNote: starter === "developer" ? "I'm a developer" : "Fresh graduate",
+        userNote: starter === "graduate" ? "Early career profile" : "Professional profile",
       });
       return;
     }

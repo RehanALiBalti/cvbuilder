@@ -55,9 +55,9 @@ export default function ChatQuickActions({
               type="button"
               className="chat-quick-chip chat-quick-chip--start"
               disabled={disabled}
-              onClick={() => onAction({ type: "starter", starter: "developer" })}
+              onClick={() => onAction({ type: "starter", starter: "professional" })}
             >
-              I&apos;m a developer
+              Professional profile
             </button>
             <button
               type="button"
@@ -65,7 +65,7 @@ export default function ChatQuickActions({
               disabled={disabled}
               onClick={() => onAction({ type: "starter", starter: "graduate" })}
             >
-              Fresh graduate
+              Early career
             </button>
           </div>
         </div>
