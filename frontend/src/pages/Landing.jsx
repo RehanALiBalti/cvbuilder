@@ -7,7 +7,7 @@ import Reveal from "../components/Reveal";
 
 const FEATURES = [
   { icon: "✨", title: "AI-Powered Writing", text: "Professional summaries, achievement bullets, and skills — generated from your chat." },
-  { icon: "🎨", title: "13 Modern Templates", text: "Random start, switch via chat, or create custom color themes instantly." },
+  { icon: "🎨", title: "Pro Templates", text: "Upgrade for 15 designs on Pro, or unlock every template and custom themes on Business." },
   { icon: "📄", title: "Styled PDF & Word", text: "Download your CV with the exact template design you preview on screen." },
   { icon: "📤", title: "Upload & Import", text: "Bring your existing resume (PDF/Word) or add a professional profile photo." },
   { icon: "🎯", title: "ATS-Friendly", text: "Clean structure, categorized skills, and formatted certifications & languages." },
@@ -38,10 +38,11 @@ const TESTIMONIALS = [
 ];
 
 const FAQ = [
-  { q: "Is ResumeAI free to start?", a: "Yes — the Starter plan is free forever. Build your first CV, preview templates, and try AI with no credit card." },
-  { q: "How does billing work?", a: "Pro and Business plans are billed monthly or yearly through Stripe. You can cancel anytime from your Stripe customer portal." },
-  { q: "Can I upload my existing resume?", a: "Absolutely. Upload PDF, Word, or TXT and AI will import your content. Available on Pro and Business." },
-  { q: "Will the PDF match the preview?", a: "Yes — PDF export uses your live preview design (WYSIWYG)." },
+  { q: "Is ResumeAI free to start?", a: "Yes — the Basic plan is free forever. Build your first CV and try AI chat with no credit card." },
+  { q: "How does billing work?", a: "Pro and Business are billed monthly or yearly through Stripe, similar to ChatGPT Plus. Cancel anytime from your account." },
+  { q: "What is the difference between plans?", a: "Basic includes 1 CV and a default template. Pro unlocks up to 10 CVs and 15 templates. Business unlocks unlimited CVs, all templates, and custom themes." },
+  { q: "Can I upload my existing resume?", a: "Yes. Upload PDF, Word, or TXT and AI will import your content. Available on Pro and Business." },
+  { q: "Will the PDF match the preview?", a: "Yes — PDF export uses your live preview design exactly as shown on screen." },
   { q: "Is my payment information secure?", a: "Yes — all payments are processed by Stripe. We never see or store your card details." },
   { q: "Does AI invent fake experience?", a: "No — we only improve and structure information you provide. Missing sections get suggestions, not fake data." },
 ];
@@ -89,17 +90,17 @@ export default function Landing() {
               <span className="landing-gradient-text"> in minutes</span>
             </h1>
             <p className="landing-hero-sub landing-animate landing-animate--4">
-              Chat with AI to create a polished, ATS-friendly resume. Pick from 13 templates,
-              upload your existing CV, add your photo, and download PDF or Word — all in one place.
+              Chat with AI to create a polished, ATS-friendly resume. Upload your existing CV,
+              add your photo, and download PDF or Word — all in one place.
             </p>
             <div className="landing-hero-cta landing-animate landing-animate--5">
               <Link to="/signup" className="btn btn-primary btn-lg landing-btn-glow">Start building — it&apos;s free</Link>
               <Link to="/login" className="btn btn-lg landing-btn-outline">I already have an account</Link>
             </div>
             <div className="landing-hero-stats landing-animate landing-animate--6">
-              <div><strong>13+</strong><span>Templates</span></div>
               <div><strong>AI</strong><span>Chat builder</span></div>
               <div><strong>PDF</strong><span>& Word export</span></div>
+              <div><strong>Free</strong><span>Basic plan</span></div>
             </div>
           </div>
 
@@ -157,7 +158,7 @@ export default function Landing() {
         {/* Template showcase */}
         <Reveal className="landing-section landing-templates-section">
           <h2>Pick a design that fits your role</h2>
-          <p className="landing-section-sub">13 unique layouts — switch anytime via chat or template picker.</p>
+          <p className="landing-section-sub">Pro unlocks 15 layouts — Business unlocks every design and custom themes.</p>
           <div className="landing-template-grid">
             {TEMPLATES.map((t) => (
               <div key={t.id} className="landing-template-card">
@@ -210,7 +211,8 @@ export default function Landing() {
 
         {/* FAQ */}
         <Reveal className="landing-section landing-faq-section" id="faq">
-          <h2>Frequently asked questions</h2>
+          <h2>FAQ</h2>
+          <p className="landing-section-sub">Answers to common questions about plans, billing, and AI.</p>
           <div className="landing-faq-list">
             {FAQ.map((item, i) => (
               <FaqItem

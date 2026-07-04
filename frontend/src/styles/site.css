@@ -95,11 +95,39 @@
   flex-wrap: wrap;
 }
 
-.site-header-user {
-  font-size: 0.85rem;
-  font-weight: 600;
+.site-header-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  padding: 4px 8px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.site-header-profile:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.site-header-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0f2744, var(--primary));
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.site-header-logout {
   color: var(--muted);
-  padding: 0 4px;
 }
 
 .site-footer {

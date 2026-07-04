@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import AILoadingBubble from "../components/AILoadingBubble";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
@@ -7,6 +7,12 @@ import TemplatePicker from "../components/TemplatePicker";
 import TemplateRenderer from "../components/templates/CVTemplates";
 import UploadBar from "../components/UploadBar";
 import { useAuth } from "../context/AuthContext";
+import {
+  canUseTemplates,
+  formatCvLimit,
+  isFreePlan,
+  templatesForPlan,
+} from "../config/pricing";
 import {
   loadChatHistory,
   saveChatHistory,
@@ -18,6 +24,7 @@ import {
   showDeleteError,
   showDeleteProgress,
   showDeleteSuccess,
+  showUpgradePopup,
 } from "../utils/confirmDialog";
 import {
   aiChat,
@@ -25,7 +32,6 @@ import {
   deleteCV,
   duplicateCV,
   fetchCVs,
-  fetchHealth,
   fetchTemplates,
   getCV,
   updateCV,
@@ -63,13 +69,13 @@ function detectExportIntent(text) {
 
 export default function CVBuilder() {
   const { user, plan, planLabel, profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [view, setView] = useState("list");
   const [cvs, setCvs] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [activeCv, setActiveCv] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -81,7 +87,6 @@ export default function CVBuilder() {
   const activeTemplate = templates.find((t) => t.id === activeCv?.template_id) || templates[0];
 
   useEffect(() => {
-    fetchHealth().then(setHealth).catch(() => setHealth({ status: "offline" }));
     fetchTemplates().then((d) => setTemplates(d.templates || [])).catch(() => {});
   }, []);
 
@@ -195,6 +200,21 @@ export default function CVBuilder() {
   }
 
   async function handleCreate() {
+    const maxCvs = profile?.max_cvs ?? 1;
+    if (cvs.length >= maxCvs) {
+      const goUpgrade = await showUpgradePopup({
+        title: "Upgrade to create more CVs",
+        text: isFreePlan(plan)
+          ? "Basic plan includes 1 CV. Upgrade to Pro for up to 10 CVs, or Business for unlimited CVs."
+          : plan === "pro"
+            ? "Pro plan includes 10 CVs. Upgrade to Business for unlimited CVs."
+            : "You have reached your CV limit for this plan.",
+        confirmText: "View plans",
+      });
+      if (goUpgrade) navigate("/builder/account");
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await createCV({ name: "New CV", template_id: "random" });
@@ -346,8 +366,27 @@ export default function CVBuilder() {
     }
   }
 
-  function selectTemplate(templateId) {
+  async function selectTemplate(templateId) {
     if (!activeCv) return;
+    if (!canUseTemplates(plan)) {
+      const goUpgrade = await showUpgradePopup({
+        title: "Templates are a Pro feature",
+        text: "Basic plan uses a default template. Upgrade to Pro for 15 templates, or Business for all templates.",
+        confirmText: "View plans",
+      });
+      if (goUpgrade) navigate("/builder/account");
+      return;
+    }
+    const allowed = templatesForPlan(templates, plan);
+    if (!allowed.some((t) => t.id === templateId)) {
+      const goUpgrade = await showUpgradePopup({
+        title: "Upgrade for more templates",
+        text: "This template is available on Business. Upgrade to unlock every design.",
+        confirmText: "View plans",
+      });
+      if (goUpgrade) navigate("/builder/account");
+      return;
+    }
     const next = { ...activeCv, template_id: templateId, theme_override: null };
     setActiveCv(next);
     saveCv(next);
@@ -358,19 +397,21 @@ export default function CVBuilder() {
   const aiLimit = profile?.ai_messages_limit ?? 50;
   const aiPct = Math.min(100, Math.round((aiUsed / Math.max(aiLimit, 1)) * 100));
   const userInitial = (user?.name || "U").charAt(0).toUpperCase();
+  const planTemplates = useMemo(() => templatesForPlan(templates, plan), [templates, plan]);
+  const showTemplatePicker = canUseTemplates(plan);
 
-  const headerActions = (
+  const headerActions = view === "chat" ? (
     <>
-      {view === "chat" && (
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => setView("list")}>
-          ← My CVs
-        </button>
-      )}
-      {view === "chat" && activeCv && (
+      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setView("list")}>
+        ← My CVs
+      </button>
+      {activeCv && (
         <>
-          <button type="button" className="btn btn-sm" onClick={() => setShowTemplates(true)}>
-            Templates
-          </button>
+          {showTemplatePicker && (
+            <button type="button" className="btn btn-sm" onClick={() => setShowTemplates(true)}>
+              Templates
+            </button>
+          )}
           <select
             className="builder-select"
             value={activeCv.tone}
@@ -402,11 +443,8 @@ export default function CVBuilder() {
           </button>
         </>
       )}
-      <button type="button" className="btn btn-sm btn-primary" onClick={handleCreate}>
-        + New CV
-      </button>
     </>
-  );
+  ) : null;
 
   return (
     <AppLayout headerActions={headerActions} mainClassName="site-main--app">
@@ -423,10 +461,7 @@ export default function CVBuilder() {
               <div className="account-avatar" aria-hidden="true">{userInitial}</div>
               <div className="account-hero-info">
                 <h1>{user?.name ? `${user.name.split(" ")[0]}'s workspace` : "Your CVs"}</h1>
-                <p>
-                  AI-powered builder · Ollama {health?.ollama_model || "qwen2.5:7b"}
-                  {health?.status === "degraded" && " · storage syncing"}
-                </p>
+                <p>Build and export professional CVs with AI</p>
               </div>
               <span className={`plan-badge plan-badge--lg plan-badge--${plan}`}>{planLabel}</span>
             </div>
@@ -438,7 +473,7 @@ export default function CVBuilder() {
               </div>
               <div className="account-stat">
                 <span className="account-stat-label">CV limit</span>
-                <strong>{profile?.max_cvs ?? 1}</strong>
+                <strong>{formatCvLimit(profile?.max_cvs, plan)}</strong>
               </div>
               <div className="account-stat account-stat--wide">
                 <div className="account-stat-row">
@@ -462,9 +497,9 @@ export default function CVBuilder() {
                 </button>
               </div>
 
-              {plan === "starter" && (
+              {isFreePlan(plan) && (
                 <p className="builder-plan-hint">
-                  Free plan: {profile?.max_cvs ?? 1} CV · {aiUsed}/{aiLimit} AI messages.
+                  Basic plan: {profile?.max_cvs ?? 1} CV · {aiUsed}/{aiLimit} AI messages · default template.
                   {" "}<Link to="/builder/account">Upgrade to Pro</Link>
                 </p>
               )}
@@ -609,12 +644,13 @@ export default function CVBuilder() {
         )}
       </div>
 
-      {showTemplates && activeCv && (
+      {showTemplates && activeCv && showTemplatePicker && (
         <TemplatePicker
-          templates={templates}
+          templates={planTemplates}
           activeId={activeCv?.template_id}
           onSelect={selectTemplate}
           onClose={() => setShowTemplates(false)}
+          plan={plan}
         />
       )}
     </AppLayout>

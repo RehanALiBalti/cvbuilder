@@ -41,6 +41,6 @@ export function subscribeUserProfile(uid, callback) {
 }
 
 export function planLabel(plan) {
-  const map = { starter: "Free", pro: "Pro", business: "Business" };
-  return map[plan] || "Free";
+  const map = { starter: "Basic", pro: "Pro", business: "Business" };
+  return map[plan] || "Basic";
 }

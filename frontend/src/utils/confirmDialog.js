@@ -61,6 +61,24 @@ export function closeDialog() {
   Swal.close();
 }
 
+export async function showUpgradePopup({
+  title = "Upgrade your plan",
+  text = "This feature is available on Pro and Business.",
+  confirmText = "View plans",
+} = {}) {
+  const result = await Swal.fire({
+    ...swalBase,
+    title,
+    text,
+    icon: "info",
+    showCancelButton: true,
+    confirmButtonText: confirmText,
+    cancelButtonText: "Not now",
+    reverseButtons: true,
+  });
+  return result.isConfirmed;
+}
+
 function escapeHtml(text) {
   return String(text)
     .replace(/&/g, "&amp;")

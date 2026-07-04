@@ -1,4 +1,4 @@
-"""Stripe billing — checkout sessions for ResumeAI plans."""
+"""Stripe billing — checkout sessions for ResumeAI plans (Basic / Pro / Business)."""
 
 from __future__ import annotations
 
@@ -8,16 +8,16 @@ from typing import Any, Dict, List, Optional
 PLANS: List[Dict[str, Any]] = [
     {
         "id": "starter",
-        "name": "Starter",
-        "description": "Perfect to try ResumeAI and build your first CV.",
+        "name": "Basic",
+        "description": "Free forever. Build your first CV with AI chat.",
         "monthly_price": 0,
         "yearly_price": 0,
         "features": [
             "1 CV workspace",
             "50 AI messages / month",
-            "5 core templates",
-            "PDF preview",
-            "Basic export (1 / month)",
+            "Default template (no template picker)",
+            "PDF & Word export",
+            "Chat history saved",
         ],
         "cta": "Get started free",
         "highlighted": False,
@@ -25,13 +25,13 @@ PLANS: List[Dict[str, Any]] = [
     {
         "id": "pro",
         "name": "Pro",
-        "description": "Everything you need to land interviews faster.",
+        "description": "For job seekers who want more templates and up to 10 CVs.",
         "monthly_price": 12,
         "yearly_price": 96,
         "features": [
-            "Unlimited CVs",
+            "Up to 10 CVs",
             "Unlimited AI chat",
-            "All 13 templates + custom themes",
+            "15 professional templates",
             "Styled PDF & Word export",
             "CV upload & profile photo",
             "Priority email support",
@@ -43,14 +43,16 @@ PLANS: List[Dict[str, Any]] = [
     {
         "id": "business",
         "name": "Business",
-        "description": "For teams, recruiters, and career coaches.",
+        "description": "Full access for teams, recruiters, and career coaches.",
         "monthly_price": 29,
         "yearly_price": 232,
         "features": [
             "Everything in Pro",
+            "Unlimited CVs",
+            "All templates unlocked",
+            "Custom color themes",
             "Up to 5 team seats",
             "Cover letter & LinkedIn AI",
-            "Shared template library",
             "Dedicated onboarding",
         ],
         "cta": "Upgrade to Business",
@@ -105,7 +107,7 @@ def create_checkout_session(
     firebase_uid: Optional[str] = None,
 ) -> Dict[str, str]:
     if plan_id == "starter":
-        raise ValueError("Starter plan is free — sign up instead.")
+        raise ValueError("Basic plan is free — sign up instead.")
     if interval not in ("monthly", "yearly"):
         raise ValueError("interval must be monthly or yearly")
 
@@ -138,6 +140,9 @@ def create_checkout_session(
     if firebase_uid:
         params["metadata"]["firebase_uid"] = firebase_uid
         params["client_reference_id"] = firebase_uid
+        params["subscription_data"] = {
+            "metadata": {"plan_id": plan_id, "interval": interval, "firebase_uid": firebase_uid},
+        }
     if customer_email:
         params["customer_email"] = customer_email
 

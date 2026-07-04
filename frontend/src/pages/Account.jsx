@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import { createCheckoutSession } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
+import { formatCvLimit, PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: "👤" },
@@ -14,7 +14,7 @@ const SECTIONS = [
 function PlanBadge({ plan, large }) {
   return (
     <span className={`plan-badge plan-badge--${plan || "starter"} ${large ? "plan-badge--lg" : ""}`}>
-      {plan === "pro" ? "Pro" : plan === "business" ? "Business" : "Free"}
+      {plan === "pro" ? "Pro" : plan === "business" ? "Business" : "Basic"}
     </span>
   );
 }
@@ -142,7 +142,7 @@ export default function Account() {
           </div>
           <div className="account-stat">
             <span className="account-stat-label">CV limit</span>
-            <strong>{profile?.max_cvs ?? 1}</strong>
+            <strong>{formatCvLimit(profile?.max_cvs, plan)}</strong>
           </div>
           <div className="account-stat account-stat--wide">
             <div className="account-stat-row">
@@ -309,7 +309,7 @@ export default function Account() {
                         </ul>
                         {p.id === "starter" ? (
                           <button type="button" className="btn btn-block" disabled={isCurrent}>
-                            {isCurrent ? "Your current plan" : "Included free"}
+                            {isCurrent ? "Your current plan" : "Included on Basic"}
                           </button>
                         ) : (
                           <button

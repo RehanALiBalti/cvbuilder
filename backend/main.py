@@ -163,13 +163,33 @@ def update_cv(cv_id: str, req: UpdateCVRequest, user: AuthUser = Depends(require
     updated = existing.model_copy(deep=True)
     if req.name is not None:
         updated.name = req.name
+    plan = user_service.get_user_plan(user.uid)
     if req.template_id is not None:
+        changing_template = req.template_id != existing.template_id
+        if changing_template:
+            if plan == "starter":
+                raise HTTPException(403, "Template picker is not available on Basic. Upgrade to Pro.")
+            if not templates.plan_allows_template(plan, req.template_id):
+                raise HTTPException(403, "This template requires Business plan.")
         updated.template_id = req.template_id
     if req.tone is not None:
         updated.tone = req.tone
     if req.content is not None:
         updated.content = req.content
     if req.theme_override is not None:
+        existing_theme = existing.theme_override
+        existing_dump = (
+            existing_theme.model_dump()
+            if existing_theme is not None and hasattr(existing_theme, "model_dump")
+            else existing_theme
+        )
+        new_dump = (
+            req.theme_override.model_dump()
+            if hasattr(req.theme_override, "model_dump")
+            else req.theme_override
+        )
+        if new_dump != existing_dump and plan != "business":
+            raise HTTPException(403, "Custom themes are available on Business.")
         updated.theme_override = req.theme_override
 
     saved = storage.update_cv(
@@ -405,6 +425,7 @@ def ai_chat(req: AIChatRequest, user: AuthUser = Depends(require_user)) -> Dict[
     if not ok:
         raise HTTPException(403, msg)
 
+    plan = user_service.get_user_plan(user.uid)
     history = [{"role": m.role, "content": m.content} for m in req.history]
     result = _ai_handler(
         ai_service.chat_cv,
@@ -412,6 +433,17 @@ def ai_chat(req: AIChatRequest, user: AuthUser = Depends(require_user)) -> Dict[
     )
     if result.success:
         user_service.increment_ai_usage(user.uid)
+        # Enforce plan template limits (Basic: no switch; Pro: 15 presets; Business: all)
+        data = result.data or {}
+        new_tid = data.get("template_id") or req.template_id
+        if plan == "starter" or not templates.plan_allows_template(plan, new_tid):
+            data["template_id"] = req.template_id
+            data["theme_override"] = (
+                req.theme_override.model_dump()
+                if req.theme_override is not None and hasattr(req.theme_override, "model_dump")
+                else req.theme_override
+            )
+            result.data = data
     return result.model_dump()
 
 

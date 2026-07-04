@@ -363,6 +363,9 @@
 .tprev-startup { background: linear-gradient(180deg, #6366f1 38%, #fff 38%); }
 .tprev-academic { background: #fff; border-left: 6px solid #7f1d1d; }
 .tprev-international { background: linear-gradient(180deg, #e0f2fe 25%, #fff 25%); border-bottom: 2px solid #0369a1; }
+.tprev-portfolio { background: linear-gradient(135deg, #db2777, #f472b6); }
+.tprev-simple { background: #fff; border: 2px solid #334155; }
+.tprev-bold { background: linear-gradient(180deg, #b91c1c 40%, #fff 40%); }
 .tprev-custom { background: linear-gradient(135deg, #6366f1 40%, #c9a227 40%); }
 
 /* Custom / chat-defined theme overrides */

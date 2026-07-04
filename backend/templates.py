@@ -115,6 +115,33 @@ TEMPLATES: List[Dict[str, Any]] = [
         "font": "Helvetica Neue, Arial, sans-serif",
     },
     {
+        "id": "portfolio",
+        "name": "Portfolio",
+        "category": "creative",
+        "layout": "single_column",
+        "description": "Project-forward layout for designers and freelancers",
+        "preview_color": "#db2777",
+        "font": "Plus Jakarta Sans, sans-serif",
+    },
+    {
+        "id": "simple",
+        "name": "Simple",
+        "category": "minimal",
+        "layout": "minimal",
+        "description": "Ultra-clean single column for any industry",
+        "preview_color": "#334155",
+        "font": "Arial, sans-serif",
+    },
+    {
+        "id": "bold",
+        "name": "Bold",
+        "category": "modern",
+        "layout": "bold_header",
+        "description": "Strong header and clear hierarchy for impact roles",
+        "preview_color": "#b91c1c",
+        "font": "Inter, system-ui, sans-serif",
+    },
+    {
         "id": "custom",
         "name": "Custom",
         "category": "custom",
@@ -128,6 +155,25 @@ TEMPLATES: List[Dict[str, Any]] = [
 
 def list_templates() -> List[Dict[str, Any]]:
     return TEMPLATES
+
+
+def list_templates_for_plan(plan: str) -> List[Dict[str, Any]]:
+    """Basic: none (picker hidden). Pro: up to 15 presets. Business: all."""
+    if plan == "business":
+        return TEMPLATES
+    if plan == "pro":
+        return [t for t in TEMPLATES if t["id"] != "custom"][:15]
+    return []
+
+
+def plan_allows_template(plan: str, template_id: str) -> bool:
+    if plan == "business":
+        return True
+    if plan == "pro":
+        allowed = {t["id"] for t in list_templates_for_plan("pro")}
+        return template_id in allowed
+    # Basic keeps whatever default was assigned at create time
+    return False
 
 
 def get_template(template_id: str) -> Dict[str, Any]:

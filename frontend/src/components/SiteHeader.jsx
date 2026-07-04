@@ -11,6 +11,8 @@ export default function SiteHeader({ actions }) {
     navigate("/");
   }
 
+  const initial = (user?.name || user?.email || "U").charAt(0).toUpperCase();
+
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -36,13 +38,11 @@ export default function SiteHeader({ actions }) {
           {actions}
           {isAuthenticated ? (
             <>
-              {user?.name && (
-                <span className="site-header-user" title={user.email}>
-                  {user.name.split(" ")[0]}
-                </span>
-              )}
-              <span className={`plan-badge plan-badge--${plan || "starter"}`}>{planLabel}</span>
-              <button type="button" className="btn btn-sm btn-ghost" onClick={handleLogout}>
+              <Link to="/builder/account" className="site-header-profile" title={user?.email || "Account"}>
+                <span className="site-header-avatar" aria-hidden="true">{initial}</span>
+                <span className={`plan-badge plan-badge--${plan || "starter"}`}>{planLabel}</span>
+              </Link>
+              <button type="button" className="btn btn-sm btn-ghost site-header-logout" onClick={handleLogout}>
                 Log out
               </button>
             </>

@@ -153,7 +153,7 @@ export default function AuthForm({
 
       <p className="auth-note muted">
         {isSignup
-          ? "Free plan by default · upgrade anytime inside your account."
+          ? "Basic plan by default · upgrade anytime inside your account."
           : "Secure sign-in powered by Firebase Authentication."}
       </p>
     </div>

@@ -47,9 +47,9 @@ export default function PricingSection() {
   return (
     <Reveal className="landing-section landing-pricing" id="pricing">
       <p className="landing-pricing-eyebrow">Simple pricing</p>
-      <h2>Choose the plan that fits your career goals</h2>
+      <h2>Basic, Pro, or Business</h2>
       <p className="landing-section-sub">
-        Start free, upgrade when you need more. Secure payments powered by Stripe.
+        Start free on Basic. Upgrade to Pro or Business when you need more — monthly or yearly, cancel anytime.
       </p>
 
       <div className="landing-pricing-toggle-wrap">

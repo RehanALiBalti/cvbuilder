@@ -1,17 +1,18 @@
-/** Pricing tiers — mirrored in backend/billing.py */
+/** Pricing tiers — mirrored in backend/billing.py (ChatGPT-style: Basic / Pro / Business) */
+
 export const PRICING_PLANS = [
   {
     id: "starter",
-    name: "Starter",
-    description: "Perfect to try ResumeAI and build your first CV.",
+    name: "Basic",
+    description: "Free forever. Build your first CV with AI chat.",
     monthlyPrice: 0,
     yearlyPrice: 0,
     features: [
       "1 CV workspace",
       "50 AI messages / month",
-      "5 core templates",
-      "PDF preview",
-      "Basic export (1 / month)",
+      "Default template (no template picker)",
+      "PDF & Word export",
+      "Chat history saved",
     ],
     cta: "Get started free",
     highlighted: false,
@@ -19,13 +20,13 @@ export const PRICING_PLANS = [
   {
     id: "pro",
     name: "Pro",
-    description: "Everything you need to land interviews faster.",
+    description: "For job seekers who want more templates and up to 10 CVs.",
     monthlyPrice: 12,
     yearlyPrice: 96,
     features: [
-      "Unlimited CVs",
+      "Up to 10 CVs",
       "Unlimited AI chat",
-      "All 13 templates + custom themes",
+      "15 professional templates",
       "Styled PDF & Word export",
       "CV upload & profile photo",
       "Priority email support",
@@ -37,20 +38,52 @@ export const PRICING_PLANS = [
   {
     id: "business",
     name: "Business",
-    description: "For teams, recruiters, and career coaches.",
+    description: "Full access for teams, recruiters, and career coaches.",
     monthlyPrice: 29,
     yearlyPrice: 232,
     features: [
       "Everything in Pro",
+      "Unlimited CVs",
+      "All templates unlocked",
+      "Custom color themes",
       "Up to 5 team seats",
       "Cover letter & LinkedIn AI",
-      "Shared template library",
       "Dedicated onboarding",
     ],
     cta: "Upgrade to Business",
     highlighted: false,
   },
 ];
+
+/** Plan id → display label */
+export function planLabel(plan) {
+  const map = { starter: "Basic", pro: "Pro", business: "Business" };
+  return map[plan] || "Basic";
+}
+
+/** Template access by plan (Basic hides picker; Pro ≤15 presets; Business = all incl. custom) */
+export function templatesForPlan(templates, plan) {
+  const list = Array.isArray(templates) ? templates : [];
+  if (plan === "business") return list;
+  if (plan === "pro") {
+    return list.filter((t) => t.id !== "custom").slice(0, 15);
+  }
+  return [];
+}
+
+export function canUseTemplates(plan) {
+  return plan === "pro" || plan === "business";
+}
+
+export function isFreePlan(plan) {
+  return !plan || plan === "starter";
+}
+
+/** Display CV limit (Business is effectively unlimited). */
+export function formatCvLimit(maxCvs, plan) {
+  if (plan === "business" || (maxCvs != null && maxCvs >= 1000)) return "Unlimited";
+  return String(maxCvs ?? 1);
+}
 
 export function yearlySavingsPct(plan) {
   if (!plan.monthlyPrice || !plan.yearlyPrice) return 0;

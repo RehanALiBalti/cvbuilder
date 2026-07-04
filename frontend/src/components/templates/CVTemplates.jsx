@@ -445,6 +445,9 @@ const MAP = {
   startup: StartupTemplate,
   academic: AcademicTemplate,
   international: InternationalTemplate,
+  portfolio: CreativeTemplate,
+  simple: MinimalTemplate,
+  bold: StartupTemplate,
   custom: CustomTemplate,
 };
 
