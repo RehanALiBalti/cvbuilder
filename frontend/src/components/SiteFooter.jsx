@@ -13,8 +13,6 @@ export default function SiteFooter() {
         </div>
 
         <nav className="site-footer-nav" aria-label="Footer">
-          <Link to={{ pathname: "/", hash: "#pricing" }}>Pricing</Link>
-          <Link to={{ pathname: "/", hash: "#faq" }}>FAQ</Link>
           <Link to="/login">Log in</Link>
           <Link to="/signup">Sign up</Link>
         </nav>

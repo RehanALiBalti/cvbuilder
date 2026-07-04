@@ -22,8 +22,6 @@ export default function SiteHeader({ actions }) {
         </Link>
 
         <nav className="site-header-nav" aria-label="Main">
-          <Link to={{ pathname: "/", hash: "#pricing" }}>Pricing</Link>
-          <Link to={{ pathname: "/", hash: "#faq" }}>FAQ</Link>
           {isAuthenticated && (
             <Link to="/builder" className={pathname === "/builder" ? "is-active" : ""}>Builder</Link>
           )}
