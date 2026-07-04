@@ -28,6 +28,7 @@ import {
   removeSection,
   SECTION_PROMPTS,
   sectionLabel,
+  suggestionToSection,
 } from "../utils/cvSectionOps";
 import {
   closeDialog,
@@ -493,6 +494,12 @@ export default function CVBuilder() {
 
   function handleQuickPick(text, { send = false } = {}) {
     if (!text) return;
+    // Suggestion chips → same as + Education: ask, focus input, attach on Send
+    const section = suggestionToSection(text);
+    if (section) {
+      askForSectionDetails(section);
+      return;
+    }
     if (send) {
       sendMessage(text);
       return;
@@ -565,6 +572,10 @@ export default function CVBuilder() {
       name: "Add name",
       professional: "Professional profile",
       graduate: "Early career profile",
+      email: "Add email",
+      phone: "Add phone",
+      links: "Add profile links",
+      location: "Add location",
     };
     const title = titles[sectionId] || `Add ${sectionLabel(sectionId)}`;
 
@@ -901,7 +912,7 @@ export default function CVBuilder() {
                               type="button"
                               className="chat-quick-chip"
                               disabled={loading}
-                              onClick={() => handleQuickPick(s, { send: true })}
+                              onClick={() => handleQuickPick(s)}
                             >
                               {s}
                             </button>
@@ -932,13 +943,15 @@ export default function CVBuilder() {
                     <span>
                       Adding{" "}
                       <strong>
-                        {pendingSection === "name"
-                          ? "Name"
-                          : pendingSection === "professional"
-                            ? "Professional profile"
-                            : pendingSection === "graduate"
-                              ? "Early career"
-                              : sectionLabel(pendingSection)}
+                        {{
+                          name: "Name",
+                          professional: "Professional profile",
+                          graduate: "Early career",
+                          email: "Email",
+                          phone: "Phone",
+                          links: "Profile links",
+                          location: "Location",
+                        }[pendingSection] || sectionLabel(pendingSection)}
                       </strong>
                       {" "}— type here, then Add to CV
                     </span>

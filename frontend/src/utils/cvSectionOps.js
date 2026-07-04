@@ -46,7 +46,42 @@ export const SECTION_PROMPTS = {
     ask: "Early career — type your full name and university/college, then press Add to CV.\nExample: Hassan Ali, University of Punjab",
     placeholder: "Full name, university",
   },
+  email: {
+    ask: "Add Email — type your email address below, then press Add to CV.\nExample: you@email.com",
+    placeholder: "you@email.com",
+  },
+  phone: {
+    ask: "Add Phone — type your phone number below, then press Add to CV.\nExample: +92 300 1234567",
+    placeholder: "+92 300 1234567",
+  },
+  links: {
+    ask: "Add profile links — type LinkedIn and/or GitHub URLs (comma separated), then press Add to CV.\nExample: linkedin.com/in/yourname, github.com/yourname",
+    placeholder: "LinkedIn URL, GitHub URL",
+  },
+  location: {
+    ask: "Add Location — type your city/country, then press Add to CV.\nExample: Lahore, Pakistan",
+    placeholder: "City, Country",
+  },
 };
+
+/** Map AI suggestion text → section prompt id (for tap-to-fill flow). */
+export function suggestionToSection(text) {
+  const t = (text || "").toLowerCase();
+  if (t.includes("email")) return "email";
+  if (t.includes("phone")) return "phone";
+  if (t.includes("linkedin") || t.includes("github") || t.includes("profile url")) return "links";
+  if (t.includes("location") || t.includes("city")) return "location";
+  if (t.includes("full name") || t.includes("your name")) return "name";
+  if (t.includes("summary") || t.includes("professional summary")) return "summary";
+  if (t.includes("experience") || t.includes("achievement bullet") || t.includes("responsibilit")) return "experience";
+  if (t.includes("education") || t.includes("degree") || t.includes("institution")) return "education";
+  if (t.includes("skill")) return "skills";
+  if (t.includes("project")) return "projects";
+  if (t.includes("certif")) return "certifications";
+  if (t.includes("language")) return "languages";
+  if (t.includes("award")) return "awards";
+  return null;
+}
 
 const LABELS = {
   summary: "Summary",
@@ -378,6 +413,47 @@ export function applySectionAnswer(content, sectionId, answer) {
   if (sectionId === "name") {
     const next = { ...(content || {}), full_name: text };
     return { content: next, message: `Name set to ${text}.` };
+  }
+
+  if (sectionId === "email") {
+    const email = text.replace(/^email\s*[:=]?\s*/i, "").trim();
+    const next = {
+      ...(content || {}),
+      contact: { ...(content?.contact || {}), email },
+    };
+    return { content: next, message: `Email added: ${email}.` };
+  }
+
+  if (sectionId === "phone") {
+    const phone = text.replace(/^(phone|mobile)\s*[:=]?\s*/i, "").trim();
+    const next = {
+      ...(content || {}),
+      contact: { ...(content?.contact || {}), phone },
+    };
+    return { content: next, message: `Phone added: ${phone}.` };
+  }
+
+  if (sectionId === "location") {
+    const location = text.replace(/^(location|city)\s*[:=]?\s*/i, "").trim();
+    const next = {
+      ...(content || {}),
+      contact: { ...(content?.contact || {}), location },
+    };
+    return { content: next, message: `Location added: ${location}.` };
+  }
+
+  if (sectionId === "links") {
+    const parts = text.split(/[,;\s]+/).map((p) => p.trim()).filter(Boolean);
+    const contact = { ...(content?.contact || {}) };
+    for (const part of parts) {
+      const low = part.toLowerCase();
+      if (low.includes("linkedin") || low.includes("linked.in")) contact.linkedin = part;
+      else if (low.includes("github")) contact.github = part;
+      else if (!contact.linkedin) contact.linkedin = part;
+      else if (!contact.github) contact.github = part;
+    }
+    const next = { ...(content || {}), contact };
+    return { content: next, message: "Profile link(s) added to your CV." };
   }
 
   if (sectionId === "professional") {

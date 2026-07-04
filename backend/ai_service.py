@@ -872,37 +872,45 @@ def chat_cv(
 
 
 def _suggest_missing_sections(content: CVContent) -> List[str]:
-    """Suggest missing sections — never fabricate data, only guide the user."""
+    """Short tap-friendly suggestions (frontend maps these to input prompts)."""
     suggestions: List[str] = []
     if not content.full_name.strip():
-        suggestions.append("Add your full name.")
+        suggestions.append("Add your full name")
     if not content.contact.email.strip():
-        suggestions.append("Add your email address for recruiters to contact you.")
+        suggestions.append("Add your email address")
     if not content.contact.phone.strip():
-        suggestions.append("Add a phone number (optional but recommended).")
+        suggestions.append("Add a phone number")
     if not content.summary.strip():
-        suggestions.append("Add a Professional Summary — share your role, years of experience, and top strengths.")
+        suggestions.append("Add a Professional Summary")
     if not content.experience:
-        suggestions.append("Add Work Experience — company name, job title, dates, and key responsibilities.")
+        suggestions.append("Add Work Experience")
     else:
         for exp in content.experience:
             if not exp.bullets or all(len(b.strip()) < 20 for b in exp.bullets):
-                suggestions.append(f"Add achievement bullets for {exp.role or 'your role'} at {exp.company or 'your company'}.")
+                suggestions.append("Add Work Experience")
+                break
     if not content.education:
-        suggestions.append("Add Education — degree, institution, and graduation year.")
+        suggestions.append("Add Education")
     if not content.skills and not content.skill_groups:
-        suggestions.append("Add Skills — technical and soft skills relevant to your target role.")
+        suggestions.append("Add Skills")
     if not content.projects:
         role = (content.job_title or "").lower()
         if any(k in role for k in ("developer", "engineer", "software", "data", "devops")):
-            suggestions.append("Consider adding Projects — share 1-2 projects with tech stack and impact.")
+            suggestions.append("Add Projects")
     if not content.certifications:
-        suggestions.append("Add Certifications if you have any (e.g. AWS, PMP) — only real ones.")
+        suggestions.append("Add Certifications")
     if not content.languages:
-        suggestions.append("Add Languages with proficiency (e.g. English — Fluent, Urdu — Native).")
+        suggestions.append("Add Languages")
     if not content.contact.linkedin.strip() and not content.contact.github.strip():
-        suggestions.append("Add LinkedIn or GitHub profile URL for a stronger professional presence.")
-    return suggestions
+        suggestions.append("Add LinkedIn or GitHub profile URL")
+    # de-dupe while preserving order
+    seen: set[str] = set()
+    unique: List[str] = []
+    for s in suggestions:
+        if s not in seen:
+            seen.add(s)
+            unique.append(s)
+    return unique[:6]
 
 
 def _detect_missing_fields(content: CVContent) -> List[str]:
