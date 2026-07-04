@@ -432,6 +432,234 @@ export function InternationalTemplate({ cv }) {
   );
 }
 
+/* Slate — left accent rail */
+export function SlateTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-slate">
+      <div className="tpl-slate-rail" aria-hidden="true" />
+      <div className="tpl-slate-body">
+        <header className="tpl-slate-header">
+          <HeaderWithPhoto cv={cv}>
+            <h1>{c.full_name || "Your Name"}</h1>
+            <p className="tpl-job">{c.job_title}</p>
+            <p className="tpl-contact">{contact.join(" · ")}</p>
+          </HeaderWithPhoto>
+        </header>
+        <MainSections c={c} />
+      </div>
+    </div>
+  );
+}
+
+/* Nordic — airy ice blue */
+export function NordicTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-nordic">
+      <header className="tpl-nordic-header">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+        </HeaderWithPhoto>
+        <div className="tpl-nordic-contact">
+          {contact.map((line, i) => <span key={i}>{line}</span>)}
+        </div>
+      </header>
+      <MainSections c={c} />
+    </div>
+  );
+}
+
+/* Metro — urban dividers */
+export function MetroTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-metro">
+      <header className="tpl-metro-header">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join("  |  ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <MainSections c={c} classPrefix="tpl-metro-" />
+    </div>
+  );
+}
+
+/* Luxe — premium dark header */
+export function LuxeTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-luxe">
+      <header className="tpl-luxe-header">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join("  ·  ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <div className="tpl-luxe-body">
+        <MainSections c={c} />
+      </div>
+    </div>
+  );
+}
+
+/* Horizon — wide sky band */
+export function HorizonTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-horizon">
+      <header className="tpl-horizon-band">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" · ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <MainSections c={c} classPrefix="tpl-horizon-" />
+    </div>
+  );
+}
+
+/* Atlas — right skills sidebar */
+export function AtlasTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  const skillGroups = getSkillGroups(c);
+  const mainSections = visibleSections(c).filter((s) => !["skills", "languages", "certifications"].includes(s));
+  const sideBlocks = sectionBlocks(c, visibleSections(c).filter((s) => ["languages", "certifications"].includes(s)));
+
+  return (
+    <div className="tpl tpl-atlas">
+      <main className="tpl-atlas-main">
+        <header className="tpl-atlas-header">
+          <HeaderWithPhoto cv={cv}>
+            <h1>{c.full_name || "Your Name"}</h1>
+            <p className="tpl-job">{c.job_title}</p>
+            <p className="tpl-contact">{contact.join(" · ")}</p>
+          </HeaderWithPhoto>
+        </header>
+        <MainSections c={{ ...c, section_order: mainSections, skills: [], languages: [], certifications: [] }} />
+      </main>
+      <aside className="tpl-atlas-side">
+        {skillGroups.length > 0 && (
+          <div className="tpl-side-block">
+            <h4>Skills</h4>
+            <SkillsGrouped groups={skillGroups} />
+          </div>
+        )}
+        {sideBlocks.map((b, i) => (
+          <div key={i} className="tpl-side-block">
+            <h4>{b.title}</h4>
+            {(b.type === "languages" || b.type === "certifications") && (
+              <ul className="tpl-side-list">{b.items.map((x, j) => <li key={j}>{x}</li>)}</ul>
+            )}
+          </div>
+        ))}
+      </aside>
+    </div>
+  );
+}
+
+/* Prism — indigo cards */
+export function PrismTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  const blocks = sectionBlocks(c, visibleSections(c));
+  return (
+    <div className="tpl tpl-prism">
+      <header className="tpl-prism-header">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" · ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <div className="tpl-prism-grid">
+        {blocks.map((block, i) => (
+          <section key={i} className="tpl-prism-card">
+            <h3>{block.title}</h3>
+            <BlockContent block={block} />
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Summit — forest leadership */
+export function SummitTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-summit">
+      <header className="tpl-summit-header">
+        <HeaderWithPhoto cv={cv} className="tpl-header-with-photo--center">
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <div className="tpl-summit-rule" />
+          <p className="tpl-contact">{contact.join("  ·  ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <MainSections c={c} />
+    </div>
+  );
+}
+
+/* Nova — contemporary violet */
+export function NovaTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-nova">
+      <header className="tpl-nova-header">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" · ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <MainSections c={c} classPrefix="tpl-nova-" />
+    </div>
+  );
+}
+
+/* Apex — sharp charcoal ATS */
+export function ApexTemplate({ cv }) {
+  const c = cv.content;
+  if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
+  const contact = getContactLine(c.contact);
+  return (
+    <div className="tpl tpl-apex">
+      <header className="tpl-apex-header">
+        <HeaderWithPhoto cv={cv}>
+          <h1>{c.full_name || "Your Name"}</h1>
+          <p className="tpl-job">{c.job_title}</p>
+          <p className="tpl-contact">{contact.join(" | ")}</p>
+        </HeaderWithPhoto>
+      </header>
+      <MainSections c={c} />
+    </div>
+  );
+}
+
 const MAP = {
   professional: ProfessionalTemplate,
   modern: ModernTemplate,
@@ -448,10 +676,20 @@ const MAP = {
   portfolio: CreativeTemplate,
   simple: MinimalTemplate,
   bold: StartupTemplate,
+  slate: SlateTemplate,
+  nordic: NordicTemplate,
+  metro: MetroTemplate,
+  luxe: LuxeTemplate,
+  horizon: HorizonTemplate,
+  atlas: AtlasTemplate,
+  prism: PrismTemplate,
+  summit: SummitTemplate,
+  nova: NovaTemplate,
+  apex: ApexTemplate,
   custom: CustomTemplate,
 };
 
-/* 13 — Custom: user-defined theme (via chat) */
+/* Custom: user-defined theme (via chat) */
 export function CustomTemplate({ cv }) {
   const c = cv.content;
   if (!hasCvContent(c)) return <EmptyPreview cv={cv} />;
