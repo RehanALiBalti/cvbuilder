@@ -12,27 +12,17 @@ export default function SiteHeader({ actions }) {
   }
 
   const initial = (user?.name || user?.email || "U").charAt(0).toUpperCase();
+  const onBuilderApp = pathname === "/builder" || pathname.startsWith("/builder/");
 
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <Link to="/" className="landing-logo">
+        <Link to={isAuthenticated ? "/builder" : "/"} className="landing-logo">
           <span className="landing-logo-mark">CV</span>
           <span>ResumeAI</span>
         </Link>
 
-        <nav className="site-header-nav" aria-label="Main">
-          {isAuthenticated && (
-            <Link to="/builder" className={pathname === "/builder" ? "is-active" : ""}>Builder</Link>
-          )}
-          {isAuthenticated && (
-            <Link to="/builder/account" className={pathname.startsWith("/builder/account") ? "is-active" : ""}>
-              Account
-            </Link>
-          )}
-        </nav>
-
-        <div className="site-header-actions">
+        <div className={`site-header-actions ${onBuilderApp ? "site-header-actions--grow" : ""}`}>
           {actions}
           {isAuthenticated ? (
             <>
