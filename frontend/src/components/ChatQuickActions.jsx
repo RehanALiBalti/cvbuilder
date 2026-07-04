@@ -1,47 +1,35 @@
-const STARTER_PROMPTS = [
-  { label: "Start with my name", text: "My name is " },
-  { label: "I'm a developer", text: "I am a software developer with 3 years of experience in Python and React." },
-  { label: "Fresh graduate", text: "I am a fresh graduate looking for an entry-level role. Help me build a strong CV." },
-  { label: "Upload tip", text: "How do I import my existing resume?" },
-];
+import { sectionHasData } from "../utils/cvSectionOps";
 
 const ADD_ACTIONS = [
-  { id: "education", label: "+ Education", text: "Add education to my CV" },
-  { id: "experience", label: "+ Experience", text: "Add work experience to my CV" },
-  { id: "skills", label: "+ Skills", text: "Add skills to my CV" },
-  { id: "projects", label: "+ Projects", text: "Add projects to my CV" },
-  { id: "languages", label: "+ Languages", text: "Add languages to my CV" },
-  { id: "certifications", label: "+ Certificates", text: "Add certifications to my CV" },
-  { id: "summary", label: "+ Summary", text: "Write a professional summary for my CV" },
+  { id: "education", label: "+ Education" },
+  { id: "experience", label: "+ Experience" },
+  { id: "skills", label: "+ Skills" },
+  { id: "projects", label: "+ Projects" },
+  { id: "languages", label: "+ Languages" },
+  { id: "certifications", label: "+ Certificates" },
+  { id: "summary", label: "+ Summary" },
 ];
 
 const REMOVE_ACTIONS = [
-  { id: "certifications", label: "− Certificates", text: "Remove certifications from my CV" },
-  { id: "projects", label: "− Projects", text: "Remove projects from my CV" },
-  { id: "languages", label: "− Languages", text: "Remove languages from my CV" },
-  { id: "awards", label: "− Awards", text: "Remove awards from my CV" },
-  { id: "summary", label: "− Summary", text: "Remove summary from my CV" },
+  { id: "certifications", label: "− Certificates" },
+  { id: "projects", label: "− Projects" },
+  { id: "languages", label: "− Languages" },
+  { id: "awards", label: "− Awards" },
+  { id: "summary", label: "− Summary" },
+  { id: "experience", label: "− Experience" },
+  { id: "education", label: "− Education" },
+  { id: "skills", label: "− Skills" },
 ];
 
-const EXTRA_ACTIONS = [
-  { label: "Improve summary", text: "Improve my professional summary" },
-  { label: "Make it professional", text: "Make my CV more professional and ATS-friendly" },
-  { label: "Download PDF", text: "Download PDF" },
-];
-
-function sectionHasData(content, id) {
-  if (!content) return false;
-  if (id === "summary") return Boolean(content.summary?.trim());
-  if (id === "skills") return Boolean(content.skills?.length || content.skill_groups?.length);
-  const val = content[id];
-  return Array.isArray(val) ? val.length > 0 : Boolean(val);
-}
-
+/**
+ * onAction({ type, section?, starter?, fillText? })
+ * type: add | remove | polish | download | fill | starter
+ */
 export default function ChatQuickActions({
   content,
   messagesEmpty,
   disabled,
-  onPick,
+  onAction,
 }) {
   const removeActions = REMOVE_ACTIONS.filter((a) => sectionHasData(content, a.id));
   const addActions = ADD_ACTIONS.filter((a) => {
@@ -53,25 +41,38 @@ export default function ChatQuickActions({
     <div className="chat-quick-actions">
       {messagesEmpty && (
         <div className="chat-quick-group">
-          <span className="chat-quick-label">Quick start</span>
+          <span className="chat-quick-label">Quick start · instant</span>
           <div className="chat-quick-chips">
-            {STARTER_PROMPTS.map((a) => (
-              <button
-                key={a.label}
-                type="button"
-                className="chat-quick-chip chat-quick-chip--start"
-                disabled={disabled}
-                onClick={() => onPick(a.text, { send: !a.text.endsWith(" ") })}
-              >
-                {a.label}
-              </button>
-            ))}
+            <button
+              type="button"
+              className="chat-quick-chip chat-quick-chip--start"
+              disabled={disabled}
+              onClick={() => onAction({ type: "fill", fillText: "My name is " })}
+            >
+              Start with my name
+            </button>
+            <button
+              type="button"
+              className="chat-quick-chip chat-quick-chip--start"
+              disabled={disabled}
+              onClick={() => onAction({ type: "starter", starter: "developer" })}
+            >
+              I&apos;m a developer
+            </button>
+            <button
+              type="button"
+              className="chat-quick-chip chat-quick-chip--start"
+              disabled={disabled}
+              onClick={() => onAction({ type: "starter", starter: "graduate" })}
+            >
+              Fresh graduate
+            </button>
           </div>
         </div>
       )}
 
       <div className="chat-quick-group">
-        <span className="chat-quick-label">Add section</span>
+        <span className="chat-quick-label">Add section · instant</span>
         <div className="chat-quick-chips">
           {addActions.map((a) => (
             <button
@@ -79,7 +80,7 @@ export default function ChatQuickActions({
               type="button"
               className="chat-quick-chip chat-quick-chip--add"
               disabled={disabled}
-              onClick={() => onPick(a.text, { send: true })}
+              onClick={() => onAction({ type: "add", section: a.id })}
             >
               {a.label}
             </button>
@@ -89,7 +90,7 @@ export default function ChatQuickActions({
 
       {removeActions.length > 0 && (
         <div className="chat-quick-group">
-          <span className="chat-quick-label">Remove section</span>
+          <span className="chat-quick-label">Remove section · instant</span>
           <div className="chat-quick-chips">
             {removeActions.map((a) => (
               <button
@@ -97,7 +98,7 @@ export default function ChatQuickActions({
                 type="button"
                 className="chat-quick-chip chat-quick-chip--remove"
                 disabled={disabled}
-                onClick={() => onPick(a.text, { send: true })}
+                onClick={() => onAction({ type: "remove", section: a.id })}
               >
                 {a.label}
               </button>
@@ -106,24 +107,27 @@ export default function ChatQuickActions({
         </div>
       )}
 
-      {!messagesEmpty && (
-        <div className="chat-quick-group">
-          <span className="chat-quick-label">More</span>
-          <div className="chat-quick-chips">
-            {EXTRA_ACTIONS.map((a) => (
-              <button
-                key={a.label}
-                type="button"
-                className="chat-quick-chip"
-                disabled={disabled}
-                onClick={() => onPick(a.text, { send: true })}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
+      <div className="chat-quick-group">
+        <span className="chat-quick-label">AI polish · one pass</span>
+        <div className="chat-quick-chips">
+          <button
+            type="button"
+            className="chat-quick-chip chat-quick-chip--ai"
+            disabled={disabled}
+            onClick={() => onAction({ type: "polish" })}
+          >
+            Polish CV
+          </button>
+          <button
+            type="button"
+            className="chat-quick-chip"
+            disabled={disabled}
+            onClick={() => onAction({ type: "download" })}
+          >
+            Download PDF
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

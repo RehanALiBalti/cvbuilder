@@ -251,6 +251,12 @@ body {
   color: #b91c1c;
 }
 
+.chat-quick-chip--ai {
+  background: linear-gradient(135deg, #eff6ff, #ede9fe);
+  border-color: #c4b5fd;
+  color: #5b21b6;
+}
+
 .section-manager {
   margin-bottom: 14px;
   padding: 12px 14px;

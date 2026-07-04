@@ -23,6 +23,12 @@ import {
 } from "../services/chatHistory";
 import { exportCvPreview } from "../utils/exportCv";
 import {
+  addSection,
+  applyStarterProfile,
+  removeSection,
+  sectionLabel,
+} from "../utils/cvSectionOps";
+import {
   closeDialog,
   confirmDeleteCv,
   showDeleteError,
@@ -422,13 +428,88 @@ export default function CVBuilder() {
     }
   }
 
-  function handleQuickPick(text, { send = true } = {}) {
+  function appendLocalAssistant(message) {
+    if (!activeCv?.id || !message) return;
+    setMessages((prev) => {
+      const next = [...prev, { role: "assistant", content: message }];
+      persistChat(activeCv.id, next);
+      return next;
+    });
+  }
+
+  function applyContentLocally(content, message, { userNote } = {}) {
+    if (!activeCv) return;
+    const name = content.full_name ? `${content.full_name} CV` : activeCv.name;
+    const next = {
+      ...activeCv,
+      name,
+      content,
+      updated_at: new Date().toISOString(),
+    };
+    setActiveCv(next);
+    saveCv(next);
+    if (userNote) {
+      setMessages((prev) => {
+        const msgs = [
+          ...prev,
+          { role: "user", content: userNote },
+          { role: "assistant", content: message },
+        ];
+        persistChat(activeCv.id, msgs);
+        return msgs;
+      });
+    } else {
+      appendLocalAssistant(message);
+    }
+    setToast(message);
+  }
+
+  function handleQuickPick(text, { send = false } = {}) {
     if (!text) return;
     if (send) {
       sendMessage(text);
       return;
     }
     setInput(text);
+  }
+
+  function handleChatAction(action) {
+    if (!activeCv || loading || generating) return;
+    const { type, section, starter, fillText } = action || {};
+
+    if (type === "fill") {
+      setInput(fillText || "");
+      return;
+    }
+
+    if (type === "download") {
+      triggerDownload("export_pdf", activeCv);
+      return;
+    }
+
+    if (type === "add" && section) {
+      const { content, message } = addSection(activeCv.content, section);
+      applyContentLocally(content, message, { userNote: `Add ${sectionLabel(section)}` });
+      return;
+    }
+
+    if (type === "remove" && section) {
+      const { content, message } = removeSection(activeCv.content, section);
+      applyContentLocally(content, message, { userNote: `Remove ${sectionLabel(section)}` });
+      return;
+    }
+
+    if (type === "starter" && starter) {
+      const { content, message } = applyStarterProfile(activeCv.content, starter);
+      applyContentLocally(content, message, {
+        userNote: starter === "developer" ? "I'm a developer" : "Fresh graduate",
+      });
+      return;
+    }
+
+    if (type === "polish") {
+      handleGuidedGenerate(activeCv.content);
+    }
   }
 
   function handleSectionToggle(sectionId, visible) {
@@ -444,36 +525,19 @@ export default function CVBuilder() {
     };
     setActiveCv(next);
     saveCv(next);
-    setToast(visible ? `${sectionId} shown` : `${sectionId} hidden`);
+    setToast(visible ? `${sectionLabel(sectionId)} shown` : `${sectionLabel(sectionId)} hidden`);
   }
 
   function handleSectionAdd(sectionId) {
-    const map = {
-      summary: "Write a professional summary for my CV",
-      experience: "Add work experience to my CV",
-      education: "Add education to my CV",
-      projects: "Add projects to my CV",
-      skills: "Add skills to my CV",
-      certifications: "Add certifications to my CV",
-      languages: "Add languages to my CV",
-      awards: "Add awards to my CV",
-    };
-    handleSectionToggle(sectionId, true);
-    sendMessage(map[sectionId] || `Add ${sectionId} to my CV`);
+    if (!activeCv) return;
+    const { content, message } = addSection(activeCv.content, sectionId);
+    applyContentLocally(content, message, { userNote: `Add ${sectionLabel(sectionId)}` });
   }
 
   function handleSectionRemove(sectionId) {
-    const map = {
-      summary: "Remove summary from my CV",
-      experience: "Remove experience from my CV",
-      education: "Remove education from my CV",
-      projects: "Remove projects from my CV",
-      skills: "Remove skills from my CV",
-      certifications: "Remove certifications from my CV",
-      languages: "Remove languages from my CV",
-      awards: "Remove awards from my CV",
-    };
-    sendMessage(map[sectionId] || `Remove ${sectionId} from my CV`);
+    if (!activeCv) return;
+    const { content, message } = removeSection(activeCv.content, sectionId);
+    applyContentLocally(content, message, { userNote: `Remove ${sectionLabel(sectionId)}` });
   }
 
   function handleGuidedLiveUpdate(content) {
@@ -801,8 +865,8 @@ export default function CVBuilder() {
                 <ChatQuickActions
                   content={activeCv.content}
                   messagesEmpty={messages.length === 0}
-                  disabled={loading || exporting}
-                  onPick={handleQuickPick}
+                  disabled={loading || exporting || generating}
+                  onAction={handleChatAction}
                 />
                 <UploadBar
                   disabled={loading || exporting}
