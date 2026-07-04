@@ -1,5 +1,53 @@
 /** Instant CV section edits — no AI required. Role-aware professional placeholders. */
 
+/** Prompts shown when user clicks any + section / starter button. */
+export const SECTION_PROMPTS = {
+  education: {
+    ask: "Add Education — type your details below, then press Add to CV.\nExample: BSCS, University of Punjab, 2024",
+    placeholder: "Degree, school/university, year",
+  },
+  experience: {
+    ask: "Add Experience — type your job details below, then press Add to CV.\nExample: Software Engineer at Acme Corp, 2021–Present. Built customer portal.",
+    placeholder: "Role at Company, years. What you did…",
+  },
+  skills: {
+    ask: "Add Skills — type your skills separated by commas, then press Add to CV.\nExample: Communication, Leadership, Excel, Project management",
+    placeholder: "Skill 1, Skill 2, Skill 3",
+  },
+  projects: {
+    ask: "Add Project — type the project name and a short description, then press Add to CV.\nExample: Inventory app — tracked stock for a local shop",
+    placeholder: "Project name — short description",
+  },
+  languages: {
+    ask: "Add Languages — type languages separated by commas, then press Add to CV.\nExample: English, Urdu, Arabic",
+    placeholder: "English, Urdu",
+  },
+  certifications: {
+    ask: "Add Certificate — type the certificate name (and issuer if any), then press Add to CV.\nExample: Google Digital Marketing, Google",
+    placeholder: "Certificate name, issuer",
+  },
+  summary: {
+    ask: "Add Summary — write 2–3 lines about yourself and your goals, then press Add to CV.",
+    placeholder: "I am a … with experience in …",
+  },
+  awards: {
+    ask: "Add Award — type the award or achievement, then press Add to CV.",
+    placeholder: "Award or achievement name",
+  },
+  name: {
+    ask: "Type your full name below, then press Add to CV.\nExample: Ali Khan",
+    placeholder: "Your full name",
+  },
+  professional: {
+    ask: "Professional profile — type your full name and job title, then press Add to CV.\nExample: Sara Ahmed, Marketing Manager",
+    placeholder: "Full name, job title",
+  },
+  graduate: {
+    ask: "Early career — type your full name and university/college, then press Add to CV.\nExample: Hassan Ali, University of Punjab",
+    placeholder: "Full name, university",
+  },
+};
+
 const LABELS = {
   summary: "Summary",
   experience: "Experience",
@@ -310,4 +358,198 @@ export function applyStarterProfile(content, kind) {
     },
   };
   return { content: next, message: "Professional profile applied. Add your details, then tap Polish CV." };
+}
+
+function withSectionVisible(content, sectionId) {
+  return withVisibility(content, sectionId, true);
+}
+
+/**
+ * Attach user-typed answer to a section (no AI).
+ * Called after user clicks +Education / +Skills and fills the input.
+ */
+export function applySectionAnswer(content, sectionId, answer) {
+  const text = (answer || "").trim();
+  if (!text) {
+    return { content, message: "Please type your details, then press Add to CV." };
+  }
+
+  // Quick-start profiles collected from the input box
+  if (sectionId === "name") {
+    const next = { ...(content || {}), full_name: text };
+    return { content: next, message: `Name set to ${text}.` };
+  }
+
+  if (sectionId === "professional") {
+    const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+    const full_name = parts[0] || text;
+    const job_title = parts[1] || content?.job_title || "Professional";
+    let next = { ...(content || {}), full_name, job_title };
+    const applied = applyStarterProfile(next, "professional");
+    return {
+      content: applied.content,
+      message: `Profile saved for ${full_name} (${job_title}). Add more sections or tap Polish CV.`,
+    };
+  }
+
+  if (sectionId === "graduate") {
+    const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+    const full_name = parts[0] || text;
+    const institution = parts[1] || "University / College name";
+    let next = {
+      ...(content || {}),
+      full_name,
+      job_title: content?.job_title || "Graduate Professional",
+      education: [{
+        degree: "Bachelor's degree",
+        institution,
+        field: "",
+        start_date: "",
+        end_date: "",
+        gpa: "",
+        highlights: [],
+      }],
+    };
+    const applied = applyStarterProfile(next, "graduate");
+    return {
+      content: applied.content,
+      message: `Early-career profile saved for ${full_name}. Update education/skills or tap Polish CV.`,
+    };
+  }
+
+  let next = withSectionVisible({ ...(content || {}) }, sectionId);
+
+  if (sectionId === "summary") {
+    next.summary = text;
+    return { content: next, message: "Summary added to your CV." };
+  }
+
+  if (sectionId === "skills") {
+    const skills = text.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+    if (!skills.length) {
+      return { content, message: "Please list skills separated by commas." };
+    }
+    const merged = [...new Set([...(next.skills || []), ...skills])];
+    next.skills = merged;
+    next.skill_groups = [{ category: "Core Skills", items: merged }];
+    return { content: next, message: `Added ${skills.length} skill(s) to your CV.` };
+  }
+
+  if (sectionId === "languages") {
+    const langs = text.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+    const items = langs.map((name) => ({ name, proficiency: "" }));
+    next.languages = [...(next.languages || []).filter((l) => l?.name), ...items];
+    return { content: next, message: `Added language(s): ${langs.join(", ")}.` };
+  }
+
+  if (sectionId === "education") {
+    // "BSCS, Punjab University, 2024" or "High School from ABC School"
+    const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+    let degree = parts[0] || text;
+    let institution = parts[1] || "";
+    let end_date = parts[2] || "";
+    const fromMatch = text.match(/^(.+?)\s+from\s+(.+)$/i);
+    if (fromMatch) {
+      degree = fromMatch[1].trim();
+      institution = fromMatch[2].trim();
+    }
+    const education = [...(next.education || [])];
+    education.push({
+      degree,
+      institution,
+      field: "",
+      start_date: "",
+      end_date,
+      gpa: "",
+      highlights: [],
+    });
+    next.education = education;
+    return { content: next, message: `Education added: ${degree}${institution ? ` — ${institution}` : ""}.` };
+  }
+
+  if (sectionId === "experience") {
+    // "Software Engineer at Acme, 2021-Present. Built portal."
+    let role = "";
+    let company = "";
+    let rest = text;
+    const atMatch = text.match(/^(.+?)\s+at\s+(.+)$/i);
+    if (atMatch) {
+      role = atMatch[1].trim();
+      rest = atMatch[2].trim();
+    }
+    const bits = rest.split(/[.]/).map((b) => b.trim()).filter(Boolean);
+    const head = bits[0] || rest;
+    const headParts = head.split(",").map((p) => p.trim());
+    if (!role) {
+      role = headParts[0] || "Professional";
+      company = headParts[1] || "";
+    } else {
+      company = headParts[0] || rest;
+    }
+    // dates like 2021-Present or 2021–2024
+    let start_date = "";
+    let end_date = "Present";
+    const dateMatch = text.match(/(\d{4})\s*[-–—to]+\s*(\d{4}|present)/i);
+    if (dateMatch) {
+      start_date = dateMatch[1];
+      end_date = /present/i.test(dateMatch[2]) ? "Present" : dateMatch[2];
+    }
+    const bullets = bits.slice(1);
+    if (!bullets.length) {
+      const afterDates = text.replace(/(\d{4})\s*[-–—to]+\s*(\d{4}|present)/i, "").trim();
+      if (afterDates && afterDates !== text) {
+        const extra = afterDates.replace(/^[,.\s]+/, "");
+        if (extra.length > 10) bullets.push(extra);
+      }
+    }
+    const experience = [...(next.experience || [])];
+    experience.push({
+      company: company || "Organization",
+      role: role || defaultsRole(next),
+      location: "",
+      start_date,
+      end_date,
+      current: /present/i.test(end_date),
+      bullets: bullets.length ? bullets : ["Key responsibilities and achievements"],
+    });
+    next.experience = experience;
+    return { content: next, message: `Experience added: ${role}${company ? ` at ${company}` : ""}.` };
+  }
+
+  if (sectionId === "projects") {
+    const [namePart, ...descParts] = text.split(/[-–—]/).map((p) => p.trim());
+    const projects = [...(next.projects || [])];
+    projects.push({
+      name: namePart || text,
+      url: "",
+      technologies: [],
+      description: descParts.join(" — ") || "",
+      bullets: [],
+    });
+    next.projects = projects;
+    return { content: next, message: `Project added: ${namePart || text}.` };
+  }
+
+  if (sectionId === "certifications") {
+    const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+    const certifications = [...(next.certifications || [])];
+    certifications.push({
+      name: parts[0] || text,
+      issuer: parts[1] || "",
+      date: parts[2] || "",
+    });
+    next.certifications = certifications;
+    return { content: next, message: `Certificate added: ${parts[0] || text}.` };
+  }
+
+  if (sectionId === "awards") {
+    next.awards = [...(next.awards || []), text];
+    return { content: next, message: `Award added: ${text}.` };
+  }
+
+  return { content: next, message: `${sectionLabel(sectionId)} updated.` };
+}
+
+function defaultsRole(content) {
+  return (content?.job_title || "Professional").trim() || "Professional";
 }

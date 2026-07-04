@@ -41,7 +41,7 @@ export default function ChatQuickActions({
     <div className="chat-quick-actions">
       {messagesEmpty && (
         <div className="chat-quick-group">
-          <span className="chat-quick-label">Quick start · instant</span>
+          <span className="chat-quick-label">Quick start · type details</span>
           <div className="chat-quick-chips">
             <button
               type="button"
@@ -72,7 +72,7 @@ export default function ChatQuickActions({
       )}
 
       <div className="chat-quick-group">
-        <span className="chat-quick-label">Add section · instant</span>
+        <span className="chat-quick-label">Add section · type details</span>
         <div className="chat-quick-chips">
           {addActions.map((a) => (
             <button

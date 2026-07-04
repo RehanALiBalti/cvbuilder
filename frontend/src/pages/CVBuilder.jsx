@@ -23,9 +23,10 @@ import {
 } from "../services/chatHistory";
 import { exportCvPreview } from "../utils/exportCv";
 import {
-  addSection,
+  applySectionAnswer,
   applyStarterProfile,
   removeSection,
+  SECTION_PROMPTS,
   sectionLabel,
 } from "../utils/cvSectionOps";
 import {
@@ -94,8 +95,10 @@ export default function CVBuilder() {
   const [deletingId, setDeletingId] = useState(null);
   const [buildMode, setBuildMode] = useState("guided"); // guided | chat
   const [generating, setGenerating] = useState(false);
+  const [pendingSection, setPendingSection] = useState(null); // education | skills | ...
   const chatEndRef = useRef(null);
   const previewRef = useRef(null);
+  const inputRef = useRef(null);
 
   const activeTemplate = templates.find((t) => t.id === activeCv?.template_id) || templates[0];
 
@@ -209,6 +212,7 @@ export default function CVBuilder() {
         cv?.content?.full_name || cv?.content?.summary || cv?.content?.experience?.length,
       );
       setBuildMode(hasChat || hasContent ? "chat" : "guided");
+      setPendingSection(null);
       setView("chat");
     } catch (e) {
       setToast(e.message);
@@ -251,6 +255,7 @@ export default function CVBuilder() {
       setActiveCv(cv);
       setMessages([]);
       setBuildMode("guided");
+      setPendingSection(null);
       setView("chat");
     } catch (e) {
       const msg = e.message || "";
@@ -354,8 +359,18 @@ export default function CVBuilder() {
 
   async function sendMessage(presetText) {
     const text = (typeof presetText === "string" ? presetText : input).trim();
-    if (!text || loading || !activeCv) return;
+    if (!text || loading || !activeCv || generating) return;
     if (typeof presetText === "string") setInput("");
+
+    // Section button flow: attach typed answer to CV (no AI)
+    if (pendingSection) {
+      const sectionId = pendingSection;
+      const { content, message } = applySectionAnswer(activeCv.content, sectionId, text);
+      setPendingSection(null);
+      setInput("");
+      applyContentLocally(content, message, { userNote: text });
+      return;
+    }
 
     const userMsg = { role: "user", content: text };
     const nextHistory = [...messages, userMsg];
@@ -464,6 +479,18 @@ export default function CVBuilder() {
     setToast(message);
   }
 
+  function focusAnswerInput() {
+    const focus = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    requestAnimationFrame(focus);
+    setTimeout(focus, 50);
+    setTimeout(focus, 150);
+  }
+
   function handleQuickPick(text, { send = false } = {}) {
     if (!text) return;
     if (send) {
@@ -471,6 +498,7 @@ export default function CVBuilder() {
       return;
     }
     setInput(text);
+    focusAnswerInput();
   }
 
   function handleChatAction(action) {
@@ -478,7 +506,8 @@ export default function CVBuilder() {
     const { type, section, starter, fillText } = action || {};
 
     if (type === "fill") {
-      setInput(fillText || "");
+      // "Start with my name" — ask in the answer box
+      askForSectionDetails("name");
       return;
     }
 
@@ -487,23 +516,22 @@ export default function CVBuilder() {
       return;
     }
 
+    // Every + section button: ask → focus input → attach on Send
     if (type === "add" && section) {
-      const { content, message } = addSection(activeCv.content, section);
-      applyContentLocally(content, message, { userNote: `Add ${sectionLabel(section)}` });
+      askForSectionDetails(section);
       return;
     }
 
     if (type === "remove" && section) {
       const { content, message } = removeSection(activeCv.content, section);
+      setPendingSection(null);
       applyContentLocally(content, message, { userNote: `Remove ${sectionLabel(section)}` });
       return;
     }
 
+    // Starter profiles also collect details in the focused input
     if (type === "starter" && starter) {
-      const { content, message } = applyStarterProfile(activeCv.content, starter);
-      applyContentLocally(content, message, {
-        userNote: starter === "graduate" ? "Early career profile" : "Professional profile",
-      });
+      askForSectionDetails(starter === "graduate" ? "graduate" : "professional");
       return;
     }
 
@@ -528,15 +556,41 @@ export default function CVBuilder() {
     setToast(visible ? `${sectionLabel(sectionId)} shown` : `${sectionLabel(sectionId)} hidden`);
   }
 
-  function handleSectionAdd(sectionId) {
+  function askForSectionDetails(sectionId) {
     if (!activeCv) return;
-    const { content, message } = addSection(activeCv.content, sectionId);
-    applyContentLocally(content, message, { userNote: `Add ${sectionLabel(sectionId)}` });
+    const prompt = SECTION_PROMPTS[sectionId];
+    if (!prompt) return;
+
+    const titles = {
+      name: "Add name",
+      professional: "Professional profile",
+      graduate: "Early career profile",
+    };
+    const title = titles[sectionId] || `Add ${sectionLabel(sectionId)}`;
+
+    setPendingSection(sectionId);
+    setInput("");
+    setMessages((prev) => {
+      const next = [
+        ...prev,
+        { role: "user", content: title },
+        { role: "assistant", content: prompt.ask },
+      ];
+      persistChat(activeCv.id, next);
+      return next;
+    });
+    setToast("Type in the box below, then Add to CV");
+    focusAnswerInput();
+  }
+
+  function handleSectionAdd(sectionId) {
+    askForSectionDetails(sectionId);
   }
 
   function handleSectionRemove(sectionId) {
     if (!activeCv) return;
     const { content, message } = removeSection(activeCv.content, sectionId);
+    setPendingSection(null);
     applyContentLocally(content, message, { userNote: `Remove ${sectionLabel(sectionId)}` });
   }
 
@@ -869,31 +923,66 @@ export default function CVBuilder() {
                   onAction={handleChatAction}
                 />
                 <UploadBar
-                  disabled={loading || exporting}
+                  disabled={loading || exporting || generating}
                   onCvUpload={handleCvUpload}
                   onPhotoUpload={handlePhotoUpload}
                 />
+                {pendingSection && (
+                  <div className="chat-pending-bar">
+                    <span>
+                      Adding{" "}
+                      <strong>
+                        {pendingSection === "name"
+                          ? "Name"
+                          : pendingSection === "professional"
+                            ? "Professional profile"
+                            : pendingSection === "graduate"
+                              ? "Early career"
+                              : sectionLabel(pendingSection)}
+                      </strong>
+                      {" "}— type here, then Add to CV
+                    </span>
+                    <button
+                      type="button"
+                      className="chat-pending-cancel"
+                      onClick={() => {
+                        setPendingSection(null);
+                        setInput("");
+                        appendLocalAssistant("Cancelled. Tap a section button whenever you are ready.");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
                 <div className="chat-input-row">
                   <textarea
-                    className="chat-input"
+                    ref={inputRef}
+                    className={`chat-input ${pendingSection ? "chat-input--pending" : ""}`}
                     rows={2}
-                    placeholder="Type anything… e.g. My name is Sara, add education, remove certificates"
+                    placeholder={
+                      pendingSection
+                        ? (SECTION_PROMPTS[pendingSection]?.placeholder || "Type your details…")
+                        : "Type anything… e.g. My name is Sara"
+                    }
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={onKeyDown}
-                    disabled={loading}
+                    disabled={loading || generating}
                   />
                   <button
                     type="button"
                     className={`btn btn-primary chat-send builder-btn-glow ${loading ? "is-loading" : ""}`}
                     onClick={sendMessage}
-                    disabled={loading || !input.trim()}
+                    disabled={loading || generating || !input.trim()}
                   >
                     {loading ? (
                       <>
                         <span className="btn-spinner" aria-hidden="true" />
                         <span>Wait</span>
                       </>
+                    ) : pendingSection ? (
+                      "Add to CV"
                     ) : (
                       "Send"
                     )}

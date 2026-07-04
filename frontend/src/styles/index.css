@@ -257,6 +257,38 @@ body {
   color: #5b21b6;
 }
 
+.chat-pending-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.82rem;
+  margin-bottom: 8px;
+}
+
+.chat-pending-cancel {
+  border: none;
+  background: #fff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid #93c5fd;
+}
+
+.chat-input--pending {
+  border-color: #93c5fd !important;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+
 .section-manager {
   margin-bottom: 14px;
   padding: 12px 14px;
