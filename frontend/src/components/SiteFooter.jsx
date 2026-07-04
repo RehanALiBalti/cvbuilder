@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import BrandLogo from "./BrandLogo";
 import { useAuth } from "../context/AuthContext";
 
 export default function SiteFooter() {
@@ -10,12 +11,9 @@ export default function SiteFooter() {
       <div className="site-footer-inner">
         <div className="site-footer-top">
           <div className="site-footer-brand">
-            <Link to={isAuthenticated ? "/builder" : "/"} className="landing-logo">
-              <span className="landing-logo-mark">CV</span>
-              <span>ResumeAI</span>
-            </Link>
+            <BrandLogo to={isAuthenticated ? "/builder" : "/"} className="brand-logo--footer" />
             <p className="site-footer-tagline">
-              Build standout, ATS-friendly CVs with AI — professional results in minutes.
+              AI-powered resume builder — professional CVs in minutes.
             </p>
           </div>
 
@@ -54,7 +52,7 @@ export default function SiteFooter() {
 
         <div className="site-footer-bottom">
           <p className="site-footer-copy">
-            © {year} ResumeAI. All rights reserved.
+            © {year} BuzzCVPilot. All rights reserved.
           </p>
           <p className="site-footer-meta">
             Secure payments · Your data stays private

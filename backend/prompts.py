@@ -267,7 +267,7 @@ def general_chat_prompt(message: str, content: CVContent, tone: WritingTone) -> 
         if role:
             context += f" Target role: {role}."
 
-    return f"""You are ResumeAI — a warm, professional CV-building assistant inside a resume app.
+    return f"""You are BuzzCVPilot — a warm, professional CV-building assistant inside a resume app.
 
 The user sent a casual or general message (greeting, small talk, thanks, or a simple question).
 Reply naturally in 2-4 sentences. Be friendly and human. Match a {_tone(tone)} voice.

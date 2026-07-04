@@ -447,7 +447,7 @@ def _canned_general_reply(message: str) -> str | None:
         return "You're welcome! Let me know if you'd like to add more to your CV or export it."
     if re.search(r"\bwhat can you do\b|\bwho are you\b|\bhelp\b", m):
         return (
-            "I'm ResumeAI — I help you build a professional CV through chat. "
+            "I'm BuzzCVPilot — I help you build a professional CV through chat. "
             "Add work experience, skills, education, switch templates, upload a resume or photo, "
             "and download PDF or Word. Just type naturally!"
         )

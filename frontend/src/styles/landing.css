@@ -74,6 +74,15 @@
   animation: loader-bounce 1.2s ease-in-out infinite;
 }
 
+.landing-loader-brand {
+  display: block;
+  width: min(260px, 80%);
+  height: auto;
+  margin: 0 auto 16px;
+  object-fit: contain;
+  animation: loader-bounce 1.2s ease-in-out infinite;
+}
+
 @keyframes loader-bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -645,23 +654,52 @@
 .landing-templates-section {
   background: linear-gradient(180deg, rgba(239, 246, 255, 0.5) 0%, transparent 100%);
   border-radius: 24px;
-  margin: 0 24px;
-  max-width: calc(1180px - 48px);
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1180px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.landing-templates-inner {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing-templates-inner h2 {
+  text-align: center;
+}
+
+.landing-templates-inner .landing-section-sub {
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .landing-template-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 16px;
-  max-width: 900px;
+  width: 100%;
+  max-width: 960px;
   margin: 0 auto;
+  justify-items: center;
+  justify-content: center;
 }
 
 .landing-template-card {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 10px;
+  width: 100%;
+  max-width: 140px;
+  text-align: center;
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--muted);
@@ -1312,7 +1350,11 @@
   .landing-pricing-card--featured { transform: none; }
   .landing-pricing-card--featured:hover { transform: translateY(-4px); }
   .landing-nav-links { display: none; }
-  .landing-templates-section { margin: 0 16px; }
+  .landing-templates-section {
+    margin-left: 16px;
+    margin-right: 16px;
+    max-width: none;
+  }
   .landing-cta-card { padding: 36px 24px; }
   .auth-page { grid-template-columns: 1fr; }
   .auth-panel--brand { padding: 32px 24px; min-height: auto; }

@@ -22,13 +22,30 @@ const STEPS = [
 
 const TEMPLATES = [
   { id: "professional", name: "Professional", color: "#1d4ed8" },
-  { id: "modern", name: "Modern", color: "#0f766e" },
+  { id: "modern", name: "Modern Sidebar", color: "#0f766e" },
   { id: "executive", name: "Executive", color: "#0f2744" },
-  { id: "tech", name: "Tech", color: "#0f172a" },
-  { id: "startup", name: "Startup", color: "#6366f1" },
+  { id: "minimal", name: "Minimal", color: "#475569" },
+  { id: "fresh_graduate", name: "Fresh Graduate", color: "#7c3aed" },
   { id: "creative", name: "Creative", color: "#ec4899" },
-  { id: "corporate", name: "Corporate", color: "#1e3a5f" },
+  { id: "tech", name: "Tech", color: "#0f172a" },
   { id: "elegant", name: "Elegant", color: "#c9a227" },
+  { id: "corporate", name: "Corporate", color: "#1e3a5f" },
+  { id: "startup", name: "Startup", color: "#6366f1" },
+  { id: "academic", name: "Academic", color: "#7f1d1d" },
+  { id: "international", name: "International", color: "#0369a1" },
+  { id: "portfolio", name: "Portfolio", color: "#db2777" },
+  { id: "simple", name: "Simple", color: "#334155" },
+  { id: "bold", name: "Bold", color: "#b91c1c" },
+  { id: "slate", name: "Slate", color: "#475569" },
+  { id: "nordic", name: "Nordic", color: "#0ea5e9" },
+  { id: "metro", name: "Metro", color: "#0f172a" },
+  { id: "luxe", name: "Luxe", color: "#111827" },
+  { id: "horizon", name: "Horizon", color: "#0284c7" },
+  { id: "atlas", name: "Atlas", color: "#1e40af" },
+  { id: "prism", name: "Prism", color: "#4f46e5" },
+  { id: "summit", name: "Summit", color: "#047857" },
+  { id: "nova", name: "Nova", color: "#7c3aed" },
+  { id: "apex", name: "Apex", color: "#1f2937" },
 ];
 
 const TESTIMONIALS = [
@@ -38,7 +55,7 @@ const TESTIMONIALS = [
 ];
 
 const FAQ = [
-  { q: "Is ResumeAI free to start?", a: "Yes — the Basic plan is free forever. Build your first CV and try AI chat with no credit card." },
+  { q: "Is BuzzCVPilot free to start?", a: "Yes — the Basic plan is free forever. Build your first CV and try AI chat with no credit card." },
   { q: "How does billing work?", a: "Pro and Business are billed monthly or yearly. Cancel anytime from your account." },
   { q: "What is the difference between plans?", a: "Basic includes 1 CV and a default template. Pro unlocks up to 10 CVs and 15 templates. Business unlocks unlimited CVs, all templates, and custom themes." },
   { q: "Can I upload my existing resume?", a: "Yes. Upload PDF, Word, or TXT and AI will import your content. Available on Pro and Business." },
@@ -157,20 +174,24 @@ export default function Landing() {
 
         {/* Template showcase */}
         <Reveal className="landing-section landing-templates-section">
-          <h2>Pick a design that fits your role</h2>
-          <p className="landing-section-sub">Pro unlocks 15 layouts — Business unlocks every design and custom themes.</p>
-          <div className="landing-template-grid">
-            {TEMPLATES.map((t) => (
-              <div key={t.id} className="landing-template-card">
-                <div className="landing-template-preview" style={{ "--tpl-color": t.color }}>
-                  <div className="landing-template-preview-bar" />
-                  <div className="landing-template-preview-lines">
-                    <span /><span /><span />
+          <div className="landing-templates-inner">
+            <h2>Pick a design that fits your role</h2>
+            <p className="landing-section-sub">
+              {TEMPLATES.length} professional layouts — Pro unlocks 15, Business unlocks every design and custom themes.
+            </p>
+            <div className="landing-template-grid">
+              {TEMPLATES.map((t) => (
+                <div key={t.id} className="landing-template-card">
+                  <div className="landing-template-preview" style={{ "--tpl-color": t.color }}>
+                    <div className="landing-template-preview-bar" />
+                    <div className="landing-template-preview-lines">
+                      <span /><span /><span />
+                    </div>
                   </div>
+                  <span>{t.name}</span>
                 </div>
-                <span>{t.name}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </Reveal>
 

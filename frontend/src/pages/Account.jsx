@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
+import PlanStatusBanner from "../components/PlanStatusBanner";
 import { createCheckoutSession } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { formatCvLimit, PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
@@ -112,6 +113,8 @@ export default function Account() {
   return (
     <AppLayout mainClassName="site-main--app">
       <div className="account-shell">
+        <PlanStatusBanner />
+
         {/* Profile hero */}
         <div className="account-hero">
           <UserAvatar name={user?.name} />

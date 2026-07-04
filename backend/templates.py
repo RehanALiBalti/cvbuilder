@@ -247,6 +247,31 @@ def list_templates() -> List[Dict[str, Any]]:
     return TEMPLATES
 
 
+def sync_templates_to_firestore() -> Dict[str, Any]:
+    """Upsert the full template catalog into Firestore (templates/{id})."""
+    from backend.firebase_app import get_db, is_enabled
+
+    if not is_enabled():
+        return {"ok": False, "synced": 0, "error": "Firebase not configured"}
+
+    try:
+        db = get_db()
+        batch_count = 0
+        for t in TEMPLATES:
+            db.collection("templates").document(t["id"]).set(
+                {
+                    **t,
+                    "active": True,
+                    "source": "buzzcvpilot",
+                },
+                merge=True,
+            )
+            batch_count += 1
+        return {"ok": True, "synced": batch_count}
+    except Exception as exc:
+        return {"ok": False, "synced": 0, "error": str(exc)}
+
+
 def list_templates_for_plan(plan: str) -> List[Dict[str, Any]]:
     """Basic: none (picker hidden). Pro: up to 15 presets. Business: all."""
     if plan == "business":

@@ -1,4 +1,4 @@
-"""Stripe billing — checkout sessions for ResumeAI plans (Basic / Pro / Business)."""
+"""Stripe billing — checkout sessions for BuzzCVPilot plans (Basic / Pro / Business)."""
 
 from __future__ import annotations
 
@@ -210,10 +210,142 @@ def handle_stripe_webhook(payload: bytes, sig_header: str) -> None:
                 subscription_id=session.get("subscription") or "",
                 customer_id=session.get("customer") or "",
                 status="active",
+                period_end="",
             )
-    elif event_type == "customer.subscription.deleted":
-        sub = data_object
-        metadata = _stripe_obj_to_dict(sub.get("metadata"))
-        uid = metadata.get("firebase_uid")
-        if uid:
-            user_service.downgrade_to_starter(uid)
+    elif event_type in {
+        "customer.subscription.deleted",
+        "customer.subscription.updated",
+        "invoice.payment_failed",
+        "invoice.paid",
+    }:
+        _handle_subscription_event(event_type, data_object)
+
+
+def _period_end_iso(sub: Dict[str, Any]) -> str:
+    end = sub.get("current_period_end")
+    if not end:
+        return ""
+    try:
+        from datetime import datetime, timezone
+
+        return datetime.fromtimestamp(int(end), tz=timezone.utc).isoformat()
+    except (TypeError, ValueError, OSError):
+        return ""
+
+
+def _resolve_uid(sub_or_invoice: Dict[str, Any]) -> str:
+    from backend import user_service
+
+    metadata = _stripe_obj_to_dict(sub_or_invoice.get("metadata"))
+    uid = metadata.get("firebase_uid") or ""
+    if uid:
+        return uid
+
+    sub_id = sub_or_invoice.get("id") or sub_or_invoice.get("subscription") or ""
+    customer_id = sub_or_invoice.get("customer") or ""
+    # invoice objects nest subscription differently
+    if not sub_id and isinstance(sub_or_invoice.get("lines"), dict):
+        pass
+    return user_service.find_uid_by_stripe(
+        subscription_id=str(sub_id) if sub_id and str(sub_id).startswith("sub_") else "",
+        customer_id=str(customer_id) if customer_id else "",
+    ) or ""
+
+
+def _plan_from_subscription(sub: Dict[str, Any]) -> str:
+    metadata = _stripe_obj_to_dict(sub.get("metadata"))
+    plan = metadata.get("plan_id") or ""
+    if plan in {"pro", "business", "starter"}:
+        return plan
+    return "pro"
+
+
+def _handle_subscription_event(event_type: str, obj: Dict[str, Any]) -> None:
+    from backend import user_service
+
+    # invoice.* events use invoice object; subscription.* use subscription object
+    if event_type.startswith("invoice."):
+        sub_id = obj.get("subscription") or ""
+        customer_id = obj.get("customer") or ""
+        metadata = _stripe_obj_to_dict(obj.get("metadata"))
+        uid = metadata.get("firebase_uid") or user_service.find_uid_by_stripe(
+            subscription_id=str(sub_id) if sub_id else "",
+            customer_id=str(customer_id) if customer_id else "",
+        )
+        if not uid:
+            return
+        if event_type == "invoice.payment_failed":
+            # Keep plan during grace period; mark past_due
+            user_service.set_user_plan(
+                uid,
+                user_service.get_user_doc(uid).get("plan", "pro"),
+                subscription_id=str(sub_id) if sub_id else "",
+                customer_id=str(customer_id) if customer_id else "",
+                status="past_due",
+            )
+        elif event_type == "invoice.paid":
+            doc = user_service.get_user_doc(uid)
+            plan = doc.get("plan") or "pro"
+            if plan == "starter":
+                plan = "pro"
+            user_service.set_user_plan(
+                uid,
+                plan,
+                subscription_id=str(sub_id) if sub_id else "",
+                customer_id=str(customer_id) if customer_id else "",
+                status="active",
+            )
+        return
+
+    sub = obj
+    uid = _resolve_uid(sub)
+    if not uid:
+        return
+
+    status = (sub.get("status") or "").lower()
+    period_end = _period_end_iso(sub)
+    cancel_at_period_end = bool(sub.get("cancel_at_period_end"))
+
+    if event_type == "customer.subscription.deleted" or status in {
+        "canceled",
+        "unpaid",
+        "incomplete_expired",
+    }:
+        reason = "expired" if status in {"unpaid", "incomplete_expired"} else "canceled"
+        if event_type == "customer.subscription.deleted":
+            reason = "period_ended"
+        user_service.downgrade_to_starter(uid, reason=reason)
+        return
+
+    if status == "past_due":
+        user_service.set_user_plan(
+            uid,
+            _plan_from_subscription(sub) or user_service.get_user_doc(uid).get("plan", "pro"),
+            subscription_id=sub.get("id") or "",
+            customer_id=sub.get("customer") or "",
+            status="past_due",
+            period_end=period_end,
+        )
+        return
+
+    if status in {"active", "trialing"}:
+        plan = _plan_from_subscription(sub)
+        if cancel_at_period_end:
+            user_service.set_user_plan(
+                uid,
+                plan,
+                subscription_id=sub.get("id") or "",
+                customer_id=sub.get("customer") or "",
+                status="canceling",
+                period_end=period_end,
+            )
+            user_service.mark_subscription_canceling(uid, period_end)
+        else:
+            user_service.set_user_plan(
+                uid,
+                plan,
+                subscription_id=sub.get("id") or "",
+                customer_id=sub.get("customer") or "",
+                status="active",
+                period_end=period_end,
+            )

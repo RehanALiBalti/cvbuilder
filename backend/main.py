@@ -1,9 +1,10 @@
-"""CV Builder FastAPI application."""
+"""BuzzCVPilot FastAPI application."""
 
 from __future__ import annotations
 
 import os
 import traceback
+from contextlib import asynccontextmanager
 from typing import Any, Dict
 
 from datetime import timedelta
@@ -43,10 +44,25 @@ CORS_ORIGINS = os.getenv(
     ),
 ).split(",")
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    result = storage.check_storage()
+    if not result.get("ok"):
+        print(f"[buzzcvpilot] Storage warning: {result}")
+    # Keep Firestore template catalog in sync (all designs including new ones)
+    try:
+        synced = templates.sync_templates_to_firestore()
+        print(f"[buzzcvpilot] Templates catalog: {synced}")
+    except Exception:
+        traceback.print_exc()
+    yield
+
+
 app = FastAPI(
-    title="AI CV Builder API",
-    description="AI-powered professional CV builder using Ollama Qwen",
+    title="BuzzCVPilot API",
+    description="AI-powered professional resume builder",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -67,13 +83,6 @@ async def storage_error_handler(_request: Request, exc: StorageError) -> JSONRes
     )
 
 
-@app.on_event("startup")
-def startup_check() -> None:
-    result = storage.check_storage()
-    if not result.get("ok"):
-        print(f"[cvbuilder] Storage warning: {result}")
-
-
 @app.get("/api/health")
 def health() -> Dict[str, Any]:
     ollama = ai_service.check_ollama()
@@ -82,12 +91,11 @@ def health() -> Dict[str, Any]:
     status = "ok" if disk.get("ok") else "degraded"
     return {
         "status": status,
-        "service": "cvbuilder-api",
-        "llm": "ollama",
-        "ollama_model": ai_service.get_model_name(),
-        "ollama": ollama,
+        "service": "buzzcvpilot-api",
         "storage": disk,
         "firebase": firebase,
+        "templates_count": len(templates.list_templates()),
+        "ollama": {"ok": ollama.get("ok", False)} if isinstance(ollama, dict) else {"ok": False},
     }
 
 
@@ -105,6 +113,15 @@ def _cv_or_404(user: AuthUser, cv_id: str) -> CVDocument:
 @app.get("/api/templates")
 def get_templates() -> Dict[str, Any]:
     return {"templates": templates.list_templates()}
+
+
+@app.post("/api/templates/sync")
+def sync_templates_catalog(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    """Force-sync template catalog into Firestore (admin/maintenance)."""
+    result = templates.sync_templates_to_firestore()
+    if not result.get("ok"):
+        raise HTTPException(status_code=503, detail=result.get("error") or "Sync failed")
+    return result
 
 
 @app.get("/api/user/me")

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+const LOGO_SRC = `${(import.meta.env.BASE_URL || "/").replace(/\/?$/, "/")}logo.png`;
+
 export default function LandingLoader({ onDone }) {
   const [progress, setProgress] = useState(0);
   const [fadeOut, setFadeOut] = useState(false);
@@ -24,10 +26,7 @@ export default function LandingLoader({ onDone }) {
     <div className={`landing-loader ${fadeOut ? "landing-loader--out" : ""}`} aria-live="polite">
       <div className="landing-loader-glow" />
       <div className="landing-loader-card">
-        <div className="landing-loader-logo">
-          <span>CV</span>
-        </div>
-        <h2>ResumeAI</h2>
+        <img src={LOGO_SRC} alt="BuzzCVPilot" className="landing-loader-brand" />
         <p>Preparing your CV studio…</p>
         <div className="landing-loader-bar">
           <div className="landing-loader-bar-fill" style={{ width: `${progress}%` }} />

@@ -1,6 +1,73 @@
 @import "sweetalert2/dist/sweetalert2.min.css";
 
-/* SweetAlert — match ResumeAI theme */
+/* Plan expiry / billing status banners */
+.plan-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  animation: auth-fade-up 0.35s ease;
+}
+
+.plan-status-banner strong {
+  display: inline;
+  margin-right: 4px;
+}
+
+.plan-status-banner--expired {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.plan-status-banner--canceling {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.plan-status-banner--past-due {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+
+/* Brand logo — BuzzCVPilot */
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  line-height: 0;
+}
+
+.brand-logo-img {
+  height: 40px;
+  width: auto;
+  max-width: min(220px, 52vw);
+  object-fit: contain;
+  display: block;
+}
+
+.brand-logo--footer .brand-logo-img {
+  height: 44px;
+  max-width: 240px;
+}
+
+.brand-logo-text {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+/* SweetAlert */
 .swal2-popup.cv-swal-popup,
 .swal2-popup {
   font-family: var(--font);
@@ -164,13 +231,8 @@
   max-width: 340px;
 }
 
-.site-footer .landing-logo {
-  color: #fff;
-}
-
-.site-footer .landing-logo-mark {
-  background: linear-gradient(135deg, #1d4ed8, #6366f1);
-  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
+.site-footer .brand-logo-img {
+  filter: none;
 }
 
 .site-footer-tagline {

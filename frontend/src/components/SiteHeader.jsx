@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import BrandLogo from "./BrandLogo";
 import { useAuth } from "../context/AuthContext";
 
 export default function SiteHeader({ actions }) {
@@ -17,10 +18,7 @@ export default function SiteHeader({ actions }) {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <Link to={isAuthenticated ? "/builder" : "/"} className="landing-logo">
-          <span className="landing-logo-mark">CV</span>
-          <span>ResumeAI</span>
-        </Link>
+        <BrandLogo to={isAuthenticated ? "/builder" : "/"} />
 
         <div className={`site-header-actions ${onBuilderApp ? "site-header-actions--grow" : ""}`}>
           {actions}

@@ -54,7 +54,51 @@ const DEFAULT_PROFILE = {
   ai_messages_used: 0,
   ai_messages_limit: 50,
   max_cvs: 1,
+  plan_period_end: "",
+  plan_expired: false,
+  plan_canceling: false,
 };
+
+const EXPIRED_STATUSES = new Set(["canceled", "expired", "unpaid", "incomplete_expired"]);
+
+function normalizeProfile(data = {}) {
+  let plan = data.plan || "starter";
+  let status = (data.subscription_status || (plan === "starter" ? "free" : "active")).toLowerCase();
+  const periodEnd = data.plan_period_end || "";
+
+  if (plan !== "starter" && EXPIRED_STATUSES.has(status)) {
+    plan = "starter";
+    status = "expired";
+  }
+  if (plan !== "starter" && status === "canceling" && periodEnd) {
+    const end = new Date(periodEnd);
+    if (!Number.isNaN(end.getTime()) && end <= new Date()) {
+      plan = "starter";
+      status = "expired";
+    }
+  }
+
+  const limits = {
+    starter: { max_cvs: 1, ai_messages_limit: 50 },
+    pro: { max_cvs: 10, ai_messages_limit: 100000 },
+    business: { max_cvs: 100000, ai_messages_limit: 100000 },
+  };
+  const planLimits = limits[plan] || limits.starter;
+
+  return {
+    ...data,
+    plan,
+    subscription_status: status,
+    plan_period_end: periodEnd,
+    plan_expired: status === "expired" || EXPIRED_STATUSES.has(status),
+    plan_canceling: status === "canceling",
+    max_cvs: data.max_cvs && plan !== "starter" ? data.max_cvs : planLimits.max_cvs,
+    ai_messages_limit: data.ai_messages_limit && plan !== "starter"
+      ? data.ai_messages_limit
+      : planLimits.ai_messages_limit,
+    ai_messages_used: data.ai_messages_used || 0,
+  };
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -83,19 +127,12 @@ export function AuthProvider({ children }) {
       setUser(mapped);
 
       unsubProfile = subscribeUserProfile(fbUser.uid, (data) => {
-        setProfile({
-          plan: data.plan || "starter",
-          subscription_status: data.subscription_status || "free",
-          ai_messages_used: data.ai_messages_used || 0,
-          ai_messages_limit: data.ai_messages_limit || 50,
-          max_cvs: data.max_cvs || 1,
-          ...data,
-        });
+        setProfile(normalizeProfile(data));
       });
 
       try {
         const apiProfile = await fetchUserProfile();
-        if (apiProfile?.profile) setProfile((p) => ({ ...p, ...apiProfile.profile }));
+        if (apiProfile?.profile) setProfile(normalizeProfile(apiProfile.profile));
       } catch {
         /* Firestore snapshot is fallback */
       }
@@ -121,7 +158,7 @@ export function AuthProvider({ children }) {
     async refreshProfile() {
       try {
         const data = await fetchUserProfile();
-        if (data?.profile) setProfile((p) => ({ ...p, ...data.profile }));
+        if (data?.profile) setProfile(normalizeProfile(data.profile));
       } catch {
         /* ignore */
       }

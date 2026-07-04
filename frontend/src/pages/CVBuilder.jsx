@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
+import PlanStatusBanner from "../components/PlanStatusBanner";
 import AILoadingBubble from "../components/AILoadingBubble";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
 import TemplatePicker from "../components/TemplatePicker";
@@ -497,6 +498,7 @@ export default function CVBuilder() {
       )}
 
       <div className={`builder-shell builder-shell--animated ${view === "chat" ? "builder-shell--wide" : ""}`}>
+        <PlanStatusBanner />
         <div className="builder-bg" aria-hidden="true">
           <div className="builder-bg-blob builder-bg-blob--1" />
           <div className="builder-bg-blob builder-bg-blob--2" />
