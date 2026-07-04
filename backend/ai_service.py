@@ -381,9 +381,22 @@ def _apply_generated_cv(
     return CVContent(**data)
 
 
+def _visibility_dict(data: Dict[str, Any]) -> Dict[str, bool]:
+    vis = data.get("section_visibility") or {}
+    if hasattr(vis, "model_dump"):
+        vis = vis.model_dump()
+    return dict(vis)
+
+
+def _set_section_visible(data: Dict[str, Any], section: str, visible: bool) -> None:
+    vis = _visibility_dict(data)
+    vis[section] = visible
+    data["section_visibility"] = vis
+
+
 def _apply_direct_section_edits(content: CVContent, message: str) -> tuple[CVContent, list[str]]:
     """Apply clear add/remove edits without waiting on a full CV regenerate."""
-    from backend.models import EducationItem
+    from backend.models import EducationItem, LanguageItem
 
     m = (message or "").strip().lower()
     data = content.model_dump()
@@ -402,6 +415,7 @@ def _apply_direct_section_edits(content: CVContent, message: str) -> tuple[CVCon
         elif section in data and isinstance(data.get(section), list) and data[section]:
             data[section] = []
             notes.append(f"removed {section}")
+        _set_section_visible(data, section, False)
 
     # Add high school / secondary education
     if re.search(
@@ -424,9 +438,10 @@ def _apply_direct_section_edits(content: CVContent, message: str) -> tuple[CVCon
                 ).model_dump()
             )
             data["education"] = education
+            _set_section_visible(data, "education", True)
             notes.append("added high school education")
 
-    # Generic "add education: X" / "add education X at Y"
+    # Generic "add education: X"
     edu_match = re.search(
         r"\b(?:add|include)\b[\w\s]{0,10}\beducation\b[:\s]+(.+)$",
         message or "",
@@ -438,7 +453,36 @@ def _apply_direct_section_edits(content: CVContent, message: str) -> tuple[CVCon
             education = list(data.get("education") or [])
             education.append(EducationItem(degree=detail, institution="").model_dump())
             data["education"] = education
+            _set_section_visible(data, "education", True)
             notes.append("added education")
+
+    # Enable / seed common sections from simple "add X" requests
+    add_map = [
+        ("education", r"\b(add|include)\b[\w\s]{0,16}\beducation\b", "education"),
+        ("experience", r"\b(add|include)\b[\w\s]{0,16}\b(experience|work history)\b", "experience"),
+        ("projects", r"\b(add|include)\b[\w\s]{0,16}\bprojects?\b", "projects"),
+        ("skills", r"\b(add|include)\b[\w\s]{0,16}\bskills?\b", "skills"),
+        ("languages", r"\b(add|include)\b[\w\s]{0,16}\blanguages?\b", "languages"),
+        ("certifications", r"\b(add|include)\b[\w\s]{0,16}\b(certifications?|certificates?|certs?)\b", "certifications"),
+        ("awards", r"\b(add|include)\b[\w\s]{0,16}\bawards?\b", "awards"),
+        ("summary", r"\b(add|include|write)\b[\w\s]{0,16}\b(summary|profile)\b", "summary"),
+    ]
+    for section, pattern, label in add_map:
+        if not re.search(pattern, m):
+            continue
+        _set_section_visible(data, section, True)
+        if section == "summary" and not (data.get("summary") or "").strip():
+            notes.append("enabled summary — tell me your role and strengths to fill it")
+        elif section == "skills" and not (data.get("skills") or data.get("skill_groups")):
+            notes.append("enabled skills — tell me your top skills")
+        elif section == "languages" and not data.get("languages"):
+            data["languages"] = [LanguageItem(name="English", proficiency="Fluent").model_dump()]
+            notes.append("added languages")
+        elif section in {"education", "experience", "projects", "certifications", "awards"}:
+            if not data.get(section):
+                notes.append(f"enabled {label} — share details and I will fill it in")
+            elif f"added {label}" not in notes and f"added high school education" not in notes:
+                notes.append(f"kept {label} visible")
 
     if not notes:
         return content, notes

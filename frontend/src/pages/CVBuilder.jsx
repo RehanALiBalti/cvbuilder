@@ -3,7 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import PlanStatusBanner from "../components/PlanStatusBanner";
 import AILoadingBubble from "../components/AILoadingBubble";
+import ChatQuickActions from "../components/ChatQuickActions";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
+import SectionManager from "../components/SectionManager";
 import TemplatePicker from "../components/TemplatePicker";
 import TemplateRenderer from "../components/templates/CVTemplates";
 import UploadBar from "../components/UploadBar";
@@ -334,9 +336,10 @@ export default function CVBuilder() {
     }
   }
 
-  async function sendMessage() {
-    const text = input.trim();
+  async function sendMessage(presetText) {
+    const text = (typeof presetText === "string" ? presetText : input).trim();
     if (!text || loading || !activeCv) return;
+    if (typeof presetText === "string") setInput("");
 
     const userMsg = { role: "user", content: text };
     const nextHistory = [...messages, userMsg];
@@ -407,6 +410,60 @@ export default function CVBuilder() {
       e.preventDefault();
       sendMessage();
     }
+  }
+
+  function handleQuickPick(text, { send = true } = {}) {
+    if (!text) return;
+    if (send) {
+      sendMessage(text);
+      return;
+    }
+    setInput(text);
+  }
+
+  function handleSectionToggle(sectionId, visible) {
+    if (!activeCv) return;
+    const visibility = {
+      ...(activeCv.content?.section_visibility || {}),
+      [sectionId]: visible,
+    };
+    const next = {
+      ...activeCv,
+      content: { ...activeCv.content, section_visibility: visibility },
+      updated_at: new Date().toISOString(),
+    };
+    setActiveCv(next);
+    saveCv(next);
+    setToast(visible ? `${sectionId} shown` : `${sectionId} hidden`);
+  }
+
+  function handleSectionAdd(sectionId) {
+    const map = {
+      summary: "Write a professional summary for my CV",
+      experience: "Add work experience to my CV",
+      education: "Add education to my CV",
+      projects: "Add projects to my CV",
+      skills: "Add skills to my CV",
+      certifications: "Add certifications to my CV",
+      languages: "Add languages to my CV",
+      awards: "Add awards to my CV",
+    };
+    handleSectionToggle(sectionId, true);
+    sendMessage(map[sectionId] || `Add ${sectionId} to my CV`);
+  }
+
+  function handleSectionRemove(sectionId) {
+    const map = {
+      summary: "Remove summary from my CV",
+      experience: "Remove experience from my CV",
+      education: "Remove education from my CV",
+      projects: "Remove projects from my CV",
+      skills: "Remove skills from my CV",
+      certifications: "Remove certifications from my CV",
+      languages: "Remove languages from my CV",
+      awards: "Remove awards from my CV",
+    };
+    sendMessage(map[sectionId] || `Remove ${sectionId} from my CV`);
   }
 
   async function selectTemplate(templateId) {
@@ -610,14 +667,16 @@ export default function CVBuilder() {
               <div className="account-card-head builder-chat-head">
                 <div>
                   <h2>{activeCv.name}</h2>
-                  <p>Describe your experience — AI updates your CV in real time.</p>
+                  <p>Chat naturally — or tap a button below. Your CV updates live.</p>
                 </div>
               </div>
               <div className="chat-messages">
                 {messages.length === 0 && !loading && (
-                  <p className="chat-empty-hint builder-anim builder-anim--2">
-                    Type a message to start — e.g. your name, job title, or &quot;hi&quot;.
-                  </p>
+                  <div className="chat-empty-hint builder-anim builder-anim--2">
+                    <strong>Build your CV in minutes</strong>
+                    <p>Tap a quick start button, or type something simple like:</p>
+                    <em>&quot;My name is Ali, I am a software engineer with 3 years experience.&quot;</em>
+                  </div>
                 )}
                 {messages.map((msg, i) => (
                   <div
@@ -628,10 +687,20 @@ export default function CVBuilder() {
                     <p>{msg.content}</p>
                     {msg.suggestions?.length > 0 && (
                       <div className="chat-suggestions-wrap">
-                        <p className="chat-suggestions-title">Suggestions (add real info — AI won&apos;t invent data)</p>
-                        <ul className="chat-suggestions">
-                          {msg.suggestions.map((s, j) => <li key={j}>{s}</li>)}
-                        </ul>
+                        <p className="chat-suggestions-title">Tap a suggestion to continue</p>
+                        <div className="chat-suggestion-chips">
+                          {msg.suggestions.map((s, j) => (
+                            <button
+                              key={j}
+                              type="button"
+                              className="chat-quick-chip"
+                              disabled={loading}
+                              onClick={() => handleQuickPick(s, { send: true })}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -641,6 +710,12 @@ export default function CVBuilder() {
               </div>
 
               <div className="chat-input-area">
+                <ChatQuickActions
+                  content={activeCv.content}
+                  messagesEmpty={messages.length === 0}
+                  disabled={loading || exporting}
+                  onPick={handleQuickPick}
+                />
                 <UploadBar
                   disabled={loading || exporting}
                   onCvUpload={handleCvUpload}
@@ -649,8 +724,8 @@ export default function CVBuilder() {
                 <div className="chat-input-row">
                   <textarea
                     className="chat-input"
-                    rows={3}
-                    placeholder="Type here... e.g. I'm Ali Khan, software engineer with 5 years Python experience. Or: improve summary, download PDF"
+                    rows={2}
+                    placeholder="Type anything… e.g. My name is Sara, add education, remove certificates"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={onKeyDown}
@@ -689,6 +764,13 @@ export default function CVBuilder() {
                   )}
                 </span>
               </div>
+              <SectionManager
+                content={activeCv.content}
+                disabled={loading || exporting}
+                onToggle={handleSectionToggle}
+                onAdd={handleSectionAdd}
+                onRemove={handleSectionRemove}
+              />
               {loading ? (
                 <CVPreviewSkeleton />
               ) : (
