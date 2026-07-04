@@ -98,7 +98,78 @@ def update_cv(
     return create_cv(user_id, doc)
 
 
+def _share_col():
+    return _firestore().collection("share_links")
+
+
+def enable_share(user_id: str, cv_id: str) -> Optional[CVDocument]:
+    doc = get_cv(user_id, cv_id)
+    if not doc:
+        return None
+    token = doc.share_token or uuid4().hex
+    doc.share_token = token
+    doc.is_public = True
+    doc.updated_at = datetime.utcnow().isoformat()
+    create_cv(user_id, doc)
+    _share_col().document(token).set({
+        "user_id": user_id,
+        "cv_id": cv_id,
+        "updated_at": doc.updated_at,
+    })
+    return doc
+
+
+def disable_share(user_id: str, cv_id: str) -> Optional[CVDocument]:
+    doc = get_cv(user_id, cv_id)
+    if not doc:
+        return None
+    token = doc.share_token
+    doc.share_token = None
+    doc.is_public = False
+    doc.updated_at = datetime.utcnow().isoformat()
+    create_cv(user_id, doc)
+    if token:
+        try:
+            _share_col().document(token).delete()
+        except Exception:
+            pass
+    return doc
+
+
+def get_public_cv(token: str) -> Optional[Dict[str, Any]]:
+    if not token:
+        return None
+    snap = _share_col().document(token).get()
+    if not snap.exists:
+        return None
+    meta = snap.to_dict() or {}
+    user_id = meta.get("user_id")
+    cv_id = meta.get("cv_id")
+    if not user_id or not cv_id:
+        return None
+    doc = get_cv(user_id, cv_id)
+    if not doc or not doc.is_public or doc.share_token != token:
+        return None
+    return {
+        "name": doc.name,
+        "template_id": doc.template_id,
+        "content": doc.content.model_dump(),
+        "theme_override": doc.theme_override.model_dump() if doc.theme_override else None,
+        "updated_at": doc.updated_at,
+    }
+
+
 def delete_cv(user_id: str, cv_id: str) -> bool:
+    doc = get_cv(user_id, cv_id)
+    if doc and doc.share_token:
+        try:
+            _share_col().document(doc.share_token).delete()
+        except Exception:
+            pass
+    return _delete_cv_inner(user_id, cv_id)
+
+
+def _delete_cv_inner(user_id: str, cv_id: str) -> bool:
     ref = _cvs_col(user_id).document(cv_id)
     if not ref.get().exists:
         return False
@@ -125,6 +196,8 @@ def duplicate_cv(user_id: str, cv_id: str) -> Optional[CVDocument]:
     new_id = str(uuid4())
     data["id"] = new_id
     data["name"] = f"{source.name} (Copy)"
+    data["share_token"] = None
+    data["is_public"] = False
     data["created_at"] = datetime.utcnow().isoformat()
     data["updated_at"] = data["created_at"]
     doc = CVDocument(**data)

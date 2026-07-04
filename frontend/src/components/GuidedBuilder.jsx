@@ -3,8 +3,8 @@ import { useMemo, useState } from "react";
 const STEPS = [
   { id: "basics", title: "About you", subtitle: "Name and role" },
   { id: "contact", title: "Contact", subtitle: "How recruiters reach you" },
-  { id: "experience", title: "Experience", subtitle: "Your latest job" },
-  { id: "education", title: "Education", subtitle: "School or degree" },
+  { id: "experience", title: "Experience", subtitle: "One or more jobs" },
+  { id: "education", title: "Education", subtitle: "One or more schools" },
   { id: "skills", title: "Skills", subtitle: "What you are good at" },
   { id: "extras", title: "Extras", subtitle: "Optional details" },
   { id: "finish", title: "Generate", subtitle: "One AI polish" },
@@ -49,23 +49,28 @@ export default function GuidedBuilder({
 }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(() => emptyContent(initialContent || {}));
-  const [exp, setExp] = useState(() => {
-    const e = initialContent?.experience?.[0];
-    return {
+  const emptyExp = () => ({ company: "", role: "", start_date: "", end_date: "", bullets: "" });
+  const emptyEdu = () => ({ degree: "", institution: "", end_date: "" });
+
+  const [experiences, setExperiences] = useState(() => {
+    const list = initialContent?.experience || [];
+    if (!list.length) return [emptyExp()];
+    return list.map((e) => ({
       company: e?.company || "",
       role: e?.role || "",
       start_date: e?.start_date || "",
       end_date: e?.end_date || "",
       bullets: (e?.bullets || []).join("\n"),
-    };
+    }));
   });
-  const [edu, setEdu] = useState(() => {
-    const e = initialContent?.education?.[0];
-    return {
+  const [educations, setEducations] = useState(() => {
+    const list = initialContent?.education || [];
+    if (!list.length) return [emptyEdu()];
+    return list.map((e) => ({
       degree: e?.degree || "",
       institution: e?.institution || "",
       end_date: e?.end_date || "",
-    };
+    }));
   });
   const [skillsText, setSkillsText] = useState(() => (initialContent?.skills || []).join(", "));
   const [languagesText, setLanguagesText] = useState(() =>
@@ -91,22 +96,21 @@ export default function GuidedBuilder({
       .filter(Boolean)
       .map((name) => ({ name, proficiency: "" }));
 
-    const experience = [];
-    if (exp.company || exp.role || exp.bullets.trim()) {
-      experience.push({
+    const experience = experiences
+      .filter((exp) => exp.company || exp.role || exp.bullets.trim())
+      .map((exp) => ({
         company: exp.company,
         role: exp.role,
         location: "",
         start_date: exp.start_date,
         end_date: exp.end_date,
-        current: !exp.end_date,
+        current: !exp.end_date || /present/i.test(exp.end_date),
         bullets: exp.bullets.split("\n").map((b) => b.trim()).filter(Boolean),
-      });
-    }
+      }));
 
-    const education = [];
-    if (edu.degree || edu.institution) {
-      education.push({
+    const education = educations
+      .filter((edu) => edu.degree || edu.institution)
+      .map((edu) => ({
         degree: edu.degree,
         institution: edu.institution,
         field: "",
@@ -114,8 +118,7 @@ export default function GuidedBuilder({
         end_date: edu.end_date,
         gpa: "",
         highlights: [],
-      });
-    }
+      }));
 
     const projects = [];
     if (projectText.trim()) {
@@ -254,51 +257,117 @@ export default function GuidedBuilder({
 
         {step === 2 && (
           <div className="guided-fields">
-            <label>
-              <span>Company</span>
-              <input value={exp.company} onChange={(e) => setExp((p) => ({ ...p, company: e.target.value }))} placeholder="Company name" />
-            </label>
-            <label>
-              <span>Role</span>
-              <input value={exp.role} onChange={(e) => setExp((p) => ({ ...p, role: e.target.value }))} placeholder="Your role" />
-            </label>
-            <div className="guided-row">
-              <label>
-                <span>Start</span>
-                <input value={exp.start_date} onChange={(e) => setExp((p) => ({ ...p, start_date: e.target.value }))} placeholder="2022" />
-              </label>
-              <label>
-                <span>End</span>
-                <input value={exp.end_date} onChange={(e) => setExp((p) => ({ ...p, end_date: e.target.value }))} placeholder="Present" />
-              </label>
-            </div>
-            <label>
-              <span>What did you do? (one point per line)</span>
-              <textarea
-                rows={4}
-                value={exp.bullets}
-                onChange={(e) => setExp((p) => ({ ...p, bullets: e.target.value }))}
-                placeholder={"Built features for the mobile app\nImproved page speed by 30%"}
-              />
-            </label>
-            <p className="guided-hint">You can skip this if you are a student.</p>
+            {experiences.map((exp, idx) => (
+              <div key={idx} className="guided-multi-card">
+                <div className="guided-multi-head">
+                  <strong>Job {idx + 1}</strong>
+                  {experiences.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => setExperiences((list) => list.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <label>
+                  <span>Company</span>
+                  <input
+                    value={exp.company}
+                    onChange={(e) => setExperiences((list) => list.map((row, i) => (i === idx ? { ...row, company: e.target.value } : row)))}
+                    placeholder="Company name"
+                  />
+                </label>
+                <label>
+                  <span>Role</span>
+                  <input
+                    value={exp.role}
+                    onChange={(e) => setExperiences((list) => list.map((row, i) => (i === idx ? { ...row, role: e.target.value } : row)))}
+                    placeholder="Your role"
+                  />
+                </label>
+                <div className="guided-row">
+                  <label>
+                    <span>Start</span>
+                    <input
+                      value={exp.start_date}
+                      onChange={(e) => setExperiences((list) => list.map((row, i) => (i === idx ? { ...row, start_date: e.target.value } : row)))}
+                      placeholder="2022"
+                    />
+                  </label>
+                  <label>
+                    <span>End</span>
+                    <input
+                      value={exp.end_date}
+                      onChange={(e) => setExperiences((list) => list.map((row, i) => (i === idx ? { ...row, end_date: e.target.value } : row)))}
+                      placeholder="Present"
+                    />
+                  </label>
+                </div>
+                <label>
+                  <span>What did you do? (one point per line)</span>
+                  <textarea
+                    rows={3}
+                    value={exp.bullets}
+                    onChange={(e) => setExperiences((list) => list.map((row, i) => (i === idx ? { ...row, bullets: e.target.value } : row)))}
+                    placeholder={"Led a key project\nImproved results by 20%"}
+                  />
+                </label>
+              </div>
+            ))}
+            <button type="button" className="btn btn-sm" onClick={() => setExperiences((list) => [...list, emptyExp()])}>
+              + Add another job
+            </button>
+            <p className="guided-hint">Students can skip and continue.</p>
           </div>
         )}
 
         {step === 3 && (
           <div className="guided-fields">
-            <label>
-              <span>Degree / qualification</span>
-              <input value={edu.degree} onChange={(e) => setEdu((p) => ({ ...p, degree: e.target.value }))} placeholder="BSCS / High School / Intermediate" />
-            </label>
-            <label>
-              <span>School / University</span>
-              <input value={edu.institution} onChange={(e) => setEdu((p) => ({ ...p, institution: e.target.value }))} placeholder="Institution name" />
-            </label>
-            <label>
-              <span>Year</span>
-              <input value={edu.end_date} onChange={(e) => setEdu((p) => ({ ...p, end_date: e.target.value }))} placeholder="2024" />
-            </label>
+            {educations.map((edu, idx) => (
+              <div key={idx} className="guided-multi-card">
+                <div className="guided-multi-head">
+                  <strong>Education {idx + 1}</strong>
+                  {educations.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => setEducations((list) => list.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <label>
+                  <span>Degree / qualification</span>
+                  <input
+                    value={edu.degree}
+                    onChange={(e) => setEducations((list) => list.map((row, i) => (i === idx ? { ...row, degree: e.target.value } : row)))}
+                    placeholder="BSCS / High School / Intermediate"
+                  />
+                </label>
+                <label>
+                  <span>School / University</span>
+                  <input
+                    value={edu.institution}
+                    onChange={(e) => setEducations((list) => list.map((row, i) => (i === idx ? { ...row, institution: e.target.value } : row)))}
+                    placeholder="Institution name"
+                  />
+                </label>
+                <label>
+                  <span>Year</span>
+                  <input
+                    value={edu.end_date}
+                    onChange={(e) => setEducations((list) => list.map((row, i) => (i === idx ? { ...row, end_date: e.target.value } : row)))}
+                    placeholder="2024"
+                  />
+                </label>
+              </div>
+            ))}
+            <button type="button" className="btn btn-sm" onClick={() => setEducations((list) => [...list, emptyEdu()])}>
+              + Add another school
+            </button>
           </div>
         )}
 

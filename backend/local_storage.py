@@ -189,6 +189,76 @@ def delete_cv(user_id: str, cv_id: str) -> bool:
     return True
 
 
+def _shares_path() -> str:
+    return os.path.join(DATA_DIR, "shares.json")
+
+
+def _load_shares() -> Dict[str, Any]:
+    _ensure_dirs()
+    path = _shares_path()
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_shares(data: Dict[str, Any]) -> None:
+    _ensure_dirs()
+    with open(_shares_path(), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def enable_share(user_id: str, cv_id: str) -> Optional[CVDocument]:
+    doc = get_cv(user_id, cv_id)
+    if not doc:
+        return None
+    token = doc.share_token or uuid4().hex
+    doc.share_token = token
+    doc.is_public = True
+    doc.updated_at = datetime.utcnow().isoformat()
+    create_cv(user_id, doc)
+    shares = _load_shares()
+    shares[token] = {"user_id": user_id, "cv_id": cv_id}
+    _save_shares(shares)
+    return doc
+
+
+def disable_share(user_id: str, cv_id: str) -> Optional[CVDocument]:
+    doc = get_cv(user_id, cv_id)
+    if not doc:
+        return None
+    token = doc.share_token
+    doc.share_token = None
+    doc.is_public = False
+    doc.updated_at = datetime.utcnow().isoformat()
+    create_cv(user_id, doc)
+    if token:
+        shares = _load_shares()
+        shares.pop(token, None)
+        _save_shares(shares)
+    return doc
+
+
+def get_public_cv(token: str) -> Optional[Dict[str, Any]]:
+    shares = _load_shares()
+    meta = shares.get(token)
+    if not meta:
+        return None
+    doc = get_cv(meta.get("user_id", ""), meta.get("cv_id", ""))
+    if not doc or not doc.is_public or doc.share_token != token:
+        return None
+    return {
+        "name": doc.name,
+        "template_id": doc.template_id,
+        "content": doc.content.model_dump(),
+        "theme_override": doc.theme_override.model_dump() if doc.theme_override else None,
+        "updated_at": doc.updated_at,
+    }
+
+
 def duplicate_cv(user_id: str, cv_id: str) -> Optional[CVDocument]:
     source = get_cv(user_id, cv_id)
     if not source:
@@ -197,6 +267,8 @@ def duplicate_cv(user_id: str, cv_id: str) -> Optional[CVDocument]:
     new_id = str(uuid4())
     data["id"] = new_id
     data["name"] = f"{source.name} (Copy)"
+    data["share_token"] = None
+    data["is_public"] = False
     data["created_at"] = datetime.utcnow().isoformat()
     data["updated_at"] = data["created_at"]
     doc = CVDocument(**data)

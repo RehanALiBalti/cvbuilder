@@ -134,6 +134,18 @@ export async function uploadProfilePhoto(cvId, file) {
   }, true);
 }
 
+export async function enableShare(cvId) {
+  return apiFetch(`/api/cvs/${cvId}/share`, { method: "POST" }, true);
+}
+
+export async function disableShare(cvId) {
+  return apiFetch(`/api/cvs/${cvId}/share`, { method: "DELETE" }, true);
+}
+
+export async function fetchPublicCv(token) {
+  return apiFetch(`/api/public/cvs/${token}`);
+}
+
 export async function aiChat(payload) {
   return apiFetch("/api/ai/chat", {
     method: "POST",
@@ -187,7 +199,7 @@ export async function aiCoverLetter(payload) {
   return apiFetch("/api/ai/cover-letter", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }, true);
 }
 
 export async function aiCareerGuidance(payload) {

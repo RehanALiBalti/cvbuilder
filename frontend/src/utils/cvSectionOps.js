@@ -64,6 +64,71 @@ export const SECTION_PROMPTS = {
   },
 };
 
+/** Missing fields as short next-step chips (user-friendly checklist). */
+export function getNextSteps(content) {
+  const c = content || {};
+  const steps = [];
+  if (!c.full_name?.trim()) steps.push({ section: "name", label: "Your name" });
+  if (!c.job_title?.trim()) steps.push({ section: "professional", label: "Job title" });
+  if (!c.contact?.email?.trim()) steps.push({ section: "email", label: "Email" });
+  if (!c.contact?.phone?.trim()) steps.push({ section: "phone", label: "Phone" });
+  if (!c.summary?.trim()) steps.push({ section: "summary", label: "Summary" });
+  if (!c.experience?.length) steps.push({ section: "experience", label: "Experience" });
+  if (!c.education?.length) steps.push({ section: "education", label: "Education" });
+  if (!c.skills?.length && !c.skill_groups?.length) steps.push({ section: "skills", label: "Skills" });
+  if (!c.contact?.linkedin?.trim() && !c.contact?.github?.trim()) {
+    steps.push({ section: "links", label: "LinkedIn / GitHub" });
+  }
+  return steps.slice(0, 5);
+}
+
+/**
+ * Fast path: apply simple free-text without calling AI.
+ * Returns { content, message } or null if AI is needed.
+ */
+export function tryApplyFreeTextLocally(content, text) {
+  const t = (text || "").trim();
+  if (!t) return null;
+
+  // Plain email
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) {
+    return applySectionAnswer(content, "email", t);
+  }
+
+  // Phone-like
+  if (/^[\d\s+\-().]{10,18}$/.test(t) && (t.match(/\d/g) || []).length >= 10) {
+    return applySectionAnswer(content, "phone", t);
+  }
+
+  // My name is X / I am X (short name only)
+  const nameMatch = t.match(/^(?:my name is|i am|i'm)\s+([A-Za-z][A-Za-z\s.'-]{1,40})$/i);
+  if (nameMatch) {
+    const name = nameMatch[1].trim();
+    if (!/\b(engineer|developer|manager|student|graduate|years?)\b/i.test(name)) {
+      return applySectionAnswer(content, "name", name);
+    }
+  }
+
+  // Name, Job title
+  if (/^[A-Za-z][A-Za-z\s.'-]{1,40},\s*[A-Za-z][A-Za-z\s/&-]{1,40}$/.test(t)
+    && !t.includes("@")
+    && t.length < 80) {
+    return applySectionAnswer(content, "professional", t);
+  }
+
+  // Comma-separated skills only (3+ items, no long sentences)
+  if (/^[\w.+#/& -]+(\s*,\s*[\w.+#/& -]+){2,}$/.test(t) && t.length < 140 && !/[.!?]$/.test(t)) {
+    return applySectionAnswer(content, "skills", t);
+  }
+
+  // LinkedIn / GitHub URLs
+  if (/linkedin\.com|github\.com/i.test(t) && t.length < 200) {
+    return applySectionAnswer(content, "links", t);
+  }
+
+  return null;
+}
+
 /** Map AI suggestion text → section prompt id (for tap-to-fill flow). */
 export function suggestionToSection(text) {
   const t = (text || "").toLowerCase();

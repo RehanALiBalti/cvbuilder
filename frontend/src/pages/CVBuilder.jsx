@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import PlanStatusBanner from "../components/PlanStatusBanner";
 import AILoadingBubble from "../components/AILoadingBubble";
+import AtsScoreMeter from "../components/AtsScoreMeter";
 import ChatQuickActions from "../components/ChatQuickActions";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
 import GuidedBuilder from "../components/GuidedBuilder";
@@ -25,10 +26,12 @@ import { exportCvPreview } from "../utils/exportCv";
 import {
   applySectionAnswer,
   applyStarterProfile,
+  getNextSteps,
   removeSection,
   SECTION_PROMPTS,
   sectionLabel,
   suggestionToSection,
+  tryApplyFreeTextLocally,
 } from "../utils/cvSectionOps";
 import {
   closeDialog,
@@ -40,10 +43,13 @@ import {
 } from "../utils/confirmDialog";
 import {
   aiChat,
+  aiCoverLetter,
   aiPolish,
   createCV,
   deleteCV,
+  disableShare,
   duplicateCV,
+  enableShare,
   fetchCVs,
   fetchTemplates,
   getCV,
@@ -100,11 +106,19 @@ export default function CVBuilder() {
   const chatEndRef = useRef(null);
   const previewRef = useRef(null);
   const inputRef = useRef(null);
+  const saveTimerRef = useRef(null);
+  const undoStackRef = useRef([]);
+  const [saveState, setSaveState] = useState("saved"); // saving | saved
+  const [shareUrl, setShareUrl] = useState("");
 
   const activeTemplate = templates.find((t) => t.id === activeCv?.template_id) || templates[0];
 
   useEffect(() => {
     fetchTemplates().then((d) => setTemplates(d.templates || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -161,19 +175,24 @@ export default function CVBuilder() {
     }
   }
 
-  async function saveCv(cv) {
+  function saveCv(cv) {
     if (!cv?.id) return;
-    try {
-      await updateCV(cv.id, {
-        name: cv.name,
-        template_id: cv.template_id,
-        tone: cv.tone,
-        content: cv.content,
-        theme_override: cv.theme_override ?? null,
-      });
-    } catch {
-      /* auto-save silent */
-    }
+    setSaveState("saving");
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        await updateCV(cv.id, {
+          name: cv.name,
+          template_id: cv.template_id,
+          tone: cv.tone,
+          content: cv.content,
+          theme_override: cv.theme_override ?? null,
+        });
+        setSaveState("saved");
+      } catch {
+        setSaveState("saved");
+      }
+    }, 450);
   }
 
   async function triggerDownload(type, cv) {
@@ -214,7 +233,14 @@ export default function CVBuilder() {
       );
       setBuildMode(hasChat || hasContent ? "chat" : "guided");
       setPendingSection(null);
+      if (cv?.is_public && cv?.share_token) {
+        const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
+        setShareUrl(`${window.location.origin}${base}share/${cv.share_token}`);
+      } else {
+        setShareUrl("");
+      }
       setView("chat");
+      undoStackRef.current = [];
     } catch (e) {
       setToast(e.message);
     } finally {
@@ -373,6 +399,31 @@ export default function CVBuilder() {
       return;
     }
 
+    // Fast path: email, phone, name, skills list, links — no AI wait
+    const localApply = tryApplyFreeTextLocally(activeCv.content, text);
+    if (localApply) {
+      setInput("");
+      applyContentLocally(localApply.content, localApply.message, { userNote: text });
+      return;
+    }
+
+    // Download intent without AI
+    const localExportOnly = detectExportIntent(text);
+    if (localExportOnly) {
+      setInput("");
+      setMessages((prev) => {
+        const next = [
+          ...prev,
+          { role: "user", content: text },
+          { role: "assistant", content: "Starting your download…" },
+        ];
+        persistChat(activeCv.id, next);
+        return next;
+      });
+      triggerDownload(localExportOnly, activeCv);
+      return;
+    }
+
     const userMsg = { role: "user", content: text };
     const nextHistory = [...messages, userMsg];
     setMessages(nextHistory);
@@ -397,10 +448,11 @@ export default function CVBuilder() {
 
       const action = result.data?.action || localExport;
 
+      pushUndoSnapshot(cvForChat);
       const updated = applyChatCvUpdates(cvForChat, result.data);
       setActiveCv(updated);
       cvForExport = updated;
-      await saveCv(updated);
+      saveCv(updated);
       if (result.data?.content) await loadCVs();
 
       const reply = result.data?.reply || result.message || "Done.";
@@ -453,8 +505,36 @@ export default function CVBuilder() {
     });
   }
 
+  function pushUndoSnapshot(cv = activeCv) {
+    if (!cv) return;
+    undoStackRef.current.push(JSON.parse(JSON.stringify({
+      content: cv.content,
+      name: cv.name,
+      template_id: cv.template_id,
+      theme_override: cv.theme_override ?? null,
+    })));
+    if (undoStackRef.current.length > 40) undoStackRef.current.shift();
+  }
+
+  function handleUndo() {
+    const prev = undoStackRef.current.pop();
+    if (!prev || !activeCv) {
+      setToast("Nothing to undo");
+      return;
+    }
+    const next = {
+      ...activeCv,
+      ...prev,
+      updated_at: new Date().toISOString(),
+    };
+    setActiveCv(next);
+    saveCv(next);
+    setToast("Undid last change");
+  }
+
   function applyContentLocally(content, message, { userNote } = {}) {
     if (!activeCv) return;
+    pushUndoSnapshot();
     const name = content.full_name ? `${content.full_name} CV` : activeCv.name;
     const next = {
       ...activeCv,
@@ -549,6 +629,7 @@ export default function CVBuilder() {
 
   function handleSectionToggle(sectionId, visible) {
     if (!activeCv) return;
+    pushUndoSnapshot();
     const visibility = {
       ...(activeCv.content?.section_visibility || {}),
       [sectionId]: visible,
@@ -561,6 +642,67 @@ export default function CVBuilder() {
     setActiveCv(next);
     saveCv(next);
     setToast(visible ? `${sectionLabel(sectionId)} shown` : `${sectionLabel(sectionId)} hidden`);
+  }
+
+  async function handleShareToggle() {
+    if (!activeCv) return;
+    try {
+      if (activeCv.is_public && activeCv.share_token) {
+        const res = await disableShare(activeCv.id);
+        setActiveCv(res.cv);
+        setShareUrl("");
+        setToast("Share link disabled");
+        return;
+      }
+      const res = await enableShare(activeCv.id);
+      setActiveCv(res.cv);
+      const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
+      const url = res.url?.startsWith("http")
+        ? res.url
+        : `${window.location.origin}${base}share/${res.share_token}`;
+      setShareUrl(url);
+      await navigator.clipboard?.writeText(url);
+      setToast("Share link copied");
+    } catch (e) {
+      setToast(e.message || "Could not update share link");
+    }
+  }
+
+  async function handleCoverLetter() {
+    if (!activeCv) return;
+    if (plan !== "business") {
+      const go = await showUpgradePopup({
+        title: "Business feature",
+        text: "Cover letter generation is available on the Business plan.",
+        confirmText: "View plans",
+      });
+      if (go) navigate("/builder/account");
+      return;
+    }
+    const company = window.prompt("Company name for the cover letter:", "");
+    if (company === null) return;
+    const jobTitle = window.prompt("Job title:", activeCv.content?.job_title || "") || activeCv.content?.job_title || "";
+    setGenerating(true);
+    try {
+      const result = await aiCoverLetter({
+        content: activeCv.content,
+        job_title: jobTitle,
+        company: company || "the company",
+        job_description: "",
+        tone: activeCv.tone || "professional",
+      });
+      const body = result.data?.body || result.data?.cover_letter || result.message || "Cover letter ready.";
+      setMessages((prev) => {
+        const next = [...prev, { role: "assistant", content: `Cover letter for ${company || "the role"}:\n\n${body}` }];
+        persistChat(activeCv.id, next);
+        return next;
+      });
+      setToast("Cover letter generated");
+    } catch (e) {
+      setToast(e.message || "Cover letter failed");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function askForSectionDetails(sectionId) {
@@ -623,10 +765,11 @@ export default function CVBuilder() {
     setGenerating(true);
     setToast("Polishing your CV with AI (one pass)…");
     try {
+      pushUndoSnapshot();
       const name = content.full_name ? `${content.full_name} CV` : activeCv.name;
       const draft = { ...activeCv, name, content, updated_at: new Date().toISOString() };
       setActiveCv(draft);
-      await saveCv(draft);
+      saveCv(draft);
 
       const result = await aiPolish({ content, tone: activeCv.tone || "professional" });
       if (!result.success) {
@@ -881,12 +1024,43 @@ export default function CVBuilder() {
               <div className="account-card-head builder-chat-head">
                 <div>
                   <h2>{activeCv.name}</h2>
-                  <p>Chat naturally — or tap a button below. Your CV updates live.</p>
+                  <p>Tap a step, type your answer, Add to CV — AI only when you Polish.</p>
                 </div>
-                <button type="button" className="btn btn-sm" onClick={() => setBuildMode("guided")}>
-                  Guided build
-                </button>
+                <div className="builder-chat-head-actions">
+                  <span className={`save-pill save-pill--${saveState}`}>
+                    {saveState === "saving" ? "Saving…" : "Saved"}
+                  </span>
+                  <button type="button" className="btn btn-sm" onClick={() => setBuildMode("guided")}>
+                    Guided build
+                  </button>
+                </div>
               </div>
+              {getNextSteps(activeCv.content).length > 0 && (
+                <div className="next-steps-bar">
+                  <span className="next-steps-label">Next:</span>
+                  <div className="chat-quick-chips">
+                    {getNextSteps(activeCv.content).map((step) => (
+                      <button
+                        key={step.section}
+                        type="button"
+                        className="chat-quick-chip chat-quick-chip--start"
+                        disabled={loading || generating}
+                        onClick={() => askForSectionDetails(step.section)}
+                      >
+                        {step.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="chat-quick-chip chat-quick-chip--ai"
+                      disabled={loading || generating}
+                      onClick={() => handleChatAction({ type: "polish" })}
+                    >
+                      Polish CV
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="chat-messages">
                 {messages.length === 0 && !loading && (
                   <div className="chat-empty-hint builder-anim builder-anim--2">
@@ -1001,6 +1175,12 @@ export default function CVBuilder() {
                     )}
                   </button>
                 </div>
+                <p className="chat-input-example">
+                  e.g.{" "}
+                  {pendingSection
+                    ? (SECTION_PROMPTS[pendingSection]?.placeholder || "your details")
+                    : "BSCS, Punjab University, 2024 · Communication, Leadership · you@email.com"}
+                </p>
               </div>
                 </>
               )}
@@ -1020,6 +1200,23 @@ export default function CVBuilder() {
                   )}
                 </span>
               </div>
+              <div className="preview-tools">
+                <button type="button" className="btn btn-sm" onClick={handleUndo} disabled={loading || generating}>
+                  Undo
+                </button>
+                <button type="button" className="btn btn-sm" onClick={handleShareToggle} disabled={loading || generating}>
+                  {activeCv.is_public ? "Unshare" : "Share link"}
+                </button>
+                <button type="button" className="btn btn-sm" onClick={handleCoverLetter} disabled={loading || generating}>
+                  Cover letter
+                </button>
+              </div>
+              {shareUrl && (
+                <p className="share-url-line">
+                  <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a>
+                </p>
+              )}
+              <AtsScoreMeter content={activeCv.content} />
               {buildMode === "chat" && (
                 <SectionManager
                   content={activeCv.content}

@@ -154,6 +154,8 @@ class CVDocument(BaseModel):
     tone: WritingTone = WritingTone.PROFESSIONAL
     content: CVContent = Field(default_factory=CVContent)
     theme_override: Optional[CustomTheme] = None
+    share_token: Optional[str] = None
+    is_public: bool = False
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 

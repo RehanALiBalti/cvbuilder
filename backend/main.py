@@ -210,12 +210,43 @@ def update_cv(cv_id: str, req: UpdateCVRequest, user: AuthUser = Depends(require
             raise HTTPException(403, "Custom themes are available on Business.")
         updated.theme_override = req.theme_override
 
+    # Preserve share settings unless explicitly changed elsewhere
+    updated.share_token = existing.share_token
+    updated.is_public = existing.is_public
+
     saved = storage.update_cv(
         user.uid, cv_id, updated,
         save_version=req.save_version,
         version_label=req.version_label,
     )
     return {"success": True, "cv": saved.model_dump()}
+
+
+@app.post("/api/cvs/{cv_id}/share")
+def share_cv(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    doc = storage.enable_share(user.uid, cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    base = os.getenv("CVBUILDER_PUBLIC_URL", "").rstrip("/") or ""
+    path = f"/share/{doc.share_token}"
+    url = f"{base}{path}" if base else path
+    return {"success": True, "share_token": doc.share_token, "url": url, "cv": doc.model_dump()}
+
+
+@app.delete("/api/cvs/{cv_id}/share")
+def unshare_cv(cv_id: str, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    doc = storage.disable_share(user.uid, cv_id)
+    if not doc:
+        raise HTTPException(404, "CV not found")
+    return {"success": True, "cv": doc.model_dump()}
+
+
+@app.get("/api/public/cvs/{token}")
+def public_cv(token: str) -> Dict[str, Any]:
+    data = storage.get_public_cv(token)
+    if not data:
+        raise HTTPException(404, "Shared CV not found or link is disabled")
+    return {"cv": data}
 
 
 @app.delete("/api/cvs/{cv_id}")
@@ -436,11 +467,19 @@ def ai_optimize_job(req: AIOptimizeJobRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/ai/cover-letter")
-def ai_cover_letter(req: AICoverLetterRequest) -> Dict[str, Any]:
+def ai_cover_letter(req: AICoverLetterRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    plan = user_service.get_user_plan(user.uid)
+    if plan != "business":
+        raise HTTPException(403, "Cover letter is available on the Business plan.")
+    ok, msg = user_service.check_can_send_ai(user.uid)
+    if not ok:
+        raise HTTPException(403, msg)
     result = _ai_handler(
         ai_service.generate_cover_letter,
         req.content, req.job_title, req.company, req.job_description, req.tone,
     )
+    if result.success:
+        user_service.increment_ai_usage(user.uid)
     return result.model_dump()
 
 

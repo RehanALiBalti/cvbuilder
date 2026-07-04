@@ -83,3 +83,15 @@ def list_versions(user_id: str, cv_id: str) -> List[CVVersion]:
 
 def restore_version(user_id: str, cv_id: str, version_id: str) -> Optional[CVDocument]:
     return _call(_impl().restore_version, user_id, cv_id, version_id)
+
+
+def enable_share(user_id: str, cv_id: str) -> Optional[CVDocument]:
+    return _call(_impl().enable_share, user_id, cv_id)
+
+
+def disable_share(user_id: str, cv_id: str) -> Optional[CVDocument]:
+    return _call(_impl().disable_share, user_id, cv_id)
+
+
+def get_public_cv(token: str):
+    return _call(_impl().get_public_cv, token)
