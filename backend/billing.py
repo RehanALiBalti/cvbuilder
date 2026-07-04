@@ -152,22 +152,57 @@ def create_checkout_session(
     return {"url": session.url, "session_id": session.id}
 
 
+def _stripe_obj_to_dict(obj: Any) -> Dict[str, Any]:
+    """StripeObject does not support dict.get(); normalize to a plain dict."""
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    try:
+        return dict(obj)
+    except Exception:
+        return {}
+
+
 def handle_stripe_webhook(payload: bytes, sig_header: str) -> None:
-    secret = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+    secret = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip().strip('"').strip("'")
     if not secret:
-        raise RuntimeError("STRIPE_WEBHOOK_SECRET is not set.")
+        raise RuntimeError("STRIPE_WEBHOOK_SECRET is not set on the server.")
+    if not sig_header:
+        raise ValueError(
+            "Missing Stripe-Signature header. Open this URL only via Stripe webhooks, not the browser."
+        )
+    if not payload:
+        raise ValueError("Empty webhook body.")
 
     import stripe
 
-    stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
-    event = stripe.Webhook.construct_event(payload, sig_header, secret)
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "").strip().strip('"').strip("'")
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, secret)
+    except stripe.error.SignatureVerificationError as exc:
+        raise ValueError(
+            "Invalid Stripe signature. Check STRIPE_WEBHOOK_SECRET matches the "
+            "Signing secret for this endpoint in Stripe Dashboard → Webhooks."
+        ) from exc
+    except ValueError as exc:
+        raise ValueError(f"Invalid webhook payload: {exc}") from exc
 
     from backend import user_service
 
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        uid = session.get("client_reference_id") or (session.get("metadata") or {}).get("firebase_uid")
-        plan = (session.get("metadata") or {}).get("plan_id", "pro")
+    event_data = _stripe_obj_to_dict(event)
+    event_type = event_data.get("type") or getattr(event, "type", "")
+    data_object = _stripe_obj_to_dict(_stripe_obj_to_dict(event_data.get("data")).get("object"))
+    if not data_object and hasattr(event, "data"):
+        data_object = _stripe_obj_to_dict(getattr(event.data, "object", None))
+
+    if event_type == "checkout.session.completed":
+        session = data_object
+        metadata = _stripe_obj_to_dict(session.get("metadata"))
+        uid = session.get("client_reference_id") or metadata.get("firebase_uid")
+        plan = metadata.get("plan_id") or "pro"
         if uid:
             user_service.set_user_plan(
                 uid,
@@ -176,8 +211,9 @@ def handle_stripe_webhook(payload: bytes, sig_header: str) -> None:
                 customer_id=session.get("customer") or "",
                 status="active",
             )
-    elif event["type"] == "customer.subscription.deleted":
-        sub = event["data"]["object"]
-        uid = (sub.get("metadata") or {}).get("firebase_uid")
+    elif event_type == "customer.subscription.deleted":
+        sub = data_object
+        metadata = _stripe_obj_to_dict(sub.get("metadata"))
+        uid = metadata.get("firebase_uid")
         if uid:
             user_service.downgrade_to_starter(uid)

@@ -488,8 +488,9 @@ def billing_checkout(
 
 @app.post("/api/billing/webhook")
 async def billing_webhook(request: Request) -> Dict[str, str]:
+    """Stripe sends POST with Stripe-Signature. Browser GET/POST without signature returns 400."""
     payload = await request.body()
-    sig = request.headers.get("stripe-signature", "")
+    sig = request.headers.get("stripe-signature") or request.headers.get("Stripe-Signature") or ""
     try:
         billing.handle_stripe_webhook(payload, sig)
     except RuntimeError as exc:
@@ -498,5 +499,5 @@ async def billing_webhook(request: Request) -> Dict[str, str]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         traceback.print_exc()
-        raise HTTPException(status_code=400, detail="Webhook error") from exc
+        raise HTTPException(status_code=400, detail=f"Webhook error: {exc}") from exc
     return {"status": "ok"}
