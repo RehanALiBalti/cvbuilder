@@ -44,6 +44,50 @@ Browser: **http://65.108.236.135/cvbuilder/**
 
 ---
 
+## Subdomain (`cv.buzzwaretech.com`)
+
+DNS **A record** point karein: `cv.buzzwaretech.com` → server IP (`65.108.236.135`).
+
+Server par (ek baar):
+
+```bash
+sudo SUBDOMAIN=cv.buzzwaretech.com MAIN_IP=65.108.236.135 bash /opt/cvbuilder/deploy/setup-subdomain.sh
+```
+
+Yeh script:
+- Frontend ko **root path** (`/`) par build karti hai
+- Nginx site `cv.buzzwaretech.com` enable karti hai
+- `.env` mein `CVBUILDER_PUBLIC_URL` aur CORS update karti hai
+
+Browser: **http://cv.buzzwaretech.com/**
+
+Purana IP link (`/cvbuilder/`) redirect karne ke liye `deploy/nginx-combined-subdomain-redirect.snippet` ko `nginx-combined.conf` ke andar copy karein, phir:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**Firebase:** Console → Authentication → Authorized domains → `cv.buzzwaretech.com` add karein.
+
+**HTTPS (recommended):**
+
+```bash
+sudo certbot --nginx -d cv.buzzwaretech.com
+```
+
+Phir `/opt/cvbuilder/.env`:
+
+```env
+CVBUILDER_PUBLIC_URL=https://cv.buzzwaretech.com
+CVBUILDER_CORS_ORIGINS=https://cv.buzzwaretech.com,http://65.108.236.135
+```
+
+```bash
+sudo systemctl restart cvbuilder-backend
+```
+
+---
+
 ## Standalone deploy (separate domain/IP)
 
 Recommended: Ubuntu 22.04/24.04, 4+ GB RAM (8 GB better for Ollama).
