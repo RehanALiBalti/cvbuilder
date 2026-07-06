@@ -44,47 +44,50 @@ Browser: **http://65.108.236.135/cvbuilder/**
 
 ---
 
-## Subdomain (`cv.buzzwaretech.com`)
+## Subdomain (`cv.buzzwaretech.com`) — main IP unchanged
 
-DNS **A record** point karein: `cv.buzzwaretech.com` → server IP (`65.108.236.135`).
+Same server, **do not break** existing setup:
 
-Server par (ek baar):
+| URL | App |
+|-----|-----|
+| `http://65.108.236.135/` | JAMS (unchanged) |
+| `http://65.108.236.135/cvbuilder/` | BuzzCVPilot (`frontend/dist/`) |
+| `http://cv.buzzwaretech.com/` | BuzzCVPilot (`frontend/dist-subdomain/`) |
+
+DNS: `cv.buzzwaretech.com` → `65.108.236.135`
 
 ```bash
 sudo SUBDOMAIN=cv.buzzwaretech.com MAIN_IP=65.108.236.135 bash /opt/cvbuilder/deploy/setup-subdomain.sh
 ```
 
-Yeh script:
-- Frontend ko **root path** (`/`) par build karti hai
-- Nginx site `cv.buzzwaretech.com` enable karti hai
-- `.env` mein `CVBUILDER_PUBLIC_URL` aur CORS update karti hai
+This adds a **second nginx site** + **second frontend build**. It does **not** overwrite `frontend/dist/` used by `/cvbuilder/`.
 
-Browser: **http://cv.buzzwaretech.com/**
-
-Purana IP link (`/cvbuilder/`) redirect karne ke liye `deploy/nginx-combined-subdomain-redirect.snippet` ko `nginx-combined.conf` ke andar copy karein, phir:
+After code updates:
 
 ```bash
-sudo nginx -t && sudo systemctl reload nginx
+# Main IP path
+sudo bash /opt/cvbuilder/deploy/rebuild-frontend.sh
+
+# Subdomain
+sudo bash /opt/cvbuilder/deploy/rebuild-subdomain.sh
 ```
 
-**Firebase:** Console → Authentication → Authorized domains → `cv.buzzwaretech.com` add karein.
+**Firebase:** Authorized domains → add `cv.buzzwaretech.com`
 
-**HTTPS (recommended):**
+**HTTPS:**
 
 ```bash
 sudo certbot --nginx -d cv.buzzwaretech.com
 ```
 
-Phir `/opt/cvbuilder/.env`:
+`.env`:
 
 ```env
 CVBUILDER_PUBLIC_URL=https://cv.buzzwaretech.com
 CVBUILDER_CORS_ORIGINS=https://cv.buzzwaretech.com,http://65.108.236.135
 ```
 
-```bash
-sudo systemctl restart cvbuilder-backend
-```
+Do **not** use `nginx-combined-subdomain-redirect.snippet` unless you want to remove `/cvbuilder/` on the IP.
 
 ---
 

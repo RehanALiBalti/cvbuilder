@@ -4,10 +4,15 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const base = env.VITE_BASE_PATH || "/cvbuilder/";
+  const outDir = env.VITE_OUT_DIR || "dist";
 
   return {
     plugins: [react()],
     base,
+    build: {
+      outDir,
+      emptyOutDir: true,
+    },
     server: {
       port: 5174,
       proxy: {

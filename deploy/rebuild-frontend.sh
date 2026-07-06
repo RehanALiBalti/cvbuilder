@@ -37,4 +37,5 @@ sudo -u "$APP_USER" env HOME="$APP_HOME" VITE_API_URL= npm run build
 
 chown -R "$APP_USER:$APP_USER" "$APP_DIR/frontend/dist"
 systemctl reload nginx 2>/dev/null || true
-echo "Frontend rebuilt."
+echo "Frontend rebuilt for /cvbuilder/ (dist/)."
+echo "If you use cv.buzzwaretech.com, also run: sudo bash $APP_DIR/deploy/rebuild-subdomain.sh"
