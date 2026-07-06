@@ -30,7 +30,7 @@ function emptyContent(base = {}) {
       education: true,
       projects: true,
       skills: true,
-      certifications: true,
+      certifications: false,
       languages: true,
       awards: true,
     },

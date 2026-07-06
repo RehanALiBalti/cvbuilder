@@ -65,6 +65,28 @@ export const SECTION_PROMPTS = {
 };
 
 /** Missing fields as short next-step chips (user-friendly checklist). */
+const CERT_RELEVANT_KEYWORDS = [
+  "develop", "engineer", "software", "devops", "cloud", "aws", "azure", "security",
+  "network", "it ", "data scientist", "analyst", "account", "finance", "audit",
+  "nurs", "medical", "healthcare", "pharma", "pmp", "project manag", "scrum",
+  "marketing", "google ads", "digital marketing", "hr", "human resource",
+  "quality", "iso", "compliance", "teach", "trainer",
+];
+
+/** Certifications matter for some roles — only suggest when experience supports it. */
+export function experienceSupportsCertifications(content = {}) {
+  const experience = content.experience || [];
+  if (!experience.length) return false;
+
+  const parts = [content.job_title || ""];
+  for (const exp of experience) {
+    parts.push(exp.role || "", exp.company || "");
+    parts.push(...(exp.bullets || []));
+  }
+  const blob = parts.join(" ").toLowerCase();
+  return CERT_RELEVANT_KEYWORDS.some((k) => blob.includes(k));
+}
+
 export function getNextSteps(content) {
   const c = content || {};
   const steps = [];
@@ -76,6 +98,13 @@ export function getNextSteps(content) {
   if (!c.experience?.length) steps.push({ section: "experience", label: "Experience" });
   if (!c.education?.length) steps.push({ section: "education", label: "Education" });
   if (!c.skills?.length && !c.skill_groups?.length) steps.push({ section: "skills", label: "Skills" });
+  if (
+    !c.certifications?.length
+    && experienceSupportsCertifications(c)
+    && c.section_visibility?.certifications !== false
+  ) {
+    steps.push({ section: "certifications", label: "Certificates" });
+  }
   if (!c.contact?.linkedin?.trim() && !c.contact?.github?.trim()) {
     steps.push({ section: "links", label: "LinkedIn / GitHub" });
   }
@@ -352,10 +381,10 @@ export function addSection(content, sectionId) {
   }
 
   if (sectionId === "certifications") {
-    const certifications = [...(next.certifications || [])];
-    certifications.push({ name: "Professional certification", issuer: "Issuing body", date: "" });
-    next.certifications = certifications;
-    return { content: next, message: "Certificates section added. Replace with your real credentials." };
+    return {
+      content: next,
+      message: "Certificates section enabled. Type your certificate name and issuer below, then press Add to CV.",
+    };
   }
 
   if (sectionId === "awards") {
@@ -673,6 +702,7 @@ export function applySectionAnswer(content, sectionId, answer) {
 
   if (sectionId === "certifications") {
     const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+    let next = withVisibility({ ...(content || {}) }, "certifications", true);
     const certifications = [...(next.certifications || [])];
     certifications.push({
       name: parts[0] || text,

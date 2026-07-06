@@ -13,9 +13,9 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
-from backend import ai_service, billing, export, storage, templates, upload_service, user_service
+from backend import ai_service, billing, contact_service, export, storage, templates, upload_service, user_service
 from backend.firebase_app import check_firebase, is_enabled
-from backend.firebase_auth import AuthUser, require_user
+from backend.firebase_auth import AuthUser, optional_user, require_user
 from backend.storage import StorageError
 from backend.models import (
     AIChatRequest,
@@ -32,6 +32,7 @@ from backend.models import (
     CreateCVRequest,
     CVDocument,
     CheckoutRequest,
+    ContactSubmissionRequest,
     RenameCVRequest,
     StyledExportRequest,
     UpdateCVRequest,
@@ -131,6 +132,35 @@ def get_current_user_profile(user: AuthUser = Depends(require_user)) -> Dict[str
         return {"profile": user_service.get_user_profile(user.uid)}
     except StorageError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/api/contact")
+async def submit_contact(
+    req: ContactSubmissionRequest,
+    request: Request,
+) -> Dict[str, Any]:
+    user = await optional_user(request)
+    try:
+        saved = contact_service.submit_contact(
+            name=req.name,
+            email=req.email,
+            category=req.category,
+            subject=req.subject,
+            message=req.message,
+            user_id=user.uid if user else None,
+            user_name=user.name if user else None,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Could not save your message. Please try again.") from exc
+
+    return {
+        "success": True,
+        "message": "Thank you — we received your message and will get back to you soon.",
+        "submission_id": saved["id"],
+    }
 
 
 # ---------------------------------------------------------------------------

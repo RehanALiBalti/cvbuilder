@@ -34,6 +34,7 @@ export default function SiteFooter() {
                   <span className="site-footer-col-title">Product</span>
                   <Link to="/">Home</Link>
                   <Link to="/builder">Builder</Link>
+                  <Link to="/contact">Contact us</Link>
                 </div>
               </>
             ) : (
@@ -43,6 +44,7 @@ export default function SiteFooter() {
                   <Link to="/">Home</Link>
                   <Link to={{ pathname: "/", hash: "#pricing" }}>Pricing</Link>
                   <Link to={{ pathname: "/", hash: "#faq" }}>FAQ</Link>
+                  <Link to="/contact">Contact us</Link>
                 </div>
                 <div className="site-footer-col">
                   <span className="site-footer-col-title">Get started</span>

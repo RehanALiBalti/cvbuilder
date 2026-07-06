@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import BrandLogo from "./BrandLogo";
 import { useAuth } from "../context/AuthContext";
@@ -7,15 +6,6 @@ export default function SiteHeader({ actions }) {
   const { isAuthenticated, logout, plan, planLabel, user } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("buzzcvpilot-theme") === "dark";
-  });
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("theme-dark", dark);
-    localStorage.setItem("buzzcvpilot-theme", dark ? "dark" : "light");
-  }, [dark]);
 
   async function handleLogout() {
     await logout();
@@ -32,15 +22,6 @@ export default function SiteHeader({ actions }) {
 
         <div className={`site-header-actions ${onBuilderApp ? "site-header-actions--grow" : ""}`}>
           {actions}
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost theme-toggle"
-            onClick={() => setDark((v) => !v)}
-            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-            title={dark ? "Light mode" : "Dark mode"}
-          >
-            {dark ? "Light" : "Dark"}
-          </button>
           {isAuthenticated ? (
             <>
               <Link to="/builder/account" className="site-header-profile" title={user?.email || "Account"}>

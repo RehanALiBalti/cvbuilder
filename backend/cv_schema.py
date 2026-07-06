@@ -25,9 +25,7 @@ CV_JSON_SCHEMA = """{
     {"category": "Cloud & DevOps", "items": ["AWS", "Docker"]},
     {"category": "Soft Skills", "items": ["Leadership", "Communication"]}
   ],
-  "certifications": [
-    {"name": "AWS Solutions Architect", "issuer": "Amazon", "date": "2023"}
-  ],
+  "certifications": [],
   "languages": [
     {"name": "English", "proficiency": "Fluent"},
     {"name": "Urdu", "proficiency": "Native"}
@@ -60,7 +58,9 @@ SECTION RULES (modern, clean, ATS-friendly):
 
 5. CERTIFICATIONS (field: certifications)
    - Use objects: name, issuer, date (year or Mon YYYY)
-   - Only include certifications the user mentioned — never invent
+   - Only include certifications the user explicitly mentioned — never invent
+   - Leave certifications as [] unless the user provided certificate names
+   - Do not add certifications based on job title or experience alone
 
 6. LANGUAGES (field: languages)
    - Use objects: name + proficiency

@@ -7,6 +7,9 @@ import "./styles/landing.css";
 import "./styles/auth.css";
 import "./styles/templates.css";
 
+document.documentElement.classList.remove("theme-dark");
+localStorage.removeItem("buzzcvpilot-theme");
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />

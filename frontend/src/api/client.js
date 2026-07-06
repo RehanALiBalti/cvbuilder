@@ -230,3 +230,12 @@ export async function createCheckoutSession(planId, interval, email) {
     body: JSON.stringify({ plan_id: planId, interval, email: email || undefined }),
   }, true);
 }
+
+export async function submitContact(payload) {
+  const headers = await authHeaders();
+  return apiFetch("/api/contact", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers,
+  });
+}

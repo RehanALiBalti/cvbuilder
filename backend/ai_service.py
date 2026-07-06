@@ -413,6 +413,14 @@ def _apply_generated_cv(
 
     if base.profile_photo:
         data["profile_photo"] = base.profile_photo
+
+    # Never let AI invent certifications the user did not provide
+    if not base.certifications and data.get("certifications"):
+        data["certifications"] = []
+        vis = _visibility_dict(data)
+        vis["certifications"] = False
+        data["section_visibility"] = vis
+
     return CVContent(**data)
 
 
@@ -871,6 +879,25 @@ def chat_cv(
     )
 
 
+def _experience_supports_certifications(content: CVContent) -> bool:
+    """Certifications are optional — only suggest when experience points to cert-heavy fields."""
+    if not content.experience:
+        return False
+    parts: List[str] = [content.job_title or ""]
+    for exp in content.experience:
+        parts.extend([exp.role or "", exp.company or ""])
+        parts.extend(exp.bullets or [])
+    blob = " ".join(parts).lower()
+    keywords = (
+        "develop", "engineer", "software", "devops", "cloud", "aws", "azure", "security",
+        "network", "it ", "data scientist", "analyst", "account", "finance", "audit",
+        "nurs", "medical", "healthcare", "pharma", "pmp", "project manag", "scrum",
+        "marketing", "google ads", "digital marketing", "hr", "human resource",
+        "quality", "iso", "compliance", "teach", "trainer",
+    )
+    return any(k in blob for k in keywords)
+
+
 def _suggest_missing_sections(content: CVContent) -> List[str]:
     """Short tap-friendly suggestions (frontend maps these to input prompts)."""
     suggestions: List[str] = []
@@ -897,7 +924,7 @@ def _suggest_missing_sections(content: CVContent) -> List[str]:
         role = (content.job_title or "").lower()
         if any(k in role for k in ("developer", "engineer", "software", "data", "devops")):
             suggestions.append("Add Projects")
-    if not content.certifications:
+    if not content.certifications and _experience_supports_certifications(content):
         suggestions.append("Add Certifications")
     if not content.languages:
         suggestions.append("Add Languages")

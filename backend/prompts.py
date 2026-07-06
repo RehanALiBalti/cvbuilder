@@ -35,9 +35,10 @@ Current CV JSON (user-provided facts — do not invent new employers, degrees, o
 Tasks:
 1. Improve summary (3-4 sentences) from available facts only
 2. Rewrite experience bullets with strong action verbs (keep real companies/roles/dates)
-3. Keep education, skills, projects, certifications, languages — only improve wording
-4. Organize skills into skill_groups when helpful
-5. Preserve contact details and full_name / job_title exactly unless empty
+3. Keep education, skills, projects, languages — only improve wording
+4. Certifications: keep ONLY if already in the input JSON — never add new ones
+5. Organize skills into skill_groups when helpful
+6. Preserve contact details and full_name / job_title exactly unless empty
 
 Return ONLY valid JSON (no markdown):
 {CV_JSON_SCHEMA}

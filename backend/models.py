@@ -91,7 +91,7 @@ class SectionVisibility(BaseModel):
     education: bool = True
     projects: bool = True
     skills: bool = True
-    certifications: bool = True
+    certifications: bool = False
     languages: bool = True
     awards: bool = True
 
@@ -276,6 +276,17 @@ class CheckoutRequest(BaseModel):
     plan_id: str = Field(..., pattern=r"^(pro|business)$")
     interval: str = Field(..., pattern=r"^(monthly|yearly)$")
     email: Optional[str] = None
+
+
+class ContactSubmissionRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    email: str = Field(..., min_length=5, max_length=200)
+    category: str = Field(
+        default="general",
+        pattern=r"^(complaint|bug|billing|feature|general)$",
+    )
+    subject: str = Field(default="", max_length=200)
+    message: str = Field(..., min_length=10, max_length=5000)
 
 
 class AIResponse(BaseModel):

@@ -53,3 +53,31 @@ async def require_user(request: Request) -> AuthUser:
         )
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired session. Please sign in again.") from exc
+
+
+async def optional_user(request: Request) -> Optional[AuthUser]:
+    """Return authenticated user when a valid token is sent; otherwise None."""
+    if not is_enabled():
+        if allow_local_auth_fallback():
+            return AuthUser(uid="local-dev", email="dev@local", name="Local Dev")
+        return None
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+
+    token = auth_header[7:].strip()
+    if not token:
+        return None
+
+    try:
+        from firebase_admin import auth
+
+        decoded = auth.verify_id_token(token)
+        return AuthUser(
+            uid=decoded["uid"],
+            email=decoded.get("email"),
+            name=decoded.get("name"),
+        )
+    except Exception:
+        return None

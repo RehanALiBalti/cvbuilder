@@ -3,6 +3,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import Account from "./pages/Account";
 import CVBuilder from "./pages/CVBuilder";
+import ContactUs from "./pages/ContactUs";
 import ForgotPassword from "./pages/ForgotPassword";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/contact" element={<ContactUs />} />
           <Route path="/share/:token" element={<PublicCv />} />
           <Route
             path="/builder/account"
