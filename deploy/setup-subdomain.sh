@@ -53,6 +53,13 @@ ln -sf /etc/nginx/sites-available/cv-buzzware /etc/nginx/sites-enabled/cv-buzzwa
 nginx -t
 systemctl reload nginx
 
+echo "==> Verify subdomain nginx (local test)"
+TITLE=$(curl -sS -H "Host: $SUBDOMAIN" "http://127.0.0.1/" | grep -oi '<title>[^<]*</title>' | head -1 || true)
+echo "    Page title: ${TITLE:-unknown}"
+if echo "$TITLE" | grep -qi "JAMS"; then
+  echo "WARNING: Still serving JAMS — run: sudo bash $APP_DIR/deploy/fix-subdomain.sh"
+fi
+
 echo "==> Update backend .env (CORS — both subdomain + main IP)"
 ENV_FILE="$APP_DIR/.env"
 touch "$ENV_FILE"
