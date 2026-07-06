@@ -63,7 +63,7 @@ export default function Login() {
       <AuthLayout
         title="Welcome back"
         subtitle="Sign in to continue building and downloading your professional CVs."
-        perks={["Your own CV workspace", "Saved chat history per CV", "Basic plan · upgrade inside app"]}
+        perks={["Your own CV workspace", "5 CVs on Basic", "Saved chat history per CV"]}
       >
         <AuthForm mode="login" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
         <p className="auth-forgot-link">

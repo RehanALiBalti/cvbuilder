@@ -11,13 +11,14 @@ import {
 } from "firebase/auth";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
+import { PLAN_CV_LIMITS } from "../config/pricing";
+import { fetchUserProfile } from "../api/client";
 import {
   ensureUserProfile,
   planLabel,
   subscribeUserProfile,
   updateUserProfileDoc,
 } from "../services/userProfile";
-import { fetchUserProfile } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -79,9 +80,9 @@ function normalizeProfile(data = {}) {
   }
 
   const limits = {
-    starter: { max_cvs: 5, ai_messages_limit: 50 },
-    pro: { max_cvs: 10, ai_messages_limit: 100000 },
-    business: { max_cvs: 100000, ai_messages_limit: 100000 },
+    starter: { max_cvs: PLAN_CV_LIMITS.starter, ai_messages_limit: 50 },
+    pro: { max_cvs: PLAN_CV_LIMITS.pro, ai_messages_limit: 100000 },
+    business: { max_cvs: PLAN_CV_LIMITS.business, ai_messages_limit: 100000 },
   };
   const planLimits = limits[plan] || limits.starter;
 
@@ -92,10 +93,8 @@ function normalizeProfile(data = {}) {
     plan_period_end: periodEnd,
     plan_expired: status === "expired" || EXPIRED_STATUSES.has(status),
     plan_canceling: status === "canceling",
-    max_cvs: data.max_cvs && plan !== "starter" ? data.max_cvs : planLimits.max_cvs,
-    ai_messages_limit: data.ai_messages_limit && plan !== "starter"
-      ? data.ai_messages_limit
-      : planLimits.ai_messages_limit,
+    max_cvs: planLimits.max_cvs,
+    ai_messages_limit: planLimits.ai_messages_limit,
     ai_messages_used: data.ai_messages_used || 0,
   };
 }

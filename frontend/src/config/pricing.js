@@ -1,3 +1,18 @@
+/** Plan CV limits — keep in sync with backend/user_service.py PLAN_LIMITS */
+export const PLAN_CV_LIMITS = {
+  starter: 5,
+  pro: 10,
+  business: 100000,
+};
+
+/** CV limit for UI checks (ignores stale API/Firestore values on Basic). */
+export function cvLimitForPlan(plan, maxCvsFromApi) {
+  const p = plan || "starter";
+  if (p === "business") return PLAN_CV_LIMITS.business;
+  if (p === "starter") return PLAN_CV_LIMITS.starter;
+  return maxCvsFromApi ?? PLAN_CV_LIMITS.pro;
+}
+
 /** Pricing tiers — mirrored in backend/billing.py (ChatGPT-style: Basic / Pro / Business) */
 
 export const PRICING_PLANS = [
@@ -81,8 +96,11 @@ export function isFreePlan(plan) {
 
 /** Display CV limit (Business is effectively unlimited). */
 export function formatCvLimit(maxCvs, plan) {
-  if (plan === "business" || (maxCvs != null && maxCvs >= 1000)) return "Unlimited";
-  return String(maxCvs ?? (plan === "starter" || !plan ? 5 : 10));
+  const p = plan || "starter";
+  if (p === "business" || (maxCvs != null && maxCvs >= 1000)) return "Unlimited";
+  if (p === "starter") return String(PLAN_CV_LIMITS.starter);
+  if (p === "pro") return String(PLAN_CV_LIMITS.pro);
+  return String(maxCvs ?? PLAN_CV_LIMITS.starter);
 }
 
 export function yearlySavingsPct(plan) {

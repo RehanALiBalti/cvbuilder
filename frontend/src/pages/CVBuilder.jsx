@@ -14,6 +14,7 @@ import UploadBar from "../components/UploadBar";
 import { useAuth } from "../context/AuthContext";
 import {
   canUseTemplates,
+  cvLimitForPlan,
   formatCvLimit,
   isFreePlan,
   templatesForPlan,
@@ -259,7 +260,7 @@ export default function CVBuilder() {
   }
 
   async function ensureCanAddCv(actionLabel = "create more CVs") {
-    const maxCvs = profile?.max_cvs ?? 5;
+    const maxCvs = cvLimitForPlan(plan, profile?.max_cvs);
     if (cvs.length < maxCvs) return true;
     const goUpgrade = await showUpgradePopup({
       title: `Upgrade to ${actionLabel}`,
@@ -951,7 +952,7 @@ export default function CVBuilder() {
 
               {isFreePlan(plan) && (
                 <p className="builder-plan-hint">
-                  Basic plan: {profile?.max_cvs ?? 5} CVs · {aiUsed}/{aiLimit} AI messages · default template.
+                  Basic plan: {formatCvLimit(profile?.max_cvs, plan)} CVs · {aiUsed}/{aiLimit} AI messages · default template.
                   {" "}<Link to="/builder/account">Upgrade to Pro</Link>
                 </p>
               )}

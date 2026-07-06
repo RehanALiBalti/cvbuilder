@@ -55,7 +55,7 @@ const TESTIMONIALS = [
 ];
 
 const FAQ = [
-  { q: "Is BuzzCVPilot free to start?", a: "Yes — the Basic plan is free forever. Build your first CV and try AI chat with no credit card." },
+  { q: "Is BuzzCVPilot free to start?", a: "Yes — the Basic plan is free forever with up to 5 CVs and AI chat. No credit card required." },
   { q: "How does billing work?", a: "Pro and Business are billed monthly or yearly. Cancel anytime from your account." },
   { q: "What is the difference between plans?", a: "Basic includes 5 CVs and a default template. Pro unlocks up to 10 CVs and 15 templates. Business unlocks unlimited CVs, all templates, and custom themes." },
   { q: "Can I upload my existing resume?", a: "Yes. Upload PDF, Word, or TXT and AI will import your content. Available on Pro and Business." },
@@ -115,7 +115,7 @@ export default function Landing() {
               <Link to="/login" className="btn btn-lg landing-btn-outline">I already have an account</Link>
             </div>
             <div className="landing-hero-stats landing-animate landing-animate--6">
-              <div><strong>AI</strong><span>Chat builder</span></div>
+              <div><strong>5</strong><span>CVs on Basic</span></div>
               <div><strong>PDF</strong><span>& Word export</span></div>
               <div><strong>Free</strong><span>Basic plan</span></div>
             </div>
