@@ -189,6 +189,8 @@ body {
 
 .chat-messages {
   flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 18px;
   display: flex;
@@ -859,10 +861,13 @@ html.theme-dark .guided-multi-card {
 }
 
 .chat-bubble {
-  max-width: 92%;
+  max-width: min(92%, 100%);
+  min-width: 0;
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .chat-bubble--user {
@@ -876,7 +881,13 @@ html.theme-dark .guided-multi-card {
   background: #f8fafc;
 }
 
-.chat-bubble p { margin: 6px 0 0; white-space: pre-wrap; }
+.chat-bubble p {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
 .chat-suggestions-wrap { margin-top: 10px; }
 .chat-suggestions-title {
   margin: 0 0 4px;
