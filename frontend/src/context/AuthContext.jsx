@@ -53,7 +53,7 @@ const DEFAULT_PROFILE = {
   subscription_status: "free",
   ai_messages_used: 0,
   ai_messages_limit: 50,
-  max_cvs: 1,
+  max_cvs: 5,
   plan_period_end: "",
   plan_expired: false,
   plan_canceling: false,
@@ -79,7 +79,7 @@ function normalizeProfile(data = {}) {
   }
 
   const limits = {
-    starter: { max_cvs: 1, ai_messages_limit: 50 },
+    starter: { max_cvs: 5, ai_messages_limit: 50 },
     pro: { max_cvs: 10, ai_messages_limit: 100000 },
     business: { max_cvs: 100000, ai_messages_limit: 100000 },
   };

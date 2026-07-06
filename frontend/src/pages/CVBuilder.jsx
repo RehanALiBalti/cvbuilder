@@ -250,7 +250,7 @@ export default function CVBuilder() {
 
   function cvLimitMessage() {
     if (isFreePlan(plan)) {
-      return "Basic plan includes 1 CV. Upgrade to Pro for up to 10 CVs, or Business for unlimited CVs.";
+      return "Basic plan includes 5 CVs. Upgrade to Pro for up to 10 CVs, or Business for unlimited CVs.";
     }
     if (plan === "pro") {
       return "Pro plan includes 10 CVs. Upgrade to Business for unlimited CVs.";
@@ -259,7 +259,7 @@ export default function CVBuilder() {
   }
 
   async function ensureCanAddCv(actionLabel = "create more CVs") {
-    const maxCvs = profile?.max_cvs ?? 1;
+    const maxCvs = profile?.max_cvs ?? 5;
     if (cvs.length < maxCvs) return true;
     const goUpgrade = await showUpgradePopup({
       title: `Upgrade to ${actionLabel}`,
@@ -951,7 +951,7 @@ export default function CVBuilder() {
 
               {isFreePlan(plan) && (
                 <p className="builder-plan-hint">
-                  Basic plan: {profile?.max_cvs ?? 1} CV · {aiUsed}/{aiLimit} AI messages · default template.
+                  Basic plan: {profile?.max_cvs ?? 5} CVs · {aiUsed}/{aiLimit} AI messages · default template.
                   {" "}<Link to="/builder/account">Upgrade to Pro</Link>
                 </p>
               )}

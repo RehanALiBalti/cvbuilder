@@ -89,6 +89,38 @@ CVBUILDER_CORS_ORIGINS=https://cv.buzzwaretech.com,http://65.108.236.135
 
 Do **not** use `nginx-combined-subdomain-redirect.snippet` unless you want to remove `/cvbuilder/` on the IP.
 
+### HTTPS (SSL) for subdomain
+
+Pehle HTTP subdomain theek chal rahi ho, phir:
+
+```bash
+sudo CERTBOT_EMAIL=you@example.com bash /opt/cvbuilder/deploy/setup-ssl-subdomain.sh
+```
+
+Yeh Let's Encrypt certificate install karega aur `http://` ko `https://` par redirect karega.
+
+Manual (same result):
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d cv.buzzwaretech.com
+```
+
+Phir `/opt/cvbuilder/.env`:
+
+```env
+CVBUILDER_PUBLIC_URL=https://cv.buzzwaretech.com
+CVBUILDER_CORS_ORIGINS=https://cv.buzzwaretech.com,http://65.108.236.135
+```
+
+```bash
+sudo systemctl restart cvbuilder-backend
+```
+
+**Stripe webhook:** `https://cv.buzzwaretech.com/api/billing/webhook`
+
+Certificate auto-renew: `certbot` systemd timer (install ke sath aata hai). Test: `sudo certbot renew --dry-run`
+
 ---
 
 ## Standalone deploy (separate domain/IP)

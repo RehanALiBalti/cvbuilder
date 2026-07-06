@@ -57,7 +57,7 @@ const TESTIMONIALS = [
 const FAQ = [
   { q: "Is BuzzCVPilot free to start?", a: "Yes — the Basic plan is free forever. Build your first CV and try AI chat with no credit card." },
   { q: "How does billing work?", a: "Pro and Business are billed monthly or yearly. Cancel anytime from your account." },
-  { q: "What is the difference between plans?", a: "Basic includes 1 CV and a default template. Pro unlocks up to 10 CVs and 15 templates. Business unlocks unlimited CVs, all templates, and custom themes." },
+  { q: "What is the difference between plans?", a: "Basic includes 5 CVs and a default template. Pro unlocks up to 10 CVs and 15 templates. Business unlocks unlimited CVs, all templates, and custom themes." },
   { q: "Can I upload my existing resume?", a: "Yes. Upload PDF, Word, or TXT and AI will import your content. Available on Pro and Business." },
   { q: "Will the PDF match the preview?", a: "Yes — PDF export uses your live preview design exactly as shown on screen." },
   { q: "Is my payment information secure?", a: "Yes — payments are processed securely. We never see or store your card details." },

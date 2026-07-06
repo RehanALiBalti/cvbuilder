@@ -9,11 +9,11 @@ PLANS: List[Dict[str, Any]] = [
     {
         "id": "starter",
         "name": "Basic",
-        "description": "Free forever. Build your first CV with AI chat.",
+        "description": "Free forever. Up to 5 CVs with AI chat.",
         "monthly_price": 0,
         "yearly_price": 0,
         "features": [
-            "1 CV workspace",
+            "5 CV workspaces",
             "50 AI messages / month",
             "Default template (no template picker)",
             "PDF & Word export",

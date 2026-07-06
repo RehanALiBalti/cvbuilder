@@ -9,7 +9,7 @@ from backend.firebase_app import get_db, is_enabled
 from backend.local_storage import StorageError
 
 PLAN_LIMITS: Dict[str, Dict[str, int]] = {
-    "starter": {"max_cvs": 1, "max_ai_messages_month": 50},
+    "starter": {"max_cvs": 5, "max_ai_messages_month": 50},
     "pro": {"max_cvs": 10, "max_ai_messages_month": 100_000},
     "business": {"max_cvs": 100_000, "max_ai_messages_month": 100_000},
 }
@@ -211,7 +211,7 @@ def check_can_create_cv(uid: str, current_cv_count: int) -> Tuple[bool, str]:
     profile = get_user_profile(uid)
     if current_cv_count >= profile["max_cvs"]:
         if profile["plan"] == "starter":
-            return False, "Basic plan includes 1 CV. Upgrade to Pro for up to 10 CVs."
+            return False, "Basic plan includes 5 CVs. Upgrade to Pro for up to 10 CVs."
         if profile["plan"] == "pro":
             return False, "Pro plan includes 10 CVs. Upgrade to Business for unlimited CVs."
         return False, "CV limit reached for your plan."

@@ -61,7 +61,7 @@ export default function Signup() {
       <AuthLayout
         title="Start for free"
         subtitle="Every account starts on the free plan. Upgrade to Pro anytime from your dashboard."
-        perks={["Basic plan included free", "1 CV to get started", "Secure account & private workspace"]}
+        perks={["Basic plan included free", "5 CVs to get started", "Secure account & private workspace"]}
       >
         <AuthForm mode="signup" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
       </AuthLayout>

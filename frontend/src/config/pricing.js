@@ -4,11 +4,11 @@ export const PRICING_PLANS = [
   {
     id: "starter",
     name: "Basic",
-    description: "Free forever. Build your first CV with AI chat.",
+    description: "Free forever. Up to 5 CVs with AI chat.",
     monthlyPrice: 0,
     yearlyPrice: 0,
     features: [
-      "1 CV workspace",
+      "5 CV workspaces",
       "50 AI messages / month",
       "Default template (no template picker)",
       "PDF & Word export",
@@ -82,7 +82,7 @@ export function isFreePlan(plan) {
 /** Display CV limit (Business is effectively unlimited). */
 export function formatCvLimit(maxCvs, plan) {
   if (plan === "business" || (maxCvs != null && maxCvs >= 1000)) return "Unlimited";
-  return String(maxCvs ?? 1);
+  return String(maxCvs ?? (plan === "starter" || !plan ? 5 : 10));
 }
 
 export function yearlySavingsPct(plan) {
