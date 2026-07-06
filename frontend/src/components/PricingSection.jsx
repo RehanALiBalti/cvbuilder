@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createCheckoutSession, fetchBillingPlans } from "../api/client";
-import { PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
+import {
+  PRICING_PLANS,
+  apiPlanToDisplay,
+  normalizePricingPlans,
+  yearlySavingsPct,
+} from "../config/pricing";
 import Reveal from "./Reveal";
 
 function formatPrice(amount) {
@@ -14,11 +19,17 @@ export default function PricingSection() {
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [error, setError] = useState("");
   const [stripeReady, setStripeReady] = useState(false);
+  const [plans, setPlans] = useState(() => normalizePricingPlans(PRICING_PLANS));
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchBillingPlans()
-      .then((data) => setStripeReady(Boolean(data.stripe_configured)))
+      .then((data) => {
+        setStripeReady(Boolean(data.stripe_configured));
+        if (Array.isArray(data.plans) && data.plans.length) {
+          setPlans(normalizePricingPlans(data.plans.map(apiPlanToDisplay)));
+        }
+      })
       .catch(() => setStripeReady(false));
   }, []);
 
@@ -79,7 +90,7 @@ export default function PricingSection() {
       )}
 
       <div className="landing-pricing-grid">
-        {PRICING_PLANS.map((plan, i) => {
+        {plans.map((plan, i) => {
           const price = annual ? plan.yearlyPrice : plan.monthlyPrice;
           const savings = yearlySavingsPct(plan);
           const isFree = plan.id === "starter";

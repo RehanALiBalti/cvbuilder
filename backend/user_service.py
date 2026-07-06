@@ -211,7 +211,7 @@ def check_can_create_cv(uid: str, current_cv_count: int) -> Tuple[bool, str]:
     profile = get_user_profile(uid)
     if current_cv_count >= profile["max_cvs"]:
         if profile["plan"] == "starter":
-            return False, "Basic plan includes 5 CVs. Upgrade to Pro for up to 10 CVs."
+            return False, "Basic plan includes 5 CVs. Upgrade to Pro for up to 10 CVs, or Business for unlimited CVs."
         if profile["plan"] == "pro":
             return False, "Pro plan includes 10 CVs. Upgrade to Business for unlimited CVs."
         return False, "CV limit reached for your plan."

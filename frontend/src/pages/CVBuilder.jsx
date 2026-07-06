@@ -290,7 +290,7 @@ export default function CVBuilder() {
       if (msg.includes("Upgrade") || msg.includes("includes") || msg.includes("limit")) {
         const goUpgrade = await showUpgradePopup({
           title: "Upgrade to create more CVs",
-          text: msg || cvLimitMessage(),
+          text: cvLimitMessage(),
           confirmText: "View plans",
         });
         if (goUpgrade) navigate("/builder/account");
@@ -315,7 +315,7 @@ export default function CVBuilder() {
       if (msg.includes("Upgrade") || msg.includes("includes") || msg.includes("limit")) {
         const goUpgrade = await showUpgradePopup({
           title: "Upgrade to duplicate this CV",
-          text: msg || cvLimitMessage(),
+          text: cvLimitMessage(),
           confirmText: "View plans",
         });
         if (goUpgrade) navigate("/builder/account");

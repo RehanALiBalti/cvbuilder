@@ -15,20 +15,25 @@ export function cvLimitForPlan(plan, maxCvsFromApi) {
 
 /** Pricing tiers — mirrored in backend/billing.py (ChatGPT-style: Basic / Pro / Business) */
 
+export const STARTER_PLAN_COPY = {
+  description: "Free forever. Up to 5 CVs with AI chat.",
+  features: [
+    "5 CV workspaces",
+    "50 AI messages / month",
+    "Default template (no template picker)",
+    "PDF & Word export",
+    "Chat history saved",
+  ],
+};
+
 export const PRICING_PLANS = [
   {
     id: "starter",
     name: "Basic",
-    description: "Free forever. Up to 5 CVs with AI chat.",
+    description: STARTER_PLAN_COPY.description,
     monthlyPrice: 0,
     yearlyPrice: 0,
-    features: [
-      "5 CV workspaces",
-      "50 AI messages / month",
-      "Default template (no template picker)",
-      "PDF & Word export",
-      "Chat history saved",
-    ],
+    features: [...STARTER_PLAN_COPY.features],
     cta: "Get started free",
     highlighted: false,
   },
@@ -70,6 +75,41 @@ export const PRICING_PLANS = [
   },
 ];
 
+/** Map API plan shape → frontend display shape. */
+export function apiPlanToDisplay(plan) {
+  return {
+    id: plan.id,
+    name: plan.name,
+    description: plan.description,
+    monthlyPrice: plan.monthly_price ?? plan.monthlyPrice ?? 0,
+    yearlyPrice: plan.yearly_price ?? plan.yearlyPrice ?? 0,
+    features: Array.isArray(plan.features) ? [...plan.features] : [],
+    cta: plan.cta,
+    highlighted: Boolean(plan.highlighted),
+    badge: plan.badge,
+  };
+}
+
+/** Force correct Basic plan copy (fixes stale API / old builds showing 1 CV). */
+export function normalizePricingPlans(plans) {
+  return (plans || []).map((plan) => {
+    if (plan.id !== "starter") return plan;
+    return {
+      ...plan,
+      description: STARTER_PLAN_COPY.description,
+      features: [...STARTER_PLAN_COPY.features],
+    };
+  });
+}
+
+/** True when an API error is about CV count limits (ignore stale server wording). */
+export function isCvLimitError(message) {
+  const m = (message || "").toLowerCase();
+  return m.includes("upgrade")
+    || (m.includes("includes") && m.includes("cv"))
+    || m.includes("cv limit");
+}
+
 /** Plan id → display label */
 export function planLabel(plan) {
   const map = { starter: "Basic", pro: "Pro", business: "Business" };
@@ -101,6 +141,12 @@ export function formatCvLimit(maxCvs, plan) {
   if (p === "starter") return String(PLAN_CV_LIMITS.starter);
   if (p === "pro") return String(PLAN_CV_LIMITS.pro);
   return String(maxCvs ?? PLAN_CV_LIMITS.starter);
+}
+
+/** Account / billing UI — always from plan config, never stale API/Firestore. */
+export function displayPlanCvLimit(plan) {
+  const n = formatCvLimit(null, plan);
+  return n === "Unlimited" ? "Unlimited CVs" : `${n} CVs`;
 }
 
 export function yearlySavingsPct(plan) {

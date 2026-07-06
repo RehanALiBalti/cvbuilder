@@ -4,7 +4,7 @@ import AppLayout from "../components/AppLayout";
 import PlanStatusBanner from "../components/PlanStatusBanner";
 import { createCheckoutSession } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { formatCvLimit, PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
+import { displayPlanCvLimit, normalizePricingPlans, PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: "👤" },
@@ -145,7 +145,7 @@ export default function Account() {
           </div>
           <div className="account-stat">
             <span className="account-stat-label">CV limit</span>
-            <strong>{formatCvLimit(profile?.max_cvs, plan)}</strong>
+            <strong>{displayPlanCvLimit(plan)}</strong>
           </div>
           <div className="account-stat account-stat--wide">
             <div className="account-stat-row">
@@ -281,7 +281,7 @@ export default function Account() {
                 </div>
 
                 <div className="account-plans">
-                  {PRICING_PLANS.map((p) => {
+                  {normalizePricingPlans(PRICING_PLANS).map((p) => {
                     const price = annual ? p.yearlyPrice : p.monthlyPrice;
                     const isCurrent = p.id === plan;
                     const savings = yearlySavingsPct(p);
