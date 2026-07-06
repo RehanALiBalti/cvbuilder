@@ -5,11 +5,17 @@ import { submitContact } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 const CATEGORIES = [
-  { value: "complaint", label: "Complaint" },
-  { value: "bug", label: "Bug / technical issue" },
-  { value: "billing", label: "Billing & subscription" },
-  { value: "feature", label: "Feature request" },
-  { value: "general", label: "General question" },
+  { value: "complaint", label: "Complaint", icon: "⚠" },
+  { value: "bug", label: "Technical issue", icon: "🔧" },
+  { value: "billing", label: "Billing", icon: "💳" },
+  { value: "feature", label: "Feature idea", icon: "✨" },
+  { value: "general", label: "General", icon: "💬" },
+];
+
+const TIPS = [
+  { icon: "📝", text: "Include steps to reproduce bugs" },
+  { icon: "✉", text: "Use the email on your account for billing" },
+  { icon: "🔒", text: "Never share passwords or card numbers" },
 ];
 
 export default function ContactUs() {
@@ -56,125 +62,169 @@ export default function ContactUs() {
   }
 
   return (
-    <AppLayout mainClassName="site-main--app">
-      <div className="contact-page">
-        <div className="contact-hero">
-          <p className="contact-eyebrow">Support</p>
-          <h1>Contact us</h1>
-          <p className="contact-lead">
-            Report a problem, share feedback, or ask a question. We usually reply within 1–2 business days.
-          </p>
+    <AppLayout mainClassName="site-main--contact">
+      <div className="contact-shell">
+        <div className="contact-bg" aria-hidden="true">
+          <span className="contact-bg-blob contact-bg-blob--1" />
+          <span className="contact-bg-blob contact-bg-blob--2" />
         </div>
 
-        <div className="contact-grid">
-          <aside className="contact-aside account-card">
-            <h2>Before you write</h2>
-            <ul className="contact-tips">
-              <li>Include steps to reproduce bugs</li>
-              <li>For billing, use the email on your account</li>
-              <li>Do not share passwords or card numbers</li>
-            </ul>
-            {isAuthenticated ? (
-              <p className="muted">
-                Signed in as <strong>{user?.email}</strong> — your account will be linked to this ticket.
+        <div className="contact-page">
+          <header className="contact-hero">
+            <div className="contact-hero-copy">
+              <span className="contact-eyebrow">Customer support</span>
+              <h1>We&apos;re here to help</h1>
+              <p className="contact-lead">
+                Report an issue, ask about billing, or share feedback. Our team typically responds within 1–2 business days.
               </p>
-            ) : (
-              <p className="muted">
-                <Link to="/login">Log in</Link> if the issue is about your CVs or subscription.
-              </p>
-            )}
-          </aside>
-
-          <div className="contact-form-card account-card">
-            <div className="account-card-head">
-              <h2>Send a message</h2>
-              <p>Tell us what went wrong or what you need help with.</p>
             </div>
-
-            {error && (
-              <div className="auth-error auth-error--animated" role="alert">
-                <span className="auth-error-icon">!</span>
-                {error}
+            <div className="contact-hero-badges">
+              <div className="contact-stat">
+                <strong>24–48h</strong>
+                <span>Response time</span>
               </div>
-            )}
-            {success && (
-              <div className="auth-success auth-success--animated" role="status">
-                <span className="auth-success-check">✓</span>
-                {success}
+              <div className="contact-stat">
+                <strong>Secure</strong>
+                <span>Private tickets</span>
               </div>
-            )}
+            </div>
+          </header>
 
-            <form className="contact-form" onSubmit={handleSubmit}>
-              <div className="contact-form-row">
-                <label className="auth-field">
-                  <span>Your name</span>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Full name"
-                    autoComplete="name"
-                    required
-                    minLength={2}
-                    maxLength={120}
-                  />
-                </label>
-                <label className="auth-field">
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    required
-                  />
-                </label>
-              </div>
-
-              <label className="auth-field">
-                <span>Topic</span>
-                <select
-                  className="contact-select"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  required
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
+          <div className="contact-layout">
+            <aside className="contact-panel contact-panel--info">
+              <div className="contact-panel-inner">
+                <h2>Helpful tips</h2>
+                <ul className="contact-tip-list">
+                  {TIPS.map((tip) => (
+                    <li key={tip.text}>
+                      <span className="contact-tip-icon" aria-hidden="true">{tip.icon}</span>
+                      <span>{tip.text}</span>
+                    </li>
                   ))}
-                </select>
-              </label>
+                </ul>
 
-              <label className="auth-field">
-                <span>Subject (optional)</span>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Short summary"
-                  maxLength={200}
-                />
-              </label>
+                <div className="contact-account-note">
+                  {isAuthenticated ? (
+                    <>
+                      <span className="contact-account-label">Signed in</span>
+                      <p>
+                        Tickets are linked to <strong>{user?.email}</strong> for faster support on CVs and billing.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="contact-account-label">Account issues?</span>
+                      <p>
+                        <Link to="/login">Log in</Link> first if your question is about CVs, templates, or your subscription.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </aside>
 
-              <label className="auth-field">
-                <span>Message</span>
-                <textarea
-                  className="contact-textarea"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Describe your issue or feedback in detail..."
-                  rows={7}
-                  required
-                  minLength={10}
-                  maxLength={5000}
-                />
-              </label>
+            <section className="contact-panel contact-panel--form">
+              <div className="contact-panel-inner">
+                <div className="contact-form-head">
+                  <h2>Send a message</h2>
+                  <p>All fields marked with * are required.</p>
+                </div>
 
-              <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-                {loading ? "Sending..." : "Submit message"}
-              </button>
-            </form>
+                {error && (
+                  <div className="auth-error auth-error--animated" role="alert">
+                    <span className="auth-error-icon">!</span>
+                    {error}
+                  </div>
+                )}
+                {success && (
+                  <div className="auth-success auth-success--animated" role="status">
+                    <span className="auth-success-check">✓</span>
+                    {success}
+                  </div>
+                )}
+
+                <form className="contact-form" onSubmit={handleSubmit}>
+                  <div className="contact-form-row">
+                    <label className="contact-field">
+                      <span>Your name *</span>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Sara Ahmed"
+                        autoComplete="name"
+                        required
+                        minLength={2}
+                        maxLength={120}
+                      />
+                    </label>
+                    <label className="contact-field">
+                      <span>Email *</span>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <fieldset className="contact-fieldset">
+                    <legend>What is this about? *</legend>
+                    <div className="contact-topic-grid" role="radiogroup" aria-label="Topic">
+                      {CATEGORIES.map((c) => (
+                        <button
+                          key={c.value}
+                          type="button"
+                          className={`contact-topic-chip${category === c.value ? " is-active" : ""}`}
+                          onClick={() => setCategory(c.value)}
+                          aria-pressed={category === c.value}
+                        >
+                          <span className="contact-topic-chip-icon" aria-hidden="true">{c.icon}</span>
+                          {c.label}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <label className="contact-field">
+                    <span>Subject</span>
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="Brief summary of your request"
+                      maxLength={200}
+                    />
+                  </label>
+
+                  <label className="contact-field">
+                    <span>Message *</span>
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Tell us what happened, what you expected, and any details that will help us assist you..."
+                      rows={6}
+                      required
+                      minLength={10}
+                      maxLength={5000}
+                    />
+                    <span className="contact-char-count">{message.length} / 5000</span>
+                  </label>
+
+                  <div className="contact-form-actions">
+                    <button type="submit" className="btn btn-primary contact-submit" disabled={loading}>
+                      {loading ? "Sending..." : "Submit message"}
+                    </button>
+                    <p className="contact-form-foot">
+                      By submitting, you agree we may contact you at the email provided.
+                    </p>
+                  </div>
+                </form>
+              </div>
+            </section>
           </div>
         </div>
       </div>
