@@ -780,3 +780,18 @@
   .tpl-nordic-contact { text-align: left; }
   .tpl-atlas { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 480px) {
+  .tpl { padding: 22px 20px; font-size: 0.86rem; }
+  .tpl h1 { font-size: 1.45rem; }
+  .cv-preview-paper { min-height: 480px; }
+  .tpl-header-with-photo { gap: 12px; }
+  .tpl-profile-photo { width: 72px; height: 72px; }
+
+  .template-picker-overlay { padding: 10px; }
+  .template-picker { padding: 18px 16px; border-radius: 16px; max-height: 90vh; }
+  .template-picker-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}

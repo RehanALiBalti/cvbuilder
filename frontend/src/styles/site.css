@@ -343,6 +343,35 @@
   }
 }
 
+@media (max-width: 480px) {
+  .site-header-inner {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .site-header-nav {
+    gap: 14px;
+    font-size: 0.88rem;
+  }
+
+  .site-header-actions {
+    gap: 6px;
+  }
+
+  .site-header-actions .btn {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .site-header-profile {
+    padding: 3px 8px 3px 3px;
+  }
+
+  .site-footer-inner {
+    padding: 28px 14px 20px;
+  }
+}
+
 /* Contact us */
 .contact-shell {
   position: relative;
@@ -722,5 +751,34 @@
 
   .contact-form-row {
     grid-template-columns: 1fr;
+  }
+
+  .contact-panel-inner {
+    padding: 22px 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-page {
+    padding: 20px 12px 36px;
+  }
+
+  .contact-hero {
+    padding: 20px 18px;
+    border-radius: 16px;
+  }
+
+  .contact-hero-badges {
+    gap: 8px;
+  }
+
+  .contact-stat {
+    min-width: 0;
+    flex: 1;
+    padding: 12px 14px;
+  }
+
+  .contact-panel-inner {
+    padding: 20px 16px;
   }
 }

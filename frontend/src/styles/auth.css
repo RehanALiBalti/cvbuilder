@@ -791,24 +791,65 @@
   text-align: center;
 }
 
+/* Tablet: stats collapse to two columns, sidebar stays */
+@media (max-width: 900px) {
+  .account-shell {
+    padding: 24px 20px 56px;
+  }
+
+  .account-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .account-stat--wide {
+    grid-column: 1 / -1;
+  }
+
+  .account-body {
+    grid-template-columns: 160px 1fr;
+    gap: 18px;
+  }
+}
+
+/* Mobile: single column, horizontal nav, stacked plans */
 @media (max-width: 768px) {
+  .account-shell {
+    padding: 20px 16px 48px;
+  }
+
   .account-stats {
     grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 22px;
   }
 
   .account-body {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .account-nav {
     flex-direction: row;
     position: static;
+    top: auto;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+  }
+
+  .account-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .account-nav-item {
     white-space: nowrap;
     flex-shrink: 0;
+    padding: 10px 14px;
+  }
+
+  .account-card {
+    padding: 22px 20px;
   }
 
   .account-form-row {
@@ -817,20 +858,101 @@
 
   .account-plan {
     grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 20px;
+  }
+
+  .account-plan-top {
+    flex-wrap: wrap;
   }
 
   .account-plan-price {
     grid-column: 1;
     grid-row: auto;
     text-align: left;
+    align-self: start;
   }
 
   .account-plan .btn {
+    grid-column: 1;
     max-width: none;
+    width: 100%;
+  }
+
+  .account-plan-features {
+    gap: 6px 16px;
+  }
+}
+
+/* Small phones: tighten hero + typography */
+@media (max-width: 480px) {
+  .account-shell {
+    padding: 16px 12px 40px;
   }
 
   .account-hero {
-    padding: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 14px;
+    padding: 20px 18px;
+    border-radius: 16px;
+  }
+
+  .account-avatar {
+    width: 54px;
+    height: 54px;
+    font-size: 1.35rem;
+  }
+
+  .account-hero-info {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .account-hero-info h1 {
+    font-size: 1.25rem;
+    word-break: break-word;
+  }
+
+  .account-hero-info p {
+    font-size: 0.85rem;
+    word-break: break-word;
+  }
+
+  .account-card {
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  .account-card-head {
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+  }
+
+  .account-card-head h2 {
+    font-size: 1.1rem;
+  }
+
+  .account-stat {
+    padding: 16px 18px;
+  }
+
+  .account-stat strong {
+    font-size: 1.2rem;
+  }
+
+  .account-plan-price strong {
+    font-size: 1.4rem;
+  }
+
+  .account-billing-toggle .landing-pricing-toggle,
+  .account-billing-toggle .landing-pricing-toggle button {
+    width: 100%;
+  }
+
+  .account-billing-toggle .landing-pricing-toggle {
+    display: flex;
   }
 }
 
