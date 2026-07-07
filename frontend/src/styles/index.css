@@ -1096,6 +1096,61 @@ button, input, select, textarea {
   animation: textFade 1s ease infinite alternate;
 }
 
+/* Analysis / loading animations — mobile responsive */
+@media (max-width: 600px) {
+  .chat-bubble--loading {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .ai-loading-header {
+    gap: 6px;
+  }
+
+  .ai-loading-body {
+    gap: 8px;
+  }
+
+  .ai-loading-text {
+    font-size: 0.85rem;
+    line-height: 1.35;
+  }
+
+  .typing-dots span {
+    width: 7px;
+    height: 7px;
+  }
+
+  .cv-skeleton {
+    padding: 22px 18px;
+    min-height: 420px;
+  }
+
+  .cv-skeleton-line--title { height: 24px; }
+  .cv-skeleton-hint { margin-top: 24px; }
+
+  .ats-meter-score {
+    font-size: 1.2rem;
+  }
+
+  .preview-status {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .cv-skeleton {
+    padding: 18px 14px;
+    min-height: 360px;
+  }
+
+  .ai-avatar-pulse {
+    width: 24px;
+    height: 24px;
+    font-size: 0.78rem;
+  }
+}
+
 .chat-input-area {
   border-top: 1px solid var(--border);
   padding: 14px;
