@@ -1382,16 +1382,75 @@
     padding: 20px 16px 48px;
   }
 
+  .builder-shell--wide {
+    padding: 16px 12px 40px;
+  }
+
   .builder-cv-grid {
     grid-template-columns: 1fr;
   }
 
   .builder-card-head {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .builder-card-head .btn {
     width: 100%;
+  }
+
+  .builder-cv-card-actions {
+    gap: 8px;
+  }
+
+  .builder-cv-card-actions .btn {
+    flex: 1 1 auto;
+    min-width: calc(50% - 4px);
+  }
+
+  .builder-select {
+    max-width: 100%;
+  }
+}
+
+/* Builder small phones */
+@media (max-width: 480px) {
+  .builder-shell,
+  .builder-shell--wide {
+    padding: 14px 10px 36px;
+  }
+
+  .builder-chat-panel .chat-messages {
+    padding: 14px 16px;
+  }
+
+  .builder-chat-head {
+    padding: 16px 16px;
+  }
+
+  .builder-chat-panel .chat-input-area {
+    padding: 12px 16px 16px;
+  }
+
+  .builder-chat-head-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .builder-preview-panel {
+    padding: 16px;
+  }
+
+  .builder-cv-card {
+    padding: 16px;
+  }
+
+  .builder-cv-card-actions .btn {
+    min-width: 100%;
+  }
+
+  .builder-empty {
+    padding: 36px 16px 24px;
   }
 }
 
