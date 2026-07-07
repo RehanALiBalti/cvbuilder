@@ -70,6 +70,26 @@ def _extract_pdf_pdfminer(data: bytes) -> str:
         return ""
 
 
+def _extract_pdf_ocr(data: bytes) -> str:
+    """Last resort: OCR scanned/image-based PDFs (needs PyMuPDF + pytesseract + tesseract)."""
+    try:
+        import fitz  # PyMuPDF
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        return ""
+    try:
+        parts = []
+        with fitz.open(stream=data, filetype="pdf") as pdf:
+            for page in pdf:
+                pix = page.get_pixmap(dpi=200)
+                img = Image.open(io.BytesIO(pix.tobytes("png")))
+                parts.append((pytesseract.image_to_string(img) or "").strip())
+        return "\n\n".join(p for p in parts if p)
+    except Exception:
+        return ""
+
+
 def extract_cv_text(filename: str, data: bytes) -> str:
     ext = _ext(filename)
     if ext == ".pdf":
@@ -81,6 +101,11 @@ def extract_cv_text(filename: str, data: bytes) -> str:
                 best = text
             if len(best) >= 200:
                 break
+        # Scanned/image PDF (no text layer) — fall back to OCR if available.
+        if len(best) < 30:
+            ocr_text = _extract_pdf_ocr(data)
+            if len(ocr_text) > len(best):
+                best = ocr_text
         return best
 
     if ext == ".docx":

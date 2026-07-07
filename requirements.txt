@@ -10,6 +10,10 @@ html-for-docx>=1.1.0
 beautifulsoup4>=4.12.0
 pypdf>=4.0.0
 pdfplumber>=0.11.0
+# OCR fallback for scanned/image-based PDFs (also needs system: tesseract-ocr)
+PyMuPDF>=1.24.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
 python-multipart>=0.0.9
 firebase-admin>=6.5.0
 stripe>=8.0.0
