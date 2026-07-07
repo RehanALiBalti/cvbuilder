@@ -101,7 +101,7 @@ export default function CVBuilder() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [buildMode, setBuildMode] = useState("guided"); // guided | chat
+  const [buildMode, setBuildMode] = useState("chat"); // guided | chat
   const [generating, setGenerating] = useState(false);
   const [pendingSection, setPendingSection] = useState(null); // education | skills | ...
   const chatEndRef = useRef(null);
@@ -228,11 +228,7 @@ export default function CVBuilder() {
       setActiveCv(cv);
       const saved = user?.uid ? await loadChatHistory(user.uid, id) : null;
       setMessages(saved ?? []);
-      const hasChat = Array.isArray(saved) && saved.some((m) => m.role === "user");
-      const hasContent = Boolean(
-        cv?.content?.full_name || cv?.content?.summary || cv?.content?.experience?.length,
-      );
-      setBuildMode(hasChat || hasContent ? "chat" : "guided");
+      setBuildMode("chat");
       setPendingSection(null);
       if (cv?.is_public && cv?.share_token) {
         const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
@@ -282,7 +278,7 @@ export default function CVBuilder() {
       const cv = data.cv;
       setActiveCv(cv);
       setMessages([]);
-      setBuildMode("guided");
+      setBuildMode("chat");
       setPendingSection(null);
       setView("chat");
     } catch (e) {
