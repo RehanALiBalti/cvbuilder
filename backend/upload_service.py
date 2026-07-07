@@ -30,18 +30,58 @@ def _ext(filename: str) -> str:
     return os.path.splitext(filename or "")[1].lower()
 
 
+def _extract_pdf_pypdf(data: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return ""
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        parts = [(page.extract_text() or "").strip() for page in reader.pages]
+        return "\n\n".join(p for p in parts if p)
+    except Exception:
+        return ""
+
+
+def _extract_pdf_pdfplumber(data: bytes) -> str:
+    """More robust extractor (pdfminer-based) for PDFs pypdf can't read well."""
+    try:
+        import pdfplumber
+    except ImportError:
+        return ""
+    try:
+        parts = []
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
+            for page in pdf.pages:
+                parts.append((page.extract_text() or "").strip())
+        return "\n\n".join(p for p in parts if p)
+    except Exception:
+        return ""
+
+
+def _extract_pdf_pdfminer(data: bytes) -> str:
+    try:
+        from pdfminer.high_level import extract_text
+    except ImportError:
+        return ""
+    try:
+        return (extract_text(io.BytesIO(data)) or "").strip()
+    except Exception:
+        return ""
+
+
 def extract_cv_text(filename: str, data: bytes) -> str:
     ext = _ext(filename)
     if ext == ".pdf":
-        try:
-            from pypdf import PdfReader
-        except ImportError as exc:
-            raise RuntimeError("pypdf is required for PDF upload. pip install pypdf") from exc
-        reader = PdfReader(io.BytesIO(data))
-        parts = []
-        for page in reader.pages:
-            parts.append((page.extract_text() or "").strip())
-        return "\n\n".join(p for p in parts if p)
+        # Try multiple engines and keep the best (longest) extraction.
+        best = ""
+        for engine in (_extract_pdf_pypdf, _extract_pdf_pdfplumber, _extract_pdf_pdfminer):
+            text = engine(data)
+            if len(text) > len(best):
+                best = text
+            if len(best) >= 200:
+                break
+        return best
 
     if ext == ".docx":
         try:
@@ -156,7 +196,11 @@ def process_cv_file(
 
     raw_text = extract_cv_text(filename, data).strip()
     if len(raw_text) < 30:
-        raise ValueError("Could not extract enough text from the file. Try a text-based PDF or DOCX.")
+        raise ValueError(
+            "Could not read text from this file. If it's a scanned or image-based PDF, "
+            "the text can't be extracted — please upload a text-based PDF or DOCX, "
+            "or paste your CV details into the chat."
+        )
 
     result = ai_service.process_cv_upload(raw_text, doc.content, tone)
     if not result.success:
