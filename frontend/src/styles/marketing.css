@@ -1,0 +1,203 @@
+/* Public SEO / marketing pages */
+.marketing-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 56px 24px 72px;
+}
+
+.marketing-hero {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.marketing-hero h1 {
+  margin: 0 0 16px;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.marketing-hero-tagline {
+  margin: 0 auto 14px;
+  max-width: 40rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.marketing-hero-intro {
+  margin: 0 auto 28px;
+  max-width: 42rem;
+  font-size: 1.02rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.marketing-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.marketing-section {
+  margin: 0 auto 40px;
+  max-width: 720px;
+}
+
+.marketing-section h2 {
+  margin: 0 0 14px;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.marketing-text {
+  margin: 0 0 14px;
+  color: #334155;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.marketing-list {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.marketing-list li {
+  position: relative;
+  padding-left: 28px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.marketing-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marketing-cta-band {
+  margin: 56px auto 0;
+  max-width: 720px;
+  text-align: center;
+  padding: 40px 28px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #0f2744 0%, #1d4ed8 60%, #4f46e5 100%);
+  color: #fff;
+  box-shadow: 0 24px 60px rgba(29, 78, 216, 0.25);
+}
+
+.marketing-cta-band h2 {
+  margin: 0 0 10px;
+  font-size: 1.6rem;
+  color: #fff;
+}
+
+.marketing-cta-band p {
+  margin: 0 0 22px;
+  color: #dbeafe;
+}
+
+.marketing-cta-band .landing-btn-outline {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+/* Template preview grid for the CV templates page */
+.marketing-tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin: 0 auto 8px;
+  max-width: 720px;
+}
+
+.marketing-tpl-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+  text-align: center;
+}
+
+.marketing-tpl-swatch {
+  height: 90px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, var(--tpl-color, #1d4ed8) 0%, #0f172a 140%);
+  opacity: 0.9;
+}
+
+.marketing-tpl-card span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Legal / long-form content pages */
+.legal-content {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.legal-content h2 {
+  font-size: 1.25rem;
+  margin: 28px 0 10px;
+}
+
+.legal-content p,
+.legal-content li {
+  color: #334155;
+  line-height: 1.75;
+}
+
+.legal-updated {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 600px) {
+  .marketing-page {
+    padding: 36px 16px 56px;
+  }
+
+  .marketing-hero {
+    margin-bottom: 36px;
+  }
+
+  .marketing-hero-cta .btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .marketing-section h2 {
+    font-size: 1.3rem;
+  }
+
+  .marketing-cta-band {
+    padding: 32px 20px;
+    border-radius: 20px;
+  }
+
+  .marketing-cta-band .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

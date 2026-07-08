@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import AuthForm from "../components/AuthForm";
 import AuthLayout from "../components/AuthLayout";
+import useSeo from "../hooks/useSeo";
 import { useAuth } from "../context/AuthContext";
 
 export default function Signup() {
@@ -12,6 +13,8 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
+
+  useSeo({ title: "Sign up | BuzzCVPilot", path: "/signup", noindex: true });
 
   if (!isFirebaseConfigured) {
     return (

@@ -11,6 +11,7 @@ import SectionManager from "../components/SectionManager";
 import TemplatePicker from "../components/TemplatePicker";
 import TemplateRenderer from "../components/templates/CVTemplates";
 import UploadBar from "../components/UploadBar";
+import useSeo from "../hooks/useSeo";
 import { useAuth } from "../context/AuthContext";
 import {
   canUseTemplates,
@@ -88,6 +89,7 @@ function detectExportIntent(text) {
 }
 
 export default function CVBuilder() {
+  useSeo({ title: "My CVs | BuzzCVPilot", path: "/builder", noindex: true });
   const { user, plan, planLabel, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [view, setView] = useState("list");

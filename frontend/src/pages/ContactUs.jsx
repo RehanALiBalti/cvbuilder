@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
+import useSeo from "../hooks/useSeo";
+import { PAGE_SEO } from "../config/seo";
 import { submitContact } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
@@ -19,6 +21,7 @@ const TIPS = [
 ];
 
 export default function ContactUs() {
+  useSeo(PAGE_SEO.contact);
   const { user, isAuthenticated } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

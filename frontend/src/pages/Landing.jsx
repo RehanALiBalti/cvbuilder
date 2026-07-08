@@ -1,9 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import LandingLoader from "../components/LandingLoader";
 import PricingSection from "../components/PricingSection";
 import Reveal from "../components/Reveal";
+import useSeo from "../hooks/useSeo";
+import { PAGE_SEO, SITE_URL } from "../config/seo";
 
 const FEATURES = [
   { icon: "✨", title: "AI-Powered Writing", text: "Professional summaries, achievement bullets, and skills — generated from your chat." },
@@ -15,9 +17,9 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "01", title: "Sign up free", text: "Create your account in seconds." },
-  { n: "02", title: "Chat with AI", text: "Share your experience or upload an existing CV." },
-  { n: "03", title: "Download", text: "Export a polished PDF or Word file." },
+  { n: "01", title: "Enter your details", text: "Tell the AI about your experience, or upload an existing CV." },
+  { n: "02", title: "Choose a CV template", text: "Pick a professional, ATS-friendly design that fits your role." },
+  { n: "03", title: "Download your CV", text: "Export a polished PDF or Word file, ready to send." },
 ];
 
 const TEMPLATES = [
@@ -85,6 +87,36 @@ export default function Landing() {
   const [openFaq, setOpenFaq] = useState(0);
   const finishLoad = useCallback(() => setLoading(false), []);
 
+  const faqJsonLd = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: FAQ.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: { "@type": "Answer", text: item.a },
+      })),
+    }),
+    [],
+  );
+
+  const softwareJsonLd = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "BuzzCVPilot",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      description:
+        "AI-powered CV and resume builder for creating professional, ATS-friendly CVs.",
+      url: `${SITE_URL}/`,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    }),
+    [],
+  );
+
+  useSeo({ ...PAGE_SEO.home, jsonLd: [softwareJsonLd, faqJsonLd] });
+
   return (
     <>
       {loading && <LandingLoader onDone={finishLoad} />}
@@ -103,16 +135,17 @@ export default function Landing() {
               <span className="landing-eyebrow-dot" /> AI CV Builder · Professional & Modern
             </p>
             <h1 className="landing-animate landing-animate--3">
-              Build a standout CV
-              <span className="landing-gradient-text"> in minutes</span>
+              AI CV Builder
+              <span className="landing-gradient-text"> &amp; Resume Maker</span>
             </h1>
             <p className="landing-hero-sub landing-animate landing-animate--4">
-              Chat with AI to create a polished, ATS-friendly resume. Upload your existing CV,
-              add your photo, and download PDF or Word — all in one place.
+              Create a professional CV with AI in minutes. BuzzCVPilot helps students, job
+              seekers, and professionals build clean, ATS-friendly CVs — choose a template,
+              enter your details, and download your CV instantly.
             </p>
             <div className="landing-hero-cta landing-animate landing-animate--5">
-              <Link to="/signup" className="btn btn-primary btn-lg landing-btn-glow">Start building — it&apos;s free</Link>
-              <Link to="/login" className="btn btn-lg landing-btn-outline">I already have an account</Link>
+              <Link to="/signup" className="btn btn-primary btn-lg landing-btn-glow">Create My CV</Link>
+              <Link to="/cv-templates" className="btn btn-lg landing-btn-outline">View Templates</Link>
             </div>
             <div className="landing-hero-stats landing-animate landing-animate--6">
               <div><strong>5</strong><span>CVs on Basic</span></div>
@@ -159,8 +192,8 @@ export default function Landing() {
         </div>
 
         <Reveal className="landing-section">
-          <h2>Everything you need for a professional CV</h2>
-          <p className="landing-section-sub">No design skills needed — AI and beautiful templates do the work.</p>
+          <h2>Features for Job Seekers</h2>
+          <p className="landing-section-sub">Everything you need to create an ATS-friendly CV — AI writing and professional templates do the work.</p>
           <div className="landing-features">
             {FEATURES.map((f, i) => (
               <article key={f.title} className="landing-feature-card" style={{ "--card-i": i }}>
@@ -175,7 +208,7 @@ export default function Landing() {
         {/* Template showcase */}
         <Reveal className="landing-section landing-templates-section">
           <div className="landing-templates-inner">
-            <h2>Pick a design that fits your role</h2>
+            <h2>Choose Professional CV Templates</h2>
             <p className="landing-section-sub">
               {TEMPLATES.length} professional layouts — Pro unlocks 15, Business unlocks every design and custom themes.
             </p>
@@ -199,8 +232,8 @@ export default function Landing() {
 
         <section className="landing-section landing-section--dark">
           <Reveal>
-            <h2>How it works</h2>
-            <p className="landing-section-sub">Three simple steps to your dream job application.</p>
+            <h2>How BuzzCVPilot Works</h2>
+            <p className="landing-section-sub">Three simple steps: enter your details, choose a template, and download your CV.</p>
           </Reveal>
           <div className="landing-steps">
             {STEPS.map((s, i) => (
@@ -232,7 +265,7 @@ export default function Landing() {
 
         {/* FAQ */}
         <Reveal className="landing-section landing-faq-section" id="faq">
-          <h2>FAQ</h2>
+          <h2>Frequently Asked Questions</h2>
           <p className="landing-section-sub">Answers to common questions about plans, billing, and AI.</p>
           <div className="landing-faq-list">
             {FAQ.map((item, i) => (

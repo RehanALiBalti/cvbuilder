@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import AuthForm from "../components/AuthForm";
 import AuthLayout from "../components/AuthLayout";
+import useSeo from "../hooks/useSeo";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -10,6 +11,8 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || "/builder";
+
+  useSeo({ title: "Log in | BuzzCVPilot", path: "/login", noindex: true });
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

@@ -6,6 +6,7 @@ import "./styles/site.css";
 import "./styles/landing.css";
 import "./styles/auth.css";
 import "./styles/templates.css";
+import "./styles/marketing.css";
 
 document.documentElement.classList.remove("theme-dark");
 localStorage.removeItem("buzzcvpilot-theme");

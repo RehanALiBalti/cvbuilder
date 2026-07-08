@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Note: private app/auth pages (/builder, /builder/account, /login, /signup,
+# /forgot-password, /share/*) use an in-page <meta name="robots"
+# content="noindex, nofollow"> tag instead of a Disallow rule. This lets
+# Google crawl them and honor the noindex so they drop out of the index.
+# Do NOT add Disallow for these until they are confirmed removed from the
+# index, otherwise Google cannot see the noindex tag.
+
+Sitemap: https://cv.buzzwaretech.com/sitemap.xml

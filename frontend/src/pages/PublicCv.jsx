@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import TemplateRenderer from "../components/templates/CVTemplates";
+import useSeo from "../hooks/useSeo";
 import { fetchPublicCv, fetchTemplates } from "../api/client";
 
 export default function PublicCv() {
   const { token } = useParams();
+  useSeo({ title: "Shared CV | BuzzCVPilot", noindex: true });
   const [cv, setCv] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [error, setError] = useState("");

@@ -17,42 +17,42 @@ export default function SiteFooter() {
               className="brand-logo--footer"
             />
             <p className="site-footer-tagline">
-              AI-powered resume builder — professional CVs in minutes.
+              AI-powered CV &amp; resume builder — professional, ATS-friendly CVs in minutes.
             </p>
+            <ul className="site-footer-trust" aria-label="Trust">
+              <li>Secure payments</li>
+              <li>Privacy-focused</li>
+              <li>ATS-friendly CVs</li>
+            </ul>
           </div>
 
           <nav className="site-footer-nav" aria-label="Footer">
-            {isAuthenticated ? (
-              <>
-                <div className="site-footer-col">
-                  <span className="site-footer-col-title">Workspace</span>
-                  <Link to="/builder">My CVs</Link>
-                  <Link to="/builder/account">Account</Link>
-                  <Link to="/builder/account">Billing</Link>
-                </div>
-                <div className="site-footer-col">
-                  <span className="site-footer-col-title">Product</span>
-                  <Link to="/">Home</Link>
-                  <Link to="/builder">Builder</Link>
-                  <Link to="/contact">Contact us</Link>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="site-footer-col">
-                  <span className="site-footer-col-title">Product</span>
-                  <Link to="/">Home</Link>
-                  <Link to={{ pathname: "/", hash: "#pricing" }}>Pricing</Link>
-                  <Link to={{ pathname: "/", hash: "#faq" }}>FAQ</Link>
-                  <Link to="/contact">Contact us</Link>
-                </div>
-                <div className="site-footer-col">
-                  <span className="site-footer-col-title">Get started</span>
-                  <Link to="/login">Log in</Link>
-                  <Link to="/signup">Sign up</Link>
-                </div>
-              </>
-            )}
+            <div className="site-footer-col">
+              <span className="site-footer-col-title">Product</span>
+              <Link to="/ai-cv-builder">AI CV Builder</Link>
+              <Link to="/resume-builder">Resume Builder</Link>
+              <Link to="/cv-templates">CV Templates</Link>
+              <Link to="/ats-cv-builder">ATS CV Builder</Link>
+              <Link to="/pricing">Pricing</Link>
+            </div>
+
+            <div className="site-footer-col">
+              <span className="site-footer-col-title">Company</span>
+              <Link to="/about">About</Link>
+              <Link to="/contact">Contact</Link>
+              {isAuthenticated ? (
+                <Link to="/builder">My CVs</Link>
+              ) : (
+                <Link to="/signup">Get started</Link>
+              )}
+            </div>
+
+            <div className="site-footer-col">
+              <span className="site-footer-col-title">Legal</span>
+              <Link to="/privacy-policy">Privacy Policy</Link>
+              <Link to="/terms-and-conditions">Terms &amp; Conditions</Link>
+              <Link to="/refund-policy">Refund Policy</Link>
+            </div>
           </nav>
         </div>
 
@@ -61,7 +61,7 @@ export default function SiteFooter() {
             © {year} BuzzCVPilot. All rights reserved.
           </p>
           <p className="site-footer-meta">
-            Secure payments · Your data stays private
+            Powered by Buzzware Tech · Secure payments · Your data stays private
           </p>
         </div>
       </div>

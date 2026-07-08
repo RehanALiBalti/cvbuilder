@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import AuthLayout from "../components/AuthLayout";
+import useSeo from "../hooks/useSeo";
 import { useAuth } from "../context/AuthContext";
 
 export default function ForgotPassword() {
@@ -10,6 +11,8 @@ export default function ForgotPassword() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useSeo({ title: "Reset password | BuzzCVPilot", path: "/forgot-password", noindex: true });
 
   if (!isFirebaseConfigured) {
     return (

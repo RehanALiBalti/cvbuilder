@@ -4,6 +4,7 @@ import AppLayout from "../components/AppLayout";
 import PlanStatusBanner from "../components/PlanStatusBanner";
 import { createCheckoutSession } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import useSeo from "../hooks/useSeo";
 import { displayPlanCvLimit, normalizePricingPlans, PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
 
 const SECTIONS = [
@@ -26,6 +27,7 @@ function UserAvatar({ name }) {
 }
 
 export default function Account() {
+  useSeo({ title: "Account | BuzzCVPilot", path: "/builder/account", noindex: true });
   const {
     user,
     profile,
