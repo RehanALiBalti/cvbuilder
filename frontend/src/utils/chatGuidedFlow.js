@@ -4,6 +4,7 @@ import { applySectionAnswer } from "./cvSectionOps";
 export const GUIDED_STEP_ORDER = [
   "name",
   "job_title",
+  "experience_level",
   "experience",
   "education",
   "skills",
@@ -15,6 +16,7 @@ export const GUIDED_STEP_ORDER = [
 
 const SKIPPABLE = new Set([
   "job_title",
+  "experience_level",
   "experience",
   "education",
   "skills",
@@ -23,6 +25,42 @@ const SKIPPABLE = new Set([
   "location",
   "links",
 ]);
+
+/** Choice cards for steps that work better as tap-to-select. */
+export const GUIDED_CHOICE_STEPS = {
+  job_title: {
+    title: "What is your field or target job?",
+    page: 1,
+    totalPages: 2,
+    options: [
+      { id: "it", label: "IT / Software", value: "Software Developer" },
+      { id: "business", label: "Business / Marketing", value: "Marketing Professional" },
+      { id: "teaching", label: "Teaching / Education", value: "Teacher" },
+      {
+        id: "fresher",
+        label: "Fresh graduate / no experience yet",
+        value: "Fresh Graduate",
+        skipAlso: ["experience_level", "experience"],
+      },
+      { id: "other", label: "Something else", custom: true },
+    ],
+  },
+  experience_level: {
+    title: "What is your experience level?",
+    page: 2,
+    totalPages: 2,
+    options: [
+      {
+        id: "none",
+        label: "No experience yet",
+        skipAlso: ["experience"],
+      },
+      { id: "0-1", label: "Less than 1 year" },
+      { id: "1-3", label: "1–3 years" },
+      { id: "3plus", label: "3+ years" },
+    ],
+  },
+};
 
 const ROLE_WORDS =
   "developer|engineer|manager|designer|analyst|consultant|specialist|officer|" +
@@ -114,13 +152,15 @@ export function messageProvidesBulkData(text) {
   return /\b(company|worked|university|college|degree|bachelor|master|matric|@|\+?\d[\d\s-]{8,})\b/.test(m);
 }
 
-function stepIsFilled(content, stepId) {
+function stepIsFilled(content, stepId, meta = {}) {
   const c = content || {};
   switch (stepId) {
     case "name":
       return Boolean(c.full_name?.trim());
     case "job_title":
       return Boolean(c.job_title?.trim());
+    case "experience_level":
+      return Boolean(meta.experienceLevel);
     case "experience":
       return Boolean(c.experience?.length);
     case "education":
@@ -140,13 +180,63 @@ function stepIsFilled(content, stepId) {
   }
 }
 
-export function getNextGuidedStep(content, skipped = []) {
+export function getNextGuidedStep(content, skipped = [], meta = {}) {
   const skipSet = new Set(skipped);
   for (const stepId of GUIDED_STEP_ORDER) {
     if (skipSet.has(stepId)) continue;
-    if (!stepIsFilled(content, stepId)) return stepId;
+    if (stepId === "experience_level" && skipSet.has("experience")) continue;
+    if (!stepIsFilled(content, stepId, meta)) return stepId;
   }
   return null;
+}
+
+/** Short professional confirmation after a field is saved. */
+export function buildStepAcknowledgment(stepId, detail = "") {
+  const labels = {
+    name: "Name saved to your CV",
+    job_title: "Job title saved",
+    email: "Email added to your CV",
+    phone: "Phone number saved",
+    location: "Location saved",
+    links: "Profile link saved",
+    education: "Education added",
+    skills: "Skills added",
+    experience: "Experience added",
+    experience_level: "Got it",
+  };
+  const base = labels[stepId] || "Saved to your CV";
+  const extra = detail && stepId !== "experience_level" ? ` (${detail})` : "";
+  return `${base}${extra} ✓\n\nLet's add the remaining details to complete your CV:`;
+}
+
+/** Numbered list of what's still needed (shown after job + experience level). */
+export function buildRemainingDetailsList(content, skipped = []) {
+  const skipSet = new Set(skipped);
+  const items = [];
+  if (!skipSet.has("experience") && !content.experience?.length) {
+    items.push("Work experience — company, role, dates, and 2–3 main tasks");
+  }
+  if (!skipSet.has("education") && !content.education?.length) {
+    items.push("Education — degree, institute, year");
+  }
+  if (!skipSet.has("skills") && !content.skills?.length && !content.skill_groups?.length) {
+    items.push("Skills — 3–4 key skills for your field");
+  }
+  if (!content.contact?.phone?.trim() && !skipSet.has("phone")) {
+    items.push("Phone number");
+  }
+  if (!content.contact?.location?.trim() && !skipSet.has("location")) {
+    items.push("City / location");
+  }
+  if (!content.full_name?.trim() && !skipSet.has("name")) {
+    items.push("Full name");
+  }
+  if (items.length === 0) return "";
+  const numbered = items.map((t, i) => `${i + 1}. ${t}`).join("\n");
+  return (
+    `Share whatever you have — even roughly — and I'll organize it into your CV:\n\n${numbered}\n\n` +
+    "You can send one section at a time, or paste several details together."
+  );
 }
 
 export function buildGuidedWelcome(content) {
@@ -163,32 +253,36 @@ export function buildGuidedWelcome(content) {
   );
 }
 
-export function buildGuidedQuestion(stepId, content) {
+export function buildGuidedQuestion(stepId, content, meta = {}) {
   const first = (content.full_name || "").trim().split(/\s+/)[0] || "there";
+
+  const choiceDef = GUIDED_CHOICE_STEPS[stepId];
+  if (choiceDef) {
+    return {
+      text: choiceDef.title,
+      choices: { ...choiceDef, stepId },
+      actions: ["Skip for now", "Build CV now"],
+    };
+  }
 
   const questions = {
     name: {
-      text: "Let's start with the basics — what is your full name?",
+      text: "What is your full name?",
       example: "e.g. Rehan Ali",
-    },
-    job_title: {
-      text: first !== "there"
-        ? `What job or role are you aiming for, ${first}?`
-        : "What job or role are you aiming for?",
-      example: "e.g. Software Developer, Marketing Executive, Fresh Graduate",
     },
     experience: {
       text:
-        "Tell me about your work experience — role, company, dates, and what you did.\n" +
-        "If you're a fresher with no job yet, type \"fresher\" or tap Skip.",
-      example: "Software Engineer at ABC Tech, 2021–Present. Built web apps…",
+        meta.experienceLevel === "3plus" || meta.experienceLevel === "1-3"
+          ? "Tell me about your work experience — for each job: company, role, dates, and 2–3 things you achieved."
+          : "Share any work experience you have — role, company, dates, and what you did.\nIf none yet, type \"fresher\" or tap Skip.",
+      example: "Software Engineer at ABC Tech, 2021–Present. Built customer portal…",
     },
     education: {
-      text: "What is your education? Share degree, school/university, and year.",
+      text: "What is your education? Degree, school/university, and year.",
       example: "BSCS, University of Punjab, 2024",
     },
     skills: {
-      text: "What are your main skills? List them separated by commas.",
+      text: `What are your main skills${content.job_title ? ` for a ${content.job_title}` : ""}? List 3–6 separated by commas.`,
       example: "Python, React, Communication, Teamwork",
     },
     email: {
@@ -204,7 +298,7 @@ export function buildGuidedQuestion(stepId, content) {
       example: "Lahore, Pakistan",
     },
     links: {
-      text: "Do you have a LinkedIn or GitHub profile? Paste the link(s), or skip.",
+      text: "LinkedIn or GitHub link? Paste here, or tap Skip.",
       example: "linkedin.com/in/yourname",
     },
   };
@@ -212,15 +306,14 @@ export function buildGuidedQuestion(stepId, content) {
   const q = questions[stepId] || { text: "Please share the next detail for your CV.", example: "" };
   const skippable = SKIPPABLE.has(stepId);
   let text = q.text;
-  if (q.example) text += `\n\n(${q.example})`;
-  if (skippable) {
-    text += "\n\nType your answer below, or tap **Skip for now** to move on.";
-  } else {
-    text += "\n\nType your answer below.";
+  if (first !== "there" && stepId === "name") {
+    text = `Hi! ${text}`;
   }
+  if (q.example) text += `\n\n(${q.example})`;
 
   return {
     text,
+    choices: null,
     actions: skippable ? ["Skip for now", "Build CV now"] : ["Build CV now"],
   };
 }
