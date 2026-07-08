@@ -783,6 +783,90 @@ def _extract_identity(message: str, content: CVContent) -> tuple[Dict[str, Any],
     return updates, notes
 
 
+def _cv_has_substance(content: CVContent) -> bool:
+    """True when the CV already has real content (not just a name / role)."""
+    return bool(
+        content.experience
+        or content.education
+        or content.skills
+        or content.skill_groups
+        or (content.summary or "").strip()
+        or content.projects
+        or content.certifications
+    )
+
+
+def _message_provides_data(message: str) -> bool:
+    """True when the message contains real CV data (so we build instead of ask)."""
+    m = (message or "").strip().lower()
+    if len(m) > 140:
+        return True
+    return bool(
+        re.search(
+            r"\b(company|worked?|work(?:ed|ing)?\s+at|university|college|institute|"
+            r"degree|bachelor|master|matric|intermediate|fsc|f\.sc|diploma|graduated|"
+            r"experience of|years?\s+(?:of\s+)?experience|responsib|"
+            r"skills?|proficient|expert|specializ|experienced\s+in|"
+            r"know|knows|knowledge of|familiar with|"
+            r"email|phone|contact)\b"
+            r"|@|\+?\d[\d\s-]{7,}",
+            m,
+        )
+    )
+
+
+def _is_cv_start_intent(message: str) -> bool:
+    """User is asking to start / make a CV (English or common Roman-Urdu)."""
+    m = (message or "").strip().lower()
+    if re.search(
+        r"\b(make|create|build|generate|start|need|want|help(?:\s+me)?|design|write|prepare|do)\b"
+        r"[\w\s'’]{0,25}\b(cv|resume|resumé)\b",
+        m,
+    ):
+        return True
+    # Roman-Urdu: "cv banao / cv bana do / resume banana hai / cv chahiye"
+    if re.search(r"\b(cv|resume)\b[\w\s]{0,15}\b(bana|banao|banana|banade|banade|chahiye|chahiy|chaiye|chahta|chahti)\b", m):
+        return True
+    return False
+
+
+def _onboarding_reply(content: CVContent) -> str:
+    """Warm, conversational prompt asking for the details still missing."""
+    name = (content.full_name or "").strip()
+    role = (content.job_title or "").strip()
+    first = name.split()[0] if name else ""
+
+    if name:
+        greeting = f"Nice to meet you, {first}! I'd love to help you build a professional CV."
+    else:
+        greeting = "Great — I'd love to help you build a professional CV!"
+    if role:
+        greeting += f" A {role} CV — nice choice."
+
+    asks: List[str] = []
+    if not role:
+        asks.append(
+            "Target role / field — what job are you aiming for? "
+            "(e.g. software developer, marketing, teaching)"
+        )
+    asks.append(
+        "Work experience — job titles, companies, dates, and a few key "
+        "responsibilities or achievements (if you're a fresher, just say so)"
+    )
+    asks.append("Education — your degree(s), institution(s), and years")
+    asks.append("Key skills — the main skills you want to highlight")
+    asks.append("Contact info — phone, email, city (and LinkedIn if you have one)")
+
+    bullets = "\n".join(f"• {a}" for a in asks)
+    return (
+        f"{greeting}\n\n"
+        "To get started, just share a few details:\n\n"
+        f"{bullets}\n\n"
+        "Type it out however you like — even roughly — and I'll organize it into a "
+        "clean, professional CV. You'll see the preview update on the right as we go."
+    )
+
+
 def chat_cv(
     message: str,
     history: List[Dict[str, str]],
@@ -884,6 +968,29 @@ def chat_cv(
         ed.update(identity_updates)
         edited = CVContent(**ed)
         edit_notes = edit_notes + identity_notes
+
+    # Conversational onboarding: if the user is just introducing themselves or
+    # asking to make a CV but hasn't shared real details yet, greet them and ask
+    # for what's missing (Claude/ChatGPT style) instead of fabricating content.
+    if (
+        not _cv_has_substance(edited)
+        and not _message_provides_data(message)
+        and (_is_cv_start_intent(message) or identity_updates)
+    ):
+        reply = _onboarding_reply(edited)
+        suggestions = _suggest_missing_sections(edited)
+        return AIResponse(
+            success=True,
+            message=reply,
+            data={
+                "reply": reply,
+                "content": edited.model_dump(),
+                "missing_sections": suggestions,
+                "template_id": template_id,
+                "theme_override": _theme_to_dict(theme_override),
+            },
+            suggestions=suggestions,
+        )
 
     clear_sections = _sections_to_clear(message)
 

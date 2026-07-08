@@ -26,6 +26,18 @@ import {
 } from "../services/chatHistory";
 import { exportCvPreview } from "../utils/exportCv";
 import {
+  applyGuidedAnswer,
+  buildGuidedCompleteMessage,
+  buildGuidedQuestion,
+  buildGuidedWelcome,
+  extractIdentityFromMessage,
+  getNextGuidedStep,
+  isBuildNowMessage,
+  isSkipMessage,
+  messageProvidesBulkData,
+  shouldStartGuidedFlow,
+} from "../utils/chatGuidedFlow";
+import {
   applySectionAnswer,
   applyStarterProfile,
   getNextSteps,
@@ -106,6 +118,11 @@ export default function CVBuilder() {
   const [buildMode, setBuildMode] = useState("chat"); // guided | chat
   const [generating, setGenerating] = useState(false);
   const [pendingSection, setPendingSection] = useState(null); // education | skills | ...
+  const [guidedChat, setGuidedChat] = useState({
+    active: false,
+    awaiting: null,
+    skipped: [],
+  });
   const chatEndRef = useRef(null);
   const previewRef = useRef(null);
   const inputRef = useRef(null);
@@ -139,6 +156,10 @@ export default function CVBuilder() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    setGuidedChat({ active: false, awaiting: null, skipped: [] });
+  }, [activeCv?.id]);
 
   async function persistChat(cvId, msgs) {
     if (user?.uid && cvId) await saveChatHistory(user.uid, cvId, msgs);
@@ -383,6 +404,109 @@ export default function CVBuilder() {
     }
   }
 
+  function persistCvContent(content) {
+    if (!activeCv) return;
+    pushUndoSnapshot();
+    const name = content.full_name ? `${content.full_name} CV` : activeCv.name;
+    const next = {
+      ...activeCv,
+      name,
+      content,
+      updated_at: new Date().toISOString(),
+    };
+    setActiveCv(next);
+    saveCv(next);
+    return next;
+  }
+
+  function appendChatMessages(newMsgs) {
+    if (!activeCv?.id) return;
+    setMessages((prev) => {
+      const next = [...prev, ...newMsgs];
+      persistChat(activeCv.id, next);
+      return next;
+    });
+  }
+
+  function askNextGuidedQuestion(content, { includeWelcome = false, skipped = [] } = {}) {
+    const step = getNextGuidedStep(content, skipped);
+    if (!step) {
+      finishGuidedChat(content);
+      return;
+    }
+    const q = buildGuidedQuestion(step, content);
+    const assistantText = `${includeWelcome ? buildGuidedWelcome(content) : ""}${q.text}`;
+    setGuidedChat((g) => ({ ...g, active: true, awaiting: step, skipped }));
+    appendChatMessages([
+      { role: "assistant", content: assistantText, guidedActions: q.actions },
+    ]);
+    focusAnswerInput();
+  }
+
+  function finishGuidedChat(content) {
+    setGuidedChat({ active: false, awaiting: null, skipped: [] });
+    appendChatMessages([
+      {
+        role: "assistant",
+        content: buildGuidedCompleteMessage(content),
+        guidedActions: ["Polish CV", "Download PDF"],
+      },
+    ]);
+  }
+
+  function startGuidedChatFlow(userText, content) {
+    setInput("");
+    appendChatMessages([{ role: "user", content: userText }]);
+    persistCvContent(content);
+    setGuidedChat({ active: true, awaiting: null, skipped: [] });
+    askNextGuidedQuestion(content, { includeWelcome: true });
+  }
+
+  function handleGuidedChatTurn(text) {
+    const skipped = guidedChat.skipped || [];
+    const awaiting = guidedChat.awaiting;
+
+    if (isBuildNowMessage(text)) {
+      setInput("");
+      appendChatMessages([{ role: "user", content: text }]);
+      let content = activeCv.content;
+      if (awaiting && !isSkipMessage(text)) {
+        const applied = applyGuidedAnswer(content, awaiting, text);
+        content = applied.content;
+        persistCvContent(content);
+      }
+      finishGuidedChat(content);
+      return true;
+    }
+
+    if (isSkipMessage(text)) {
+      setInput("");
+      const nextSkipped = awaiting ? [...skipped, awaiting] : skipped;
+      appendChatMessages([
+        { role: "user", content: text },
+        { role: "assistant", content: "No problem — let's move on." },
+      ]);
+      setGuidedChat((g) => ({ ...g, skipped: nextSkipped, awaiting: null }));
+      askNextGuidedQuestion(activeCv.content, { skipped: nextSkipped });
+      return true;
+    }
+
+    if (!awaiting) return false;
+
+    const result = applyGuidedAnswer(activeCv.content, awaiting, text);
+    const { content, message, treatAsSkip } = result;
+    setInput("");
+    appendChatMessages([
+      { role: "user", content: text },
+      { role: "assistant", content: message },
+    ]);
+    persistCvContent(content);
+    const nextSkipped = treatAsSkip ? [...skipped, awaiting] : skipped;
+    setGuidedChat((g) => ({ ...g, awaiting: null, skipped: nextSkipped }));
+    askNextGuidedQuestion(content, { skipped: nextSkipped });
+    return true;
+  }
+
   async function sendMessage(presetText) {
     const text = (typeof presetText === "string" ? presetText : input).trim();
     if (!text || loading || !activeCv || generating) return;
@@ -398,12 +522,31 @@ export default function CVBuilder() {
       return;
     }
 
-    // Fast path: email, phone, name, skills list, links — no AI wait
-    const localApply = tryApplyFreeTextLocally(activeCv.content, text);
-    if (localApply) {
-      setInput("");
-      applyContentLocally(localApply.content, localApply.message, { userNote: text });
+    // Exit guided mode if user pastes a full CV paragraph — let AI handle it
+    if (guidedChat.active && messageProvidesBulkData(text)) {
+      setGuidedChat({ active: false, awaiting: null, skipped: [] });
+    }
+
+    // Guided chat: one question at a time, skip allowed
+    if (guidedChat.active && (guidedChat.awaiting || isSkipMessage(text) || isBuildNowMessage(text))) {
+      if (handleGuidedChatTurn(text)) return;
+    }
+
+    // Start guided chat on intro / "make my cv"
+    if (!guidedChat.active && shouldStartGuidedFlow(text, activeCv.content)) {
+      let content = { ...activeCv.content, ...extractIdentityFromMessage(text) };
+      startGuidedChatFlow(text, content);
       return;
+    }
+
+    // Fast path: email, phone, name, skills list, links — no AI wait
+    if (!guidedChat.active) {
+      const localApply = tryApplyFreeTextLocally(activeCv.content, text);
+      if (localApply) {
+        setInput("");
+        applyContentLocally(localApply.content, localApply.message, { userNote: text });
+        return;
+      }
     }
 
     // Download intent without AI
@@ -573,6 +716,24 @@ export default function CVBuilder() {
 
   function handleQuickPick(text, { send = false } = {}) {
     if (!text) return;
+
+    if (text === "Skip for now") {
+      sendMessage("skip");
+      return;
+    }
+    if (text === "Build CV now") {
+      sendMessage("build cv now");
+      return;
+    }
+    if (text === "Polish CV") {
+      handleChatAction({ type: "polish" });
+      return;
+    }
+    if (text === "Download PDF") {
+      handleChatAction({ type: "download" });
+      return;
+    }
+
     // Suggestion chips → same as + Education: ask, focus input, attach on Send
     const section = suggestionToSection(text);
     if (section) {
@@ -1023,7 +1184,11 @@ export default function CVBuilder() {
               <div className="account-card-head builder-chat-head">
                 <div>
                   <h2>{activeCv.name}</h2>
-                  <p>Tap a step, type your answer, Add to CV — AI only when you Polish.</p>
+                  <p>
+                    {guidedChat.active
+                      ? "Answer each question in chat — skip anything optional."
+                      : "Chat naturally — I'll ask for missing details and build your CV step by step."}
+                  </p>
                 </div>
                 <div className="builder-chat-head-actions">
                   <span className={`save-pill save-pill--${saveState}`}>
@@ -1034,7 +1199,7 @@ export default function CVBuilder() {
                   </button>
                 </div>
               </div>
-              {getNextSteps(activeCv.content).length > 0 && (
+              {getNextSteps(activeCv.content).length > 0 && !guidedChat.active && (
                 <div className="next-steps-bar">
                   <span className="next-steps-label">Next:</span>
                   <div className="chat-quick-chips">
@@ -1064,8 +1229,8 @@ export default function CVBuilder() {
                 {messages.length === 0 && !loading && (
                   <div className="chat-empty-hint builder-anim builder-anim--2">
                     <strong>Build your CV in minutes</strong>
-                    <p>Tap a quick start button, or type something simple like:</p>
-                    <em>&quot;My name is Ali, I am a software engineer with 3 years experience.&quot;</em>
+                    <p>Start with a simple intro — I'll ask you each detail one by one:</p>
+                    <em>&quot;My name is Rehan Ali, I want to make a CV&quot;</em>
                   </div>
                 )}
                 {messages.map((msg, i) => (
@@ -1075,7 +1240,25 @@ export default function CVBuilder() {
                   >
                     <span className="chat-role">{msg.role === "user" ? "You" : "AI"}</span>
                     <p>{msg.content}</p>
-                    {msg.suggestions?.length > 0 && (
+                    {msg.guidedActions?.length > 0 && (
+                      <div className="chat-suggestions-wrap">
+                        <p className="chat-suggestions-title">Quick actions</p>
+                        <div className="chat-suggestion-chips">
+                          {msg.guidedActions.map((s, j) => (
+                            <button
+                              key={j}
+                              type="button"
+                              className={`chat-quick-chip ${s === "Polish CV" ? "chat-quick-chip--ai" : ""}`}
+                              disabled={loading || generating}
+                              onClick={() => handleQuickPick(s)}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {!msg.guidedActions?.length && msg.suggestions?.length > 0 && (
                       <div className="chat-suggestions-wrap">
                         <p className="chat-suggestions-title">Tap a suggestion to continue</p>
                         <div className="chat-suggestion-chips">
