@@ -597,6 +597,9 @@ def _message_has_cv_content(message: str) -> bool:
         return True
     if _sections_to_clear(message):
         return True
+    # Explicit self-identification is always CV content, even alongside a greeting.
+    if re.search(r"\b(my name is|my name's|call me|i am called|i'?m called)\b", m):
+        return True
     return bool(
         re.search(
             r"\b("
@@ -712,6 +715,74 @@ def _theme_to_dict(theme: CustomTheme | Dict[str, Any] | None) -> Dict[str, Any]
     return theme if isinstance(theme, dict) else None
 
 
+_ROLE_WORDS = (
+    "developer|engineer|manager|designer|analyst|consultant|specialist|officer|"
+    "accountant|teacher|lecturer|professor|nurse|doctor|scientist|architect|"
+    "administrator|marketer|writer|intern|programmer|technician|executive|"
+    "assistant|coordinator|director|freelancer|student|devops|recruiter|"
+    "representative|agent|clerk|supervisor|tester|editor|photographer|chef|"
+    "electrician|mechanic|pharmacist|lawyer|advocate|banker|auditor"
+)
+
+# Common English words that follow "my name is X ..." and must not be part of the name.
+_NAME_STOP = re.compile(
+    r"\s+(?:i\s*am|i'?m|and|but|who|from|working|works|a|an|the)\b",
+    re.I,
+)
+
+
+def _titlecase(text: str) -> str:
+    return " ".join(w[:1].upper() + w[1:] if w else w for w in text.split())
+
+
+def _extract_identity(message: str, content: CVContent) -> tuple[Dict[str, Any], List[str]]:
+    """Deterministically capture an explicitly stated name / job title.
+
+    This runs regardless of the LLM so a message like "my name is Waqas, I am a
+    software developer" always fills full_name / job_title even if the model is
+    unavailable or misses it. Only fills fields the CV does not already have.
+    """
+    m = (message or "").strip()
+    updates: Dict[str, Any] = {}
+    notes: List[str] = []
+
+    if not (content.full_name or "").strip():
+        name_match = re.search(
+            r"\b(?:my name is|my name's|myself|this is|i am called|i'?m called|name\s*[:\-]\s*)\s*"
+            r"([A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){0,3})",
+            m,
+            re.I,
+        )
+        if name_match:
+            raw = name_match.group(1).strip()
+            raw = _NAME_STOP.split(raw, maxsplit=1)[0].strip()
+            # Drop any role word (and everything after) accidentally captured.
+            raw = re.sub(r"\b(?:" + _ROLE_WORDS + r")\b.*$", "", raw, flags=re.I)
+            raw = raw.strip(" .,-")
+            words = [w for w in raw.split() if w]
+            if 1 <= len(words) <= 4:
+                full_name = _titlecase(" ".join(words))
+                updates["full_name"] = full_name
+                notes.append(f"set your name to {full_name}")
+
+    if not (content.job_title or "").strip():
+        title_match = re.search(
+            r"\b(?:i\s*am|i'?m|work(?:ing)?\s+as|as)\s+(?:an?\s+)?"
+            r"([a-z][a-z /+&.-]*?\b(?:" + _ROLE_WORDS + r"))\b",
+            m,
+            re.I,
+        )
+        if title_match:
+            title = re.sub(r"\s+", " ", title_match.group(1)).strip(" .,-")
+            title = re.sub(r"^(?:a|an|the)\s+", "", title, flags=re.I).strip()
+            if title and len(title) <= 45:
+                title = _titlecase(title)
+                updates["job_title"] = title
+                notes.append(f"set your target role to {title}")
+
+    return updates, notes
+
+
 def chat_cv(
     message: str,
     history: List[Dict[str, str]],
@@ -804,6 +875,16 @@ def chat_cv(
 
     # Direct add/remove edits (e.g. "add high school education and remove certification")
     edited, edit_notes = _apply_direct_section_edits(content, message)
+
+    # Deterministically capture an explicitly stated name / role so it is never
+    # lost if the LLM misses it or is unavailable.
+    identity_updates, identity_notes = _extract_identity(message, edited)
+    if identity_updates:
+        ed = edited.model_dump()
+        ed.update(identity_updates)
+        edited = CVContent(**ed)
+        edit_notes = edit_notes + identity_notes
+
     clear_sections = _sections_to_clear(message)
 
     # Every message: rebuild full CV from entire conversation (from first message onward)
@@ -827,6 +908,11 @@ def chat_cv(
         # Direct edits win for explicit clears / high-school add if model ignored them
         if clear_sections or edit_notes:
             updated, _ = _apply_direct_section_edits(updated, message)
+        # An explicitly stated name / role always wins over the model output.
+        if identity_updates:
+            up = updated.model_dump()
+            up.update(identity_updates)
+            updated = CVContent(**up)
         suggestions = _suggest_missing_sections(updated)
         reply = _make_chat_reply(content, updated, suggestions, extra_notes=edit_notes)
 
