@@ -206,6 +206,16 @@ button, input, select, textarea {
   margin-bottom: 4px;
 }
 
+.chat-quick-group--inline .chat-quick-chips {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chat-quick-group--inline .chat-quick-chip {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+}
+
 .chat-quick-group {
   display: flex;
   flex-direction: column;
@@ -834,13 +844,14 @@ button, input, select, textarea {
 
 .chat-bubble--user {
   align-self: flex-end;
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(124, 58, 237, 0.10));
+  border-color: rgba(37, 99, 235, 0.25);
 }
 
 .chat-bubble--assistant {
   align-self: flex-start;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(148, 163, 184, 0.35);
 }
 
 .chat-bubble--latest {
@@ -1408,6 +1419,8 @@ button, input, select, textarea {
   font: inherit;
   resize: none;
   min-height: 72px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
 }
 
 .chat-input:focus {

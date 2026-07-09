@@ -71,44 +71,8 @@ export default function ChatQuickActions({
         </div>
       )}
 
-      <div className="chat-quick-group">
-        <span className="chat-quick-label">Add section · type details</span>
-        <div className="chat-quick-chips">
-          {addActions.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              className="chat-quick-chip chat-quick-chip--add"
-              disabled={disabled}
-              onClick={() => onAction({ type: "add", section: a.id })}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {removeActions.length > 0 && (
-        <div className="chat-quick-group">
-          <span className="chat-quick-label">Remove section · instant</span>
-          <div className="chat-quick-chips">
-            {removeActions.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                className="chat-quick-chip chat-quick-chip--remove"
-                disabled={disabled}
-                onClick={() => onAction({ type: "remove", section: a.id })}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="chat-quick-group">
-        <span className="chat-quick-label">AI polish · one pass</span>
+      <div className="chat-quick-group chat-quick-group--inline">
+        <span className="chat-quick-label">AI tools</span>
         <div className="chat-quick-chips">
           <button
             type="button"
@@ -125,6 +89,22 @@ export default function ChatQuickActions({
             onClick={() => onAction({ type: "download" })}
           >
             Download PDF
+          </button>
+          <button
+            type="button"
+            className="chat-quick-chip"
+            disabled={disabled}
+            onClick={() => onAction({ type: "upload_cv" })}
+          >
+            Upload CV
+          </button>
+          <button
+            type="button"
+            className="chat-quick-chip"
+            disabled={disabled}
+            onClick={() => onAction({ type: "upload_photo" })}
+          >
+            Profile photo
           </button>
         </div>
       </div>

@@ -1080,6 +1080,17 @@ export default function CVBuilder() {
       return;
     }
 
+    if (type === "upload_cv") {
+      // Delegated to UploadBar (kept in UI). This is a lightweight shortcut.
+      appendLocalAssistant("Use the Upload CV button below to select your file.");
+      return;
+    }
+
+    if (type === "upload_photo") {
+      appendLocalAssistant("Use the Profile photo button below to select your image.");
+      return;
+    }
+
     // Every + section button: ask → focus input → attach on Send
     if (type === "add" && section) {
       askForSectionDetails(section);
