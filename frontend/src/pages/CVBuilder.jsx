@@ -63,6 +63,7 @@ import {
   aiChat,
   aiCoverLetter,
   aiPolish,
+  aiSlotFill,
   createCV,
   deleteCV,
   disableShare,
@@ -82,6 +83,10 @@ const TONES = [
   { id: "executive", label: "Executive" },
   { id: "fresh_graduate", label: "Fresh Graduate" },
 ];
+
+const SLOT_FILLING_ENABLED = String(import.meta.env.VITE_SLOT_FILLING_MODE || "false")
+  .toLowerCase()
+  .trim() === "true";
 
 function applyChatCvUpdates(cv, data) {
   if (!data) return cv;
@@ -135,6 +140,8 @@ export default function CVBuilder() {
   const undoStackRef = useRef([]);
   const [saveState, setSaveState] = useState("saved"); // saving | saved
   const [shareUrl, setShareUrl] = useState("");
+  const [slotMeta, setSlotMeta] = useState({ experience_level: "", field_type: "" });
+  const [slotMissingFields, setSlotMissingFields] = useState([]);
 
   const activeTemplate = templates.find((t) => t.id === activeCv?.template_id) || templates[0];
 
@@ -164,6 +171,8 @@ export default function CVBuilder() {
 
   useEffect(() => {
     setGuidedChat({ active: false, awaiting: null, skipped: [], meta: {} });
+    setSlotMeta({ experience_level: "", field_type: "" });
+    setSlotMissingFields([]);
   }, [activeCv?.id]);
 
   async function persistChat(cvId, msgs) {
@@ -229,6 +238,12 @@ export default function CVBuilder() {
     if (loading) {
       setToast("Please wait — CV preview is still updating.");
       return;
+    }
+    if (SLOT_FILLING_ENABLED && slotMissingFields?.length) {
+      const ok = window.confirm(
+        "Your CV is missing some important details. You can continue exporting, but adding them will improve the result."
+      );
+      if (!ok) return;
     }
     const el = previewRef.current;
     if (!el) {
@@ -480,6 +495,20 @@ export default function CVBuilder() {
   function handleGuidedChoice(stepId, option, customText) {
     if (!activeCv || loading || generating) return;
 
+    // Slot-filling guided choices (backend-driven): update slot_meta and send a simple message back
+    if (SLOT_FILLING_ENABLED && (stepId === "fieldType" || stepId === "experienceLevel")) {
+      const value = customText || option.value || option.label;
+      const nextMeta = { ...slotMeta };
+      const userText = stepId === "fieldType"
+        ? `Field type: ${value}`
+        : `Experience level: ${value}`;
+      if (stepId === "fieldType") nextMeta.field_type = String(value || "").trim();
+      if (stepId === "experienceLevel") nextMeta.experience_level = String(value || "").trim();
+      setSlotMeta(nextMeta);
+      sendMessage(userText, { slotMetaOverride: nextMeta });
+      return;
+    }
+
     const label = customText || option.label;
     let skipped = [...(guidedChat.skipped || [])];
     if (option.skipAlso) skipped = [...new Set([...skipped, ...option.skipAlso])];
@@ -611,7 +640,7 @@ export default function CVBuilder() {
     return true;
   }
 
-  async function sendMessage(presetText) {
+  async function sendMessage(presetText, { slotMetaOverride } = {}) {
     const text = (typeof presetText === "string" ? presetText : input).trim();
     if (!text || loading || !activeCv || generating) return;
     if (typeof presetText === "string") setInput("");
@@ -638,6 +667,140 @@ export default function CVBuilder() {
       persistCvContent(content);
       appendChatMessages([{ role: "user", content: text }]);
       continueGuidedAfterSave(content, guidedStepMap[sectionId] || sectionId, text);
+      return;
+    }
+
+    // Slot-filling chat mode: extraction-only endpoint, no guided local flow
+    if (SLOT_FILLING_ENABLED) {
+      const localExportOnly = detectExportIntent(text);
+      if (localExportOnly) {
+        setInput("");
+        setMessages((prev) => {
+          const next = [
+            ...prev,
+            { role: "user", content: text },
+            { role: "assistant", content: "Starting your download…" },
+          ];
+          persistChat(activeCv.id, next);
+          return next;
+        });
+        triggerDownload(localExportOnly, activeCv);
+        return;
+      }
+
+      const userMsg = { role: "user", content: text };
+      const nextHistory = [...messages, userMsg];
+      setMessages(nextHistory);
+      setInput("");
+      setLoading(true);
+
+      try {
+        const cvForChat = activeCv;
+        const metaToSend = slotMetaOverride || slotMeta;
+
+        let result;
+        try {
+          result = await aiSlotFill({
+            message: text,
+            content: cvForChat.content,
+            slot_meta: metaToSend,
+          });
+        } catch (e) {
+          // Network/server error: safe fallback to old chat
+          result = null;
+        }
+
+        // Backend says slot filling disabled: fallback to old /api/ai/chat
+        if (!result || (result.success === false && result.data?.slot_filling_enabled === false)) {
+          const fallback = await aiChat({
+            message: text,
+            history: messages.filter((m) => m.role === "user" || m.role === "assistant"),
+            content: cvForChat.content,
+            tone: cvForChat.tone,
+            template_id: cvForChat.template_id,
+            theme_override: cvForChat.theme_override || null,
+          });
+          const reply = fallback.data?.reply || fallback.message || "Done.";
+          const suggestions = fallback.suggestions || fallback.data?.missing_sections || [];
+          pushUndoSnapshot(cvForChat);
+          const updated = applyChatCvUpdates(cvForChat, fallback.data);
+          setActiveCv(updated);
+          saveCv(updated);
+          if (fallback.data?.content) await loadCVs();
+          setMessages((prev) => {
+            const next = [
+              ...prev,
+              {
+                role: "assistant",
+                content: reply,
+                suggestions: suggestions.length ? suggestions : undefined,
+              },
+            ];
+            persistChat(activeCv.id, next);
+            return next;
+          });
+          await refreshProfile();
+          return;
+        }
+
+        // Defensive shape checks
+        const updatedContent = result.data?.content;
+        if (!result.success || !updatedContent) {
+          setMessages((prev) => {
+            const next = [
+              ...prev,
+              { role: "assistant", content: "I couldn’t process that update safely. Please try again with a little more detail." },
+            ];
+            persistChat(activeCv.id, next);
+            return next;
+          });
+          return;
+        }
+
+        // Apply updated CV content
+        pushUndoSnapshot(cvForChat);
+        const updatedCv = {
+          ...cvForChat,
+          name: updatedContent.full_name ? `${updatedContent.full_name} CV` : cvForChat.name,
+          content: updatedContent,
+          updated_at: new Date().toISOString(),
+        };
+        setActiveCv(updatedCv);
+        saveCv(updatedCv);
+        await loadCVs();
+
+        // Persist meta + missing fields for export warning
+        const nextMeta = result.data?.slot_meta || metaToSend;
+        if (nextMeta) setSlotMeta(nextMeta);
+        setSlotMissingFields(result.data?.missing_fields || []);
+
+        const reply = result.data?.reply || result.message || "Done.";
+        const guidedChoices = result.data?.guided_choices;
+        setMessages((prev) => {
+          const next = [
+            ...prev,
+            {
+              role: "assistant",
+              content: reply,
+              guidedChoices: guidedChoices || undefined,
+            },
+          ];
+          persistChat(activeCv.id, next);
+          return next;
+        });
+        await refreshProfile();
+      } catch (e) {
+        setMessages((prev) => {
+          const next = [
+            ...prev,
+            { role: "assistant", content: "Sorry — I couldn’t update your CV right now. Please try again." },
+          ];
+          persistChat(activeCv.id, next);
+          return next;
+        });
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 

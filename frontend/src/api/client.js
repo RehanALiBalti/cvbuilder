@@ -153,6 +153,13 @@ export async function aiChat(payload) {
   }, true);
 }
 
+export async function aiSlotFill(payload) {
+  return apiFetch("/api/ai/slot-fill", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, true);
+}
+
 export async function aiPolish(payload) {
   return apiFetch("/api/ai/polish", {
     method: "POST",

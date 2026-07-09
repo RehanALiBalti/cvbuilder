@@ -15,7 +15,6 @@ function emptyContent(base = {}) {
     full_name: "",
     job_title: "",
     summary: "",
-    contact: { email: "", phone: "", location: "", linkedin: "", website: "", github: "" },
     experience: [],
     education: [],
     projects: [],
