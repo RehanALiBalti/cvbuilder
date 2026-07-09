@@ -134,6 +134,7 @@ export default function CVBuilder() {
     meta: {},
   });
   const chatEndRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const previewRef = useRef(null);
   const inputRef = useRef(null);
   const saveTimerRef = useRef(null);
@@ -166,7 +167,10 @@ export default function CVBuilder() {
   }, [user?.uid]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Keep the newest message in view reliably (scroll container + sentinel).
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
 
   useEffect(() => {
@@ -788,6 +792,7 @@ export default function CVBuilder() {
           persistChat(activeCv.id, next);
           return next;
         });
+        focusAnswerInput();
         await refreshProfile();
       } catch (e) {
         setMessages((prev) => {
@@ -918,6 +923,7 @@ export default function CVBuilder() {
           return next;
         });
       }
+      focusAnswerInput();
       await refreshProfile();
 
       if (action === "export_pdf" || action === "export_docx") {
@@ -1536,7 +1542,7 @@ export default function CVBuilder() {
                   </div>
                 </div>
               )}
-              <div className="chat-messages">
+              <div className="chat-messages" ref={chatScrollRef}>
                 {messages.length === 0 && !loading && (
                   <div className="chat-empty-hint builder-anim builder-anim--2">
                     <strong>Build your CV in minutes</strong>
@@ -1547,7 +1553,7 @@ export default function CVBuilder() {
                 {messages.map((msg, i) => (
                   <div
                     key={i}
-                    className={`chat-bubble chat-bubble--${msg.role} chat-bubble--enter`}
+                    className={`chat-bubble chat-bubble--${msg.role} chat-bubble--enter ${i === messages.length - 1 ? "chat-bubble--latest" : ""}`}
                   >
                     <span className="chat-role">{msg.role === "user" ? "You" : "AI"}</span>
                     <p>{msg.content}</p>
