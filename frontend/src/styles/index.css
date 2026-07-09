@@ -1405,6 +1405,10 @@ button, input, select, textarea {
   font-size: 0.78rem;
 }
 
+.builder-chat-panel .upload-bar {
+  margin-bottom: -4px;
+}
+
 .chat-input-row {
   display: flex;
   gap: 10px;

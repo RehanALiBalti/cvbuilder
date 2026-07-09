@@ -90,22 +90,6 @@ export default function ChatQuickActions({
           >
             Download PDF
           </button>
-          <button
-            type="button"
-            className="chat-quick-chip"
-            disabled={disabled}
-            onClick={() => onAction({ type: "upload_cv" })}
-          >
-            Upload CV
-          </button>
-          <button
-            type="button"
-            className="chat-quick-chip"
-            disabled={disabled}
-            onClick={() => onAction({ type: "upload_photo" })}
-          >
-            Profile photo
-          </button>
         </div>
       </div>
     </div>

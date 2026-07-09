@@ -1619,16 +1619,16 @@ export default function CVBuilder() {
               </div>
 
               <div className="chat-input-area">
+                <UploadBar
+                  disabled={loading || exporting || generating}
+                  onCvUpload={handleCvUpload}
+                  onPhotoUpload={handlePhotoUpload}
+                />
                 <ChatQuickActions
                   content={activeCv.content}
                   messagesEmpty={messages.length === 0}
                   disabled={loading || exporting || generating}
                   onAction={handleChatAction}
-                />
-                <UploadBar
-                  disabled={loading || exporting || generating}
-                  onCvUpload={handleCvUpload}
-                  onPhotoUpload={handlePhotoUpload}
                 />
                 {pendingSection && (
                   <div className="chat-pending-bar">
