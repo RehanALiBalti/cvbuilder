@@ -281,6 +281,59 @@ Rules:
 """
 
 
+def extract_cv_slots_prompt(
+    slot_view: Dict[str, Any],
+    user_message: str,
+) -> str:
+    """Extraction-only prompt: latest message → slot JSON patch. No history, no generation."""
+    slot_json = json.dumps(slot_view, indent=2, ensure_ascii=False)
+    return f"""You are a CV data extraction assistant.
+
+Given the current CV JSON and the latest user message, extract any CV-relevant information from the message and return ONLY the updated JSON.
+
+Current CV JSON:
+{slot_json}
+
+Latest user message:
+{user_message}
+
+Rules:
+- Return valid JSON only.
+- Do not include markdown.
+- Do not include explanation.
+- Do not guess missing fields.
+- Preserve existing filled values unless the user clearly updates or removes them.
+- Keep unknown fields null or empty.
+- If the user gives experience, add or update the experience array.
+- If the user gives education, add or update the education array.
+- If the user gives skills, add or update the skills array.
+- If the user gives languages, add or update the languages array.
+- Do not generate professional bullets in this call.
+- Do not generate a summary unless the user explicitly provides summary text.
+- Extract ONLY from the latest user message — do not use prior conversation.
+- Use this exact schema shape (only include fields that changed or were provided):
+
+{{
+  "name": null,
+  "jobTitle": null,
+  "experienceLevel": null,
+  "fieldType": null,
+  "phone": null,
+  "email": null,
+  "city": null,
+  "linkedin": null,
+  "summary": null,
+  "experience": [],
+  "education": [],
+  "skills": [],
+  "languages": []
+}}
+
+Experience item shape: {{"title": null, "company": null, "startDate": null, "endDate": null, "city": null, "bullets": []}}
+Education item shape: {{"degree": null, "institute": null, "year": null, "city": null}}
+"""
+
+
 def general_chat_prompt(message: str, content: CVContent, tone: WritingTone) -> str:
     name = (content.full_name or "").strip()
     role = (content.job_title or "").strip()

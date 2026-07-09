@@ -11,6 +11,9 @@ DATA_DIR = Path(os.getenv("CVBUILDER_DATA_DIR", str(APP_ROOT / "data")))
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 
+# Slot-filling CV extraction (POST /api/ai/slot-fill). Off by default for safe rollback.
+SLOT_FILLING_MODE = os.getenv("SLOT_FILLING_MODE", "false").lower() in ("1", "true", "yes")
+
 
 def ollama_base_url() -> str:
     url = OLLAMA_URL.rstrip("/")

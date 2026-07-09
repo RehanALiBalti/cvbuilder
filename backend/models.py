@@ -262,6 +262,18 @@ class AIChatRequest(BaseModel):
     theme_override: Optional[CustomTheme] = None
 
 
+class SlotMeta(BaseModel):
+    """Session-only slot metadata (not persisted to Firestore in Phase 1)."""
+    experience_level: str = ""
+    field_type: str = ""
+
+
+class AISlotFillRequest(BaseModel):
+    message: str
+    content: CVContent = Field(default_factory=CVContent)
+    slot_meta: Optional[SlotMeta] = None
+
+
 class AIPolishRequest(BaseModel):
     """One-shot polish after guided section-wise data collection."""
     content: CVContent = Field(default_factory=CVContent)

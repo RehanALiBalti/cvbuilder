@@ -13,12 +13,13 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
-from backend import ai_service, billing, contact_service, export, storage, templates, upload_service, user_service
+from backend import ai_service, billing, contact_service, export, slot_filling, storage, templates, upload_service, user_service
 from backend.firebase_app import check_firebase, is_enabled
 from backend.firebase_auth import AuthUser, optional_user, require_user
 from backend.storage import StorageError
 from backend.models import (
     AIChatRequest,
+    AISlotFillRequest,
     AICareerGuidanceRequest,
     AIAnalyzeRequest,
     AICoverLetterRequest,
@@ -547,6 +548,25 @@ def ai_chat(req: AIChatRequest, user: AuthUser = Depends(require_user)) -> Dict[
                 else req.theme_override
             )
             result.data = data
+    return result.model_dump()
+
+
+@app.post("/api/ai/slot-fill")
+def ai_slot_fill(req: AISlotFillRequest, user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    """Extraction-only slot filling: merge latest message into CV, return next 1–2 questions."""
+    ok, msg = user_service.check_can_send_ai(user.uid)
+    if not ok:
+        raise HTTPException(403, msg)
+
+    slot_meta = req.slot_meta.model_dump() if req.slot_meta else None
+    result = _ai_handler(
+        slot_filling.extract_cv_slots,
+        req.content,
+        req.message,
+        slot_meta,
+    )
+    if result.success:
+        user_service.increment_ai_usage(user.uid)
     return result.model_dump()
 
 
