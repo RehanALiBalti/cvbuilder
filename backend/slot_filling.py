@@ -326,32 +326,125 @@ def build_next_questions(
     return reply, batch, guided_choices
 
 
-def _build_extraction_ack(patch: Dict[str, Any]) -> str:
-    """Short acknowledgment of what was extracted."""
-    parts: List[str] = []
-    if patch.get("name"):
-        parts.append("name")
-    if patch.get("jobTitle"):
-        parts.append("job title")
-    if patch.get("email"):
-        parts.append("email")
-    if patch.get("phone"):
-        parts.append("phone")
-    if patch.get("city"):
-        parts.append("location")
-    if patch.get("skills"):
-        parts.append("skills")
-    if patch.get("experience"):
-        parts.append("experience")
-    if patch.get("education"):
-        parts.append("education")
-    if patch.get("languages"):
-        parts.append("languages")
-    if patch.get("summary"):
-        parts.append("summary")
-    if not parts:
-        return "Got it."
-    return f"Saved your {' and '.join(parts)} to your CV."
+def _format_field_list(labels: List[str]) -> str:
+    """Join field labels for a natural English list (Oxford comma)."""
+    if not labels:
+        return ""
+    if len(labels) == 1:
+        return labels[0]
+    if len(labels) == 2:
+        return f"{labels[0]} and {labels[1]}"
+    return ", ".join(labels[:-1]) + f", and {labels[-1]}"
+
+
+def _skills_snapshot(content: CVContent) -> List[str]:
+    return [s.strip().lower() for s in (content.skills or []) if isinstance(s, str) and s.strip()]
+
+
+def _experience_snapshot(content: CVContent) -> List[str]:
+    rows: List[str] = []
+    for exp in content.experience or []:
+        bullets = "|".join(b.strip() for b in (exp.bullets or []) if b.strip())
+        rows.append(f"{exp.role.strip().lower()}|{exp.company.strip().lower()}|{bullets}")
+    return rows
+
+
+def _education_snapshot(content: CVContent) -> List[str]:
+    rows: List[str] = []
+    for edu in content.education or []:
+        rows.append(
+            f"{edu.degree.strip().lower()}|{edu.institution.strip().lower()}|{edu.end_date.strip().lower()}"
+        )
+    return rows
+
+
+def _languages_snapshot(content: CVContent) -> List[str]:
+    rows: List[str] = []
+    for lang in content.languages or []:
+        name = (lang.name if hasattr(lang, "name") else lang.get("name", "")).strip().lower()
+        prof = (lang.proficiency if hasattr(lang, "proficiency") else lang.get("proficiency", "")).strip().lower()
+        if name:
+            rows.append(f"{name}|{prof}")
+    return sorted(rows)
+
+
+def _meta_value(meta: Dict[str, Any], *keys: str) -> str:
+    for key in keys:
+        value = meta.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def detect_changed_field_labels(
+    before: CVContent,
+    after: CVContent,
+    meta_before: Optional[Dict[str, Any]] = None,
+    meta_after: Optional[Dict[str, Any]] = None,
+) -> List[str]:
+    """Return human-readable labels for fields newly added or updated by this merge."""
+    meta_before = meta_before or {}
+    meta_after = meta_after or {}
+    changed: List[str] = []
+
+    if before.full_name.strip() != after.full_name.strip() and after.full_name.strip():
+        changed.append("name")
+    if before.job_title.strip() != after.job_title.strip() and after.job_title.strip():
+        changed.append("job title")
+
+    field_before = _meta_value(meta_before, "field_type", "fieldType")
+    field_after = _meta_value(meta_after, "field_type", "fieldType")
+    if field_before != field_after and field_after:
+        changed.append("field type")
+
+    level_before = _meta_value(meta_before, "experience_level", "experienceLevel")
+    level_after = _meta_value(meta_after, "experience_level", "experienceLevel")
+    if level_before != level_after and level_after:
+        changed.append("experience level")
+
+    if before.contact.email.strip() != after.contact.email.strip() and after.contact.email.strip():
+        changed.append("email")
+    if before.contact.phone.strip() != after.contact.phone.strip() and after.contact.phone.strip():
+        changed.append("phone")
+    if before.contact.location.strip() != after.contact.location.strip() and after.contact.location.strip():
+        changed.append("location")
+    if before.contact.linkedin.strip() != after.contact.linkedin.strip() and after.contact.linkedin.strip():
+        changed.append("linkedin")
+    if before.summary.strip() != after.summary.strip() and after.summary.strip():
+        changed.append("summary")
+
+    if _skills_snapshot(before) != _skills_snapshot(after) and _skills_snapshot(after):
+        changed.append("skills")
+    if _experience_snapshot(before) != _experience_snapshot(after) and _experience_snapshot(after):
+        changed.append("experience")
+    if _education_snapshot(before) != _education_snapshot(after) and _education_snapshot(after):
+        changed.append("education")
+    if _languages_snapshot(before) != _languages_snapshot(after) and _languages_snapshot(after):
+        changed.append("languages")
+
+    return changed
+
+
+def build_extraction_ack(changed_labels: List[str]) -> str:
+    """Build the human reply summarizing fields saved in this request."""
+    if not changed_labels:
+        return (
+            "I could not find new CV details in that message. "
+            "Please share your job title, skills, work experience, or education."
+        )
+    return f"Saved your {_format_field_list(changed_labels)} to your CV."
+
+
+def _build_extraction_ack(
+    before: CVContent,
+    after: CVContent,
+    meta_before: Optional[Dict[str, Any]] = None,
+    meta_after: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Short acknowledgment of fields actually changed by this merge."""
+    return build_extraction_ack(
+        detect_changed_field_labels(before, after, meta_before, meta_after)
+    )
 
 
 def extract_cv_slots(
@@ -411,7 +504,7 @@ def extract_cv_slots(
     missing = get_missing_cv_fields(merged, updated_meta)
     questions_reply, question_objs, guided_choices = build_next_questions(missing)
 
-    ack = _build_extraction_ack(parsed)
+    ack = _build_extraction_ack(current_content, merged, meta, updated_meta)
     reply = f"{ack}\n\n{questions_reply}" if missing else ack
 
     return AIResponse(
