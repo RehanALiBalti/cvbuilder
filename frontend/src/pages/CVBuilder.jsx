@@ -1276,11 +1276,14 @@ export default function CVBuilder() {
       await refreshProfile();
 
       const reply = result.data?.reply || result.message || "Your professional CV is ready.";
-      const msgs = [
-        { role: "assistant", content: reply, suggestions: result.suggestions },
-      ];
-      setMessages(msgs);
-      await persistChat(activeCv.id, msgs);
+      setMessages((prev) => {
+        const next = [
+          ...prev,
+          { role: "assistant", content: reply, suggestions: result.suggestions },
+        ];
+        persistChat(activeCv.id, next);
+        return next;
+      });
       setBuildMode("chat");
       setToast("Professional CV ready");
     } catch (e) {
