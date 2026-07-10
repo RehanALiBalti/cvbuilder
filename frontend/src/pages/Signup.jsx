@@ -7,7 +7,7 @@ import useSeo from "../hooks/useSeo";
 import { useAuth } from "../context/AuthContext";
 
 export default function Signup() {
-  const { signup, isAuthenticated, loading: authLoading, isFirebaseConfigured } = useAuth();
+  const { signup, loginWithGoogle, isAuthenticated, loading: authLoading, isFirebaseConfigured } = useAuth();
   const navigate = useNavigate();
 
   const [error, setError] = useState("");
@@ -59,6 +59,20 @@ export default function Signup() {
     }
   }
 
+  async function handleGoogle() {
+    setError("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+      setSuccess("Account ready! Redirecting…");
+      setTimeout(() => navigate("/builder", { replace: true }), 700);
+    } catch (err) {
+      setError(err.message || "Google sign-in failed");
+      setLoading(false);
+    }
+  }
+
   return (
     <AppLayout mainClassName="site-main--auth">
       <AuthLayout
@@ -66,7 +80,14 @@ export default function Signup() {
         subtitle="Every account starts on the free plan. Upgrade to Pro anytime from your dashboard."
         perks={["Basic plan included free", "5 CVs to get started", "Secure account & private workspace"]}
       >
-        <AuthForm mode="signup" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
+        <AuthForm
+          mode="signup"
+          onSubmit={handleSubmit}
+          onGoogleSignIn={handleGoogle}
+          loading={loading}
+          error={error}
+          success={success}
+        />
       </AuthLayout>
     </AppLayout>
   );

@@ -1,10 +1,12 @@
 import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
+  GoogleAuthProvider,
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updatePassword,
   updateProfile,
@@ -19,6 +21,9 @@ import {
   subscribeUserProfile,
   updateUserProfileDoc,
 } from "../services/userProfile";
+
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 const AuthContext = createContext(null);
 
@@ -45,6 +50,11 @@ function firebaseAuthError(err) {
     "auth/network-request-failed": "Network error. Check your connection.",
     "auth/requires-recent-login": "Please log out and log in again before changing this setting.",
     "auth/operation-not-allowed": "This account action is not available right now.",
+    "auth/popup-closed-by-user": "Google sign-in was cancelled.",
+    "auth/popup-blocked": "Pop-up blocked. Allow pop-ups for this site and try again.",
+    "auth/cancelled-popup-request": "Google sign-in was cancelled.",
+    "auth/account-exists-with-different-credential":
+      "An account already exists with this email. Log in with email/password, then link Google from Account.",
   };
   return map[code] || err?.message || "Authentication failed.";
 }
@@ -230,6 +240,23 @@ export function AuthProvider({ children }) {
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
         const mapped = mapUser(cred.user);
         await ensureUserProfile(cred.user.uid, { name: mapped.name, email: mapped.email });
+        setUser(mapped);
+        return mapped;
+      } catch (err) {
+        throw new Error(firebaseAuthError(err));
+      }
+    },
+
+    async loginWithGoogle() {
+      if (!isFirebaseConfigured) throw new Error("Sign-in is temporarily unavailable.");
+      const auth = getFirebaseAuth();
+      try {
+        const cred = await signInWithPopup(auth, googleProvider);
+        const mapped = mapUser(cred.user);
+        await ensureUserProfile(cred.user.uid, {
+          name: mapped.name,
+          email: mapped.email,
+        });
         setUser(mapped);
         return mapped;
       } catch (err) {

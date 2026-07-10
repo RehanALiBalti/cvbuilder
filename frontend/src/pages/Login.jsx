@@ -7,7 +7,7 @@ import useSeo from "../hooks/useSeo";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
-  const { login, isAuthenticated, loading: authLoading, isFirebaseConfigured } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, isFirebaseConfigured } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || "/builder";
@@ -61,6 +61,20 @@ export default function Login() {
     }
   }
 
+  async function handleGoogle() {
+    setError("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+      setSuccess("Welcome back! Redirecting…");
+      setTimeout(() => navigate(from, { replace: true }), 600);
+    } catch (err) {
+      setError(err.message || "Google sign-in failed");
+      setLoading(false);
+    }
+  }
+
   return (
     <AppLayout mainClassName="site-main--auth">
       <AuthLayout
@@ -68,7 +82,14 @@ export default function Login() {
         subtitle="Sign in to continue building and downloading your professional CVs."
         perks={["Your own CV workspace", "5 CVs on Basic", "Saved chat history per CV"]}
       >
-        <AuthForm mode="login" onSubmit={handleSubmit} loading={loading} error={error} success={success} />
+        <AuthForm
+          mode="login"
+          onSubmit={handleSubmit}
+          onGoogleSignIn={handleGoogle}
+          loading={loading}
+          error={error}
+          success={success}
+        />
         <p className="auth-forgot-link">
           <Link to="/forgot-password">Forgot password?</Link>
         </p>
