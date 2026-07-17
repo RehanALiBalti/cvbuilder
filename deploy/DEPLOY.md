@@ -123,6 +123,69 @@ Certificate auto-renew: `certbot` systemd timer (install ke sath aata hai). Test
 
 ---
 
+## New primary domain (`buzzcvpilot.com`) + SSL
+
+Same app/server — adds **buzzcvpilot.com** without removing `cv.buzzwaretech.com`.
+
+| URL | App |
+|-----|-----|
+| `https://buzzcvpilot.com/` | BuzzCVPilot (primary) |
+| `https://www.buzzcvpilot.com/` | Same |
+| `https://cv.buzzwaretech.com/` | Still works (optional) |
+| `http://65.108.236.135/cvbuilder/` | Unchanged |
+
+### 1) DNS (domain registrar)
+
+Point DNS to server IP `65.108.236.135`:
+
+| Type | Host | Value |
+|------|------|-------|
+| A | `@` (buzzcvpilot.com) | `65.108.236.135` |
+| A | `www` | `65.108.236.135` |
+
+Wait until DNS propagates:
+
+```bash
+dig +short buzzcvpilot.com
+# should print 65.108.236.135
+```
+
+### 2) Pull latest deploy scripts + attach domain (HTTP)
+
+```bash
+cd /opt/cvbuilder
+sudo -u www-data git pull   # or copy new deploy/* files to server
+sudo bash /opt/cvbuilder/deploy/setup-buzzcvpilot.sh
+```
+
+Test: **http://buzzcvpilot.com/**
+
+### 3) Install SSL (HTTPS)
+
+```bash
+sudo CERTBOT_EMAIL=your-real-email@gmail.com bash /opt/cvbuilder/deploy/setup-ssl-buzzcvpilot.sh
+```
+
+Yeh Let's Encrypt cert lagata hai for `buzzcvpilot.com` + `www.buzzcvpilot.com`, HTTP→HTTPS redirect, aur `.env` update karta hai.
+
+### 4) Firebase + Stripe (one-time)
+
+- **Firebase Console** → Authentication → Settings → Authorized domains → add:
+  - `buzzcvpilot.com`
+  - `www.buzzcvpilot.com`
+- **Stripe** webhook URL:
+  - `https://buzzcvpilot.com/api/billing/webhook`
+
+### 5) Verify
+
+```bash
+curl -I https://buzzcvpilot.com/
+curl https://buzzcvpilot.com/api/health
+sudo certbot renew --dry-run
+```
+
+---
+
 ## Standalone deploy (separate domain/IP)
 
 Recommended: Ubuntu 22.04/24.04, 4+ GB RAM (8 GB better for Ollama).
