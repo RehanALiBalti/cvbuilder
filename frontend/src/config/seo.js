@@ -1,7 +1,6 @@
 // Central SEO configuration for public marketing pages.
-// The canonical public site is the subdomain; canonicals always point here
-// so the /cvbuilder/ IP deployment never competes for the same rankings.
-export const SITE_URL = "https://cv.buzzwaretech.com";
+// Canonical public site is the primary domain; keep /cvbuilder/ IP out of rankings.
+export const SITE_URL = "https://buzzcvpilot.com";
 export const SITE_NAME = "BuzzCVPilot";
 
 export const DEFAULT_TITLE = "AI CV Builder & Resume Maker | BuzzCVPilot";

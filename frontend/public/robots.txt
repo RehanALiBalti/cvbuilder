@@ -8,4 +8,4 @@ Allow: /
 # Do NOT add Disallow for these until they are confirmed removed from the
 # index, otherwise Google cannot see the noindex tag.
 
-Sitemap: https://cv.buzzwaretech.com/sitemap.xml
+Sitemap: https://buzzcvpilot.com/sitemap.xml
