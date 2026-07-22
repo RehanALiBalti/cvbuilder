@@ -2,11 +2,11 @@ import { Link } from "react-router-dom";
 import { computeAtsScore } from "../utils/atsScore";
 
 const NAV_ITEMS = [
-  { id: "home", icon: "⌂", label: "Home" },
-  { id: "builder", icon: "✎", label: "Builder" },
-  { id: "ats", icon: "▥", label: "ATS" },
-  { id: "templates", icon: "▱", label: "Templates" },
-  { id: "profile", icon: "♙", label: "Profile" },
+  { id: "home", label: "Home" },
+  { id: "builder", label: "Builder" },
+  { id: "ats", label: "ATS" },
+  { id: "templates", label: "Templates" },
+  { id: "profile", label: "Profile" },
 ];
 
 const BUILDER_SECTIONS = [
@@ -24,13 +24,19 @@ const TEMPLATE_META = [
   { name: "Minimal", tone: "cyan", badge: "Entry" },
 ];
 
-function PhoneStatus() {
+function NavIcon({ id }) {
+  const paths = {
+    home: <><path d="M3 10.8 12 3l9 7.8" /><path d="M5.5 9.5V21h13V9.5M9.5 21v-7h5v7" /></>,
+    builder: <><path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16Z" /><path d="m14.7 6.5 3 3M4 20h16" /></>,
+    ats: <><path d="M5 20V11M12 20V4M19 20v-6" /><path d="M3 20h18" /></>,
+    templates: <><path d="m12 3 9 4.5-9 4.5-9-4.5Z" /><path d="m3 12 9 4.5 9-4.5M3 16.5l9 4.5 9-4.5" /></>,
+    profile: <><circle cx="12" cy="7" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /></>,
+  };
+
   return (
-    <div className="mobile-status" aria-hidden="true">
-      <span>9:41</span>
-      <span className="mobile-island" />
-      <span className="mobile-signal">•••• ▮</span>
-    </div>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {paths[id]}
+    </svg>
   );
 }
 
@@ -44,7 +50,7 @@ function BottomNav({ active, onChange }) {
           className={active === item.id ? "is-active" : ""}
           onClick={() => onChange(item.id)}
         >
-          <span className="mobile-nav-icon" aria-hidden="true">{item.icon}</span>
+          <span className="mobile-nav-icon"><NavIcon id={item.id} /></span>
           <span>{item.label}</span>
         </button>
       ))}
@@ -267,7 +273,6 @@ export default function MobileWorkspace({
 
   return (
     <div className="mobile-workspace">
-      <PhoneStatus />
       <main className={`mobile-workspace-content mobile-screen--${tab}`}>
         {tab === "home" && <HomeScreen user={user} cvs={cvs} score={score} onCreate={onCreate} onOpen={onOpen} />}
         {tab === "builder" && <BuilderScreen hasCv={Boolean(firstCvId)} onCreate={onCreate} onOpen={openFirst} />}

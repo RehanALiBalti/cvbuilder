@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import LandingLoader from "../components/LandingLoader";
 import PricingSection from "../components/PricingSection";
 import Reveal from "../components/Reveal";
 import useSeo from "../hooks/useSeo";
+import { useAuth } from "../context/AuthContext";
 import { PAGE_SEO, SITE_URL } from "../config/seo";
 
 const FEATURES = [
@@ -83,6 +84,8 @@ function FaqItem({ q, a, open, onToggle }) {
 }
 
 export default function Landing() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [openFaq, setOpenFaq] = useState(0);
   const finishLoad = useCallback(() => setLoading(false), []);
@@ -116,6 +119,21 @@ export default function Landing() {
   );
 
   useSeo({ ...PAGE_SEO.home, jsonLd: [softwareJsonLd, faqJsonLd] });
+
+  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+
+  useEffect(() => {
+    if (!isMobile || authLoading) return;
+    navigate(isAuthenticated ? "/builder" : "/login", { replace: true });
+  }, [authLoading, isAuthenticated, isMobile, navigate]);
+
+  if (isMobile) {
+    return (
+      <div className="auth-loading mobile-route-loading" aria-label="Loading">
+        <div className="auth-loading-spinner" />
+      </div>
+    );
+  }
 
   return (
     <>

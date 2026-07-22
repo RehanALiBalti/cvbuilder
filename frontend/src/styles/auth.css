@@ -1047,16 +1047,6 @@
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.12);
   }
 
-  .site-main--auth .auth-page::before {
-    content: "";
-    display: block;
-    width: 96px;
-    height: 27px;
-    margin: 12px auto 0;
-    border-radius: 999px;
-    background: #0b1427;
-  }
-
   .site-main--auth .auth-panel--brand {
     display: none;
   }
