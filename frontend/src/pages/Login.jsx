@@ -90,9 +90,6 @@ export default function Login() {
           error={error}
           success={success}
         />
-        <p className="auth-forgot-link">
-          <Link to="/forgot-password">Forgot password?</Link>
-        </p>
       </AuthLayout>
     </AppLayout>
   );

@@ -22,7 +22,8 @@ export default function AuthForm({
   success,
 }) {
   const isSignup = mode === "signup";
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +34,7 @@ export default function AuthForm({
 
   function validate() {
     const errs = {};
-    if (isSignup && !name.trim()) errs.name = "Name is required";
+    if (isSignup && !firstName.trim()) errs.firstName = "First name is required";
     if (!email.trim()) errs.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Enter a valid email";
     if (!password) errs.password = "Password is required";
@@ -50,12 +51,23 @@ export default function AuthForm({
   async function handleSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
-    await onSubmit({ name: name.trim(), email: email.trim(), password });
+    await onSubmit({ name: `${firstName.trim()} ${lastName.trim()}`.trim(), email: email.trim(), password });
   }
 
   return (
     <div className={`auth-form-wrap auth-form-animated ${shake ? "auth-form--shake" : ""} ${success ? "auth-form--success" : ""}`}>
-      <h2>{isSignup ? "Create account" : "Log in"}</h2>
+      <div className="auth-mobile-brand" aria-hidden="true">▣</div>
+      <h2>{isSignup ? "Create account" : "BuzzCVPilot"}</h2>
+      <p className="auth-mobile-subtitle">
+        {isSignup ? "Start building your perfect CV" : "Sign in to your account"}
+      </p>
+      {isSignup && (
+        <ul className="auth-mobile-benefits">
+          <li>ATS score on every CV</li>
+          <li>40+ professional templates</li>
+          <li>AI-powered suggestions</li>
+        </ul>
+      )}
       <p className="auth-switch">
         {isSignup ? (
           <>Already have an account? <Link to="/login">Log in</Link></>
@@ -102,22 +114,35 @@ export default function AuthForm({
 
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         {isSignup && (
-          <label className={`auth-field ${fieldErrors.name ? "auth-field--error" : ""}`}>
-            <span>Full name</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: "" })); }}
-              placeholder="Ali Khan"
-              autoComplete="name"
-              disabled={loading || success}
-            />
-            {fieldErrors.name && <em className="auth-field-error">{fieldErrors.name}</em>}
-          </label>
+          <div className="auth-name-row">
+            <label className={`auth-field ${fieldErrors.firstName ? "auth-field--error" : ""}`}>
+              <span>First name</span>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => { setFirstName(e.target.value); setFieldErrors((p) => ({ ...p, firstName: "" })); }}
+                placeholder="First"
+                autoComplete="given-name"
+                disabled={loading || success}
+              />
+              {fieldErrors.firstName && <em className="auth-field-error">{fieldErrors.firstName}</em>}
+            </label>
+            <label className="auth-field">
+              <span>Last name</span>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Last"
+                autoComplete="family-name"
+                disabled={loading || success}
+              />
+            </label>
+          </div>
         )}
 
         <label className={`auth-field ${fieldErrors.email ? "auth-field--error" : ""}`}>
-          <span>Email</span>
+          <span>Email address</span>
           <input
             type="email"
             value={email}
@@ -130,7 +155,10 @@ export default function AuthForm({
         </label>
 
         <label className={`auth-field ${fieldErrors.password ? "auth-field--error" : ""}`}>
-          <span>Password</span>
+          <span className="auth-password-label">
+            Password
+            {!isSignup && <Link to="/forgot-password">Forgot?</Link>}
+          </span>
           <div className="auth-password-wrap">
             <input
               type={showPassword ? "text" : "password"}
@@ -170,14 +198,20 @@ export default function AuthForm({
           {loading && <span className="auth-submit-spinner" aria-hidden="true" />}
           {success ? "Success!" : loading
             ? (isSignup ? "Creating account…" : "Signing in…")
-            : (isSignup ? "Sign up & build CV" : "Log in")}
+            : (isSignup ? "✣ Create Free Account" : "Sign In")}
         </button>
       </form>
 
-      <p className="auth-note muted">
-        {isSignup
-          ? "Basic plan by default · upgrade anytime inside your account."
-          : "Your account is protected with secure sign-in."}
+      <p className="auth-note muted auth-mobile-note">
+        {isSignup ? (
+          <>Already have an account? <Link to="/login">Sign in</Link></>
+        ) : (
+          <>Don&apos;t have an account? <Link to="/signup">Sign up free</Link></>
+        )}
+      </p>
+      <p className="auth-legal">
+        By {isSignup ? "signing up" : "continuing"}, you agree to our{" "}
+        <Link to="/terms-and-conditions">Terms</Link> &amp; <Link to="/privacy-policy">Privacy Policy</Link>
       </p>
     </div>
   );

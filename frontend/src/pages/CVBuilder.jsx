@@ -7,6 +7,7 @@ import AtsScoreMeter from "../components/AtsScoreMeter";
 import ChatQuickActions from "../components/ChatQuickActions";
 import CVPreviewSkeleton from "../components/CVPreviewSkeleton";
 import GuidedBuilder from "../components/GuidedBuilder";
+import MobileWorkspace from "../components/MobileWorkspace";
 import SectionManager from "../components/SectionManager";
 import TemplatePicker from "../components/TemplatePicker";
 import TemplateRenderer from "../components/templates/CVTemplates";
@@ -122,6 +123,8 @@ export default function CVBuilder() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [mobileTab, setMobileTab] = useState("home");
+  const [mobileCv, setMobileCv] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [buildMode, setBuildMode] = useState("chat"); // guided | chat
@@ -178,6 +181,22 @@ export default function CVBuilder() {
     setSlotMeta({ experience_level: "", field_type: "" });
     setSlotMissingFields([]);
   }, [activeCv?.id]);
+
+  useEffect(() => {
+    const firstId = cvs[0]?.id;
+    if (!firstId || mobileCv?.id === firstId) return;
+    let cancelled = false;
+    getCV(firstId)
+      .then((data) => {
+        if (!cancelled) setMobileCv(data.cv || null);
+      })
+      .catch(() => {
+        if (!cancelled) setMobileCv(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cvs, mobileCv?.id]);
 
   async function persistChat(cvId, msgs) {
     if (user?.uid && cvId) await saveChatHistory(user.uid, cvId, msgs);
@@ -1400,6 +1419,18 @@ export default function CVBuilder() {
 
         {view === "list" && (
           <>
+            <MobileWorkspace
+              tab={mobileTab}
+              onTabChange={setMobileTab}
+              user={user}
+              planLabel={planLabel}
+              cvs={cvs}
+              templates={planTemplates}
+              mobileCv={mobileCv}
+              onCreate={handleCreate}
+              onOpen={openCV}
+            />
+            <div className="builder-desktop-list">
             <div className="account-hero builder-anim builder-anim--1">
               <div className="account-avatar builder-avatar-glow" aria-hidden="true">{userInitial}</div>
               <div className="account-hero-info">
@@ -1495,6 +1526,7 @@ export default function CVBuilder() {
                 </div>
               )}
             </section>
+            </div>
           </>
         )}
 
