@@ -130,7 +130,28 @@ def sync_templates_catalog(user: AuthUser = Depends(require_user)) -> Dict[str, 
 @app.get("/api/user/me")
 def get_current_user_profile(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
     try:
-        return {"profile": user_service.get_user_profile(user.uid)}
+        return {
+            "profile": user_service.get_user_profile(user.uid),
+            "features": user_service.get_feature_flags(),
+        }
+    except StorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.delete("/api/user/me")
+def delete_current_user_account(user: AuthUser = Depends(require_user)) -> Dict[str, Any]:
+    """Permanently remove the signed-in user and all app-owned data."""
+    try:
+        profile = user_service.get_user_profile(user.uid)
+        if profile.get("stripe_subscription_id"):
+            raise HTTPException(
+                status_code=409,
+                detail="Please cancel your active subscription before deleting your account.",
+            )
+        user_service.delete_user_account(user.uid)
+        return {"success": True}
+    except HTTPException:
+        raise
     except StorageError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -578,9 +599,11 @@ def ai_linkedin(req: AILinkedInRequest) -> Dict[str, Any]:
 
 @app.get("/api/billing/plans")
 def billing_plans() -> Dict[str, Any]:
+    enabled = user_service.get_feature_flags().get("billing_enabled", False)
     return {
         "plans": billing.get_public_plans(),
-        "stripe_configured": billing.stripe_configured(),
+        "stripe_configured": enabled and billing.stripe_configured(),
+        "billing_enabled": enabled,
     }
 
 
@@ -589,6 +612,8 @@ def billing_checkout(
     req: CheckoutRequest,
     user: AuthUser = Depends(require_user),
 ) -> Dict[str, str]:
+    if not user_service.get_feature_flags().get("billing_enabled", False):
+        raise HTTPException(status_code=404, detail="Billing is not available right now.")
     try:
         return billing.create_checkout_session(
             req.plan_id,

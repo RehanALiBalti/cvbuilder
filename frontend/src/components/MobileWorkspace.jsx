@@ -231,7 +231,7 @@ function TemplatesScreen({ templates, onOpen }) {
   );
 }
 
-function ProfileScreen({ user, planLabel, cvs, score }) {
+function ProfileScreen({ user, planLabel, cvs, score, billingEnabled }) {
   const initial = (user?.name || user?.email || "U").slice(0, 2).toUpperCase();
   return (
     <>
@@ -247,7 +247,9 @@ function ProfileScreen({ user, planLabel, cvs, score }) {
       </div>
       <div className="mobile-profile-menu">
         <button type="button"><span>▣</span><strong>My CVs</strong><i>›</i></button>
-        <Link to="/builder/account"><span>ϟ</span><strong>Subscription · {planLabel}</strong><em>Active</em><i>›</i></Link>
+        {billingEnabled && (
+          <Link to="/builder/account"><span>ϟ</span><strong>Subscription · {planLabel}</strong><em>Active</em><i>›</i></Link>
+        )}
         <button type="button"><span>▯</span><strong>Job Tracker</strong><i>›</i></button>
         <Link to="/builder/account"><span>⚙</span><strong>Settings</strong><i>›</i></Link>
       </div>
@@ -259,6 +261,7 @@ export default function MobileWorkspace({
   tab,
   onTabChange,
   user,
+  features,
   planLabel,
   cvs,
   templates,
@@ -278,7 +281,15 @@ export default function MobileWorkspace({
         {tab === "builder" && <BuilderScreen hasCv={Boolean(firstCvId)} onCreate={onCreate} onOpen={openFirst} />}
         {tab === "ats" && <AtsScreen cv={mobileCv} scoreData={scoreData} onOpen={openFirst} />}
         {tab === "templates" && <TemplatesScreen templates={templates} onOpen={openFirst} />}
-        {tab === "profile" && <ProfileScreen user={user} planLabel={planLabel} cvs={cvs} score={score} />}
+        {tab === "profile" && (
+          <ProfileScreen
+            user={user}
+            planLabel={planLabel}
+            cvs={cvs}
+            score={score}
+            billingEnabled={features?.billing_enabled === true}
+          />
+        )}
       </main>
       <BottomNav active={tab} onChange={onTabChange} />
     </div>

@@ -27,6 +27,35 @@ export async function confirmDeleteCv(cvName) {
   return result.isConfirmed;
 }
 
+export async function confirmDeleteAccount() {
+  const result = await Swal.fire({
+    ...swalBase,
+    title: "Delete your account?",
+    html: "This permanently deletes your CVs, chat history, uploads, and profile.<br><br>Type <strong>DELETE</strong> to continue.",
+    icon: "warning",
+    input: "text",
+    inputPlaceholder: "Type DELETE",
+    inputAttributes: {
+      autocapitalize: "off",
+      autocomplete: "off",
+    },
+    showCancelButton: true,
+    confirmButtonText: "Delete account permanently",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#dc2626",
+    reverseButtons: true,
+    focusCancel: true,
+    preConfirm: (value) => {
+      if (value !== "DELETE") {
+        Swal.showValidationMessage("Type DELETE exactly to confirm.");
+        return false;
+      }
+      return true;
+    },
+  });
+  return result.isConfirmed;
+}
+
 export async function showDeleteProgress() {
   Swal.fire({
     title: "Deleting…",

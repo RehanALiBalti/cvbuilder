@@ -112,7 +112,7 @@ function detectExportIntent(text) {
 
 export default function CVBuilder() {
   useSeo({ title: "My CVs | BuzzCVPilot", path: "/builder", noindex: true });
-  const { user, plan, planLabel, profile, refreshProfile } = useAuth();
+  const { user, features, plan, planLabel, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [view, setView] = useState("list");
   const [cvs, setCvs] = useState([]);
@@ -1423,6 +1423,7 @@ export default function CVBuilder() {
               tab={mobileTab}
               onTabChange={setMobileTab}
               user={user}
+              features={features}
               planLabel={planLabel}
               cvs={cvs}
               templates={planTemplates}

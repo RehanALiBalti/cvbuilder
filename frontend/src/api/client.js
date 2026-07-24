@@ -231,6 +231,10 @@ export async function fetchUserProfile() {
   return apiFetch("/api/user/me", {}, true);
 }
 
+export async function deleteUserAccount() {
+  return apiFetch("/api/user/me", { method: "DELETE" }, true);
+}
+
 export async function createCheckoutSession(planId, interval, email) {
   return apiFetch("/api/billing/checkout", {
     method: "POST",

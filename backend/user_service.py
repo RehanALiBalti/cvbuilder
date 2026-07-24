@@ -8,6 +8,10 @@ from typing import Any, Dict, Optional, Tuple
 from backend.firebase_app import get_db, is_enabled
 from backend.local_storage import StorageError
 
+DEFAULT_FEATURE_FLAGS: Dict[str, bool] = {
+    "billing_enabled": False,
+}
+
 PLAN_LIMITS: Dict[str, Dict[str, int]] = {
     "starter": {"max_cvs": 5, "max_ai_messages_month": 50},
     "pro": {"max_cvs": 10, "max_ai_messages_month": 100_000},
@@ -59,6 +63,62 @@ def _users():
         return get_db().collection("users")
     except Exception as exc:
         raise StorageError(f"Firestore unavailable: {exc}") from exc
+
+
+def get_feature_flags() -> Dict[str, bool]:
+    """Read app-wide feature switches from app_config/features.
+
+    Missing values are deliberately disabled and the default document is
+    created on first read so operations can toggle flags in Firestore.
+    """
+    if not is_enabled():
+        return dict(DEFAULT_FEATURE_FLAGS)
+    try:
+        ref = get_db().collection("app_config").document("features")
+        snap = ref.get()
+        data = snap.to_dict() if snap.exists else {}
+        flags = {
+            key: data.get(key, default) is True
+            for key, default in DEFAULT_FEATURE_FLAGS.items()
+        }
+        if not snap.exists:
+            ref.set(flags)
+        return flags
+    except Exception as exc:
+        raise StorageError(f"Could not read feature flags: {exc}") from exc
+
+
+def delete_user_account(uid: str) -> None:
+    """Delete a user's CVs, uploads, chats, profile, contacts, and Auth user."""
+    if not uid:
+        raise StorageError("User id is required.")
+
+    from backend import storage
+
+    try:
+        for cv in storage.list_cvs(uid):
+            storage.delete_cv(uid, cv.id)
+
+        if is_enabled():
+            db = get_db()
+            user_ref = db.collection("users").document(uid)
+
+            for snap in user_ref.collection("cv_chat").stream():
+                snap.reference.delete()
+
+            contacts = db.collection("contact_submissions").where("user_id", "==", uid).stream()
+            for snap in contacts:
+                snap.reference.delete()
+
+            user_ref.delete()
+
+            from firebase_admin import auth
+
+            auth.delete_user(uid)
+    except StorageError:
+        raise
+    except Exception as exc:
+        raise StorageError(f"Could not delete account: {exc}") from exc
 
 
 def get_user_doc(uid: str) -> Dict[str, Any]:

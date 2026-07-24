@@ -14,7 +14,7 @@ import {
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
 import { PLAN_CV_LIMITS } from "../config/pricing";
-import { fetchUserProfile } from "../api/client";
+import { deleteUserAccount, fetchUserProfile } from "../api/client";
 import {
   ensureUserProfile,
   planLabel,
@@ -70,6 +70,10 @@ const DEFAULT_PROFILE = {
   plan_canceling: false,
 };
 
+const DEFAULT_FEATURES = {
+  billing_enabled: false,
+};
+
 const EXPIRED_STATUSES = new Set(["canceled", "expired", "unpaid", "incomplete_expired"]);
 
 function normalizeProfile(data = {}) {
@@ -112,6 +116,7 @@ function normalizeProfile(data = {}) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [features, setFeatures] = useState(DEFAULT_FEATURES);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -128,6 +133,7 @@ export function AuthProvider({ children }) {
       if (!fbUser) {
         setUser(null);
         setProfile(DEFAULT_PROFILE);
+        setFeatures(DEFAULT_FEATURES);
         setLoading(false);
         return;
       }
@@ -142,6 +148,7 @@ export function AuthProvider({ children }) {
       try {
         const apiProfile = await fetchUserProfile();
         if (apiProfile?.profile) setProfile(normalizeProfile(apiProfile.profile));
+        if (apiProfile?.features) setFeatures({ ...DEFAULT_FEATURES, ...apiProfile.features });
       } catch {
         /* Firestore snapshot is fallback */
       }
@@ -158,6 +165,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     user,
     profile,
+    features,
     plan: profile?.plan || "starter",
     planLabel: planLabel(profile?.plan || "starter"),
     loading,
@@ -168,6 +176,7 @@ export function AuthProvider({ children }) {
       try {
         const data = await fetchUserProfile();
         if (data?.profile) setProfile(normalizeProfile(data.profile));
+        if (data?.features) setFeatures({ ...DEFAULT_FEATURES, ...data.features });
       } catch {
         /* ignore */
       }
@@ -268,8 +277,22 @@ export function AuthProvider({ children }) {
       if (isFirebaseConfigured) await signOut(getFirebaseAuth());
       setUser(null);
       setProfile(DEFAULT_PROFILE);
+      setFeatures(DEFAULT_FEATURES);
     },
-  }), [user, profile, loading]);
+
+    async deleteAccount() {
+      if (!isFirebaseConfigured) throw new Error("Account deletion is temporarily unavailable.");
+      try {
+        await deleteUserAccount();
+        await signOut(getFirebaseAuth()).catch(() => {});
+        setUser(null);
+        setProfile(DEFAULT_PROFILE);
+        setFeatures(DEFAULT_FEATURES);
+      } catch (err) {
+        throw new Error(firebaseAuthError(err));
+      }
+    },
+  }), [user, profile, features, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

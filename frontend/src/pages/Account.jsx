@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../components/AppLayout";
 import PlanStatusBanner from "../components/PlanStatusBanner";
 import { createCheckoutSession } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import useSeo from "../hooks/useSeo";
+import { confirmDeleteAccount } from "../utils/confirmDialog";
 import { displayPlanCvLimit, normalizePricingPlans, PRICING_PLANS, yearlySavingsPct } from "../config/pricing";
 
-const SECTIONS = [
+const BASE_SECTIONS = [
   { id: "profile", label: "Profile", icon: "👤" },
   { id: "security", label: "Security", icon: "🔒" },
-  { id: "billing", label: "Billing", icon: "💳" },
 ];
 
 function PlanBadge({ plan, large }) {
@@ -31,12 +31,15 @@ export default function Account() {
   const {
     user,
     profile,
+    features,
     plan,
     planLabel,
     refreshProfile,
     updateProfileInfo,
     changePassword,
+    deleteAccount,
   } = useAuth();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const [activeSection, setActiveSection] = useState("profile");
   const [annual, setAnnual] = useState(false);
@@ -46,19 +49,28 @@ export default function Account() {
   const [profileName, setProfileName] = useState(user?.name || "");
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [accountDeleting, setAccountDeleting] = useState(false);
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
+  const billingEnabled = features?.billing_enabled === true;
+  const sections = billingEnabled
+    ? [...BASE_SECTIONS, { id: "billing", label: "Billing", icon: "💳" }]
+    : BASE_SECTIONS;
 
   const aiUsed = profile?.ai_messages_used ?? 0;
   const aiLimit = profile?.ai_messages_limit ?? 50;
   const aiPct = Math.min(100, Math.round((aiUsed / aiLimit) * 100));
 
   useEffect(() => {
-    if (params.get("checkout") === "success") {
+    if (billingEnabled && params.get("checkout") === "success") {
       setToast("Payment successful! Your plan is being updated.");
       setActiveSection("billing");
       refreshProfile();
     }
-  }, [params, refreshProfile]);
+  }, [billingEnabled, params, refreshProfile]);
+
+  useEffect(() => {
+    if (!billingEnabled && activeSection === "billing") setActiveSection("profile");
+  }, [activeSection, billingEnabled]);
 
   useEffect(() => {
     setProfileName(user?.name || "");
@@ -109,6 +121,20 @@ export default function Account() {
       setError(err.message || "Could not change password");
     } finally {
       setPasswordSaving(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!(await confirmDeleteAccount())) return;
+    setError("");
+    setToast("");
+    setAccountDeleting(true);
+    try {
+      await deleteAccount();
+      navigate("/login", { replace: true });
+    } catch (err) {
+      setError(err.message || "Could not delete your account.");
+      setAccountDeleting(false);
     }
   }
 
@@ -163,7 +189,7 @@ export default function Account() {
         <div className="account-body">
           {/* Sidebar nav */}
           <nav className="account-nav" aria-label="Account sections">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button
                 key={s.id}
                 type="button"
@@ -261,10 +287,25 @@ export default function Account() {
                     </button>
                   </div>
                 </form>
+
+                <div className="account-danger-zone">
+                  <div>
+                    <h3>Delete account</h3>
+                    <p>Permanently remove your profile, CVs, uploads, and chat history.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-danger account-delete-button"
+                    disabled={accountDeleting}
+                    onClick={handleDeleteAccount}
+                  >
+                    {accountDeleting ? "Deleting account…" : "Delete account"}
+                  </button>
+                </div>
               </section>
             )}
 
-            {activeSection === "billing" && (
+            {billingEnabled && activeSection === "billing" && (
               <section className="account-card">
                 <div className="account-card-head">
                   <h2>Subscription & billing</h2>
